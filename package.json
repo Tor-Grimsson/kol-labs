@@ -1,0 +1,39 @@
+{
+  "name": "kol-labs",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Self-contained KOL lab — single Vite app with the design system inlined under src/ (mirrors kol-client-kolkrabbi).",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@floating-ui/react": "^0.27.19",
+    "d3-delaunay": "^6.0.4",
+    "d3-force": "^3.0.0",
+    "embla-carousel-react": "^8.6.0",
+    "flubber": "^0.4.2",
+    "mathjs": "^15.2.0",
+    "p5": "^1.11.13",
+    "paper": "^0.12.18",
+    "react": "^19.2.0",
+    "react-color": "^2.19.3",
+    "react-colorful": "^5.6.1",
+    "react-dom": "^19.2.0",
+    "react-router-dom": "^7.14.2",
+    "simplex-noise": "^4.0.3",
+    "simplify-js": "^1.2.4",
+    "svg-path-commander": "^2.2.1",
+    "tailwindcss": "^4.2.4",
+    "three": "^0.169.0",
+    "warpjs": "^1.0.8",
+    "@tailwindcss/vite": "^4.2.4"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^6.0.1",
+    "vite": "^8.0.10",
+    "vite-plugin-svgr": "^5.2.0"
+  }
+}

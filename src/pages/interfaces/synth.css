@@ -1,0 +1,171 @@
+@font-face {
+  font-family: 'TG Malromur';
+  src: url('/fonts/TG/TGMalromurRomanVF.ttf') format('truetype-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: block;
+}
+
+/* Scoped to the page wrapper: this gallery is a route inside the labs shell,
+   and its sheet stays in the document after navigating away — unscoped rules
+   would collide with the shell and the glyph-lab sheet (both define
+   --bg/--fg/--dim and .pager). The standalone build's :root + html,body +
+   #stage rules are merged into the wrapper; everything else nests verbatim. */
+.interfaces-page {
+  --fg: #e5dfcf;
+  --dim: #4a3e34;
+  --bg: #0b0907;
+  --screen: #100e0b;
+
+  color: var(--fg);
+  font-family: ui-monospace, 'SF Mono', 'Menlo', 'Monaco', 'Courier New', monospace;
+  font-size: 14px;
+  min-height: 100vh;
+  -webkit-font-smoothing: none;
+  font-smooth: never;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px 48px;
+  gap: 56px;
+
+  .screen {
+    width: min(420px, 100vw - 32px);
+    background: var(--screen);
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    padding: 18px 16px 16px;
+    box-sizing: border-box;
+    gap: 8px;
+  }
+
+  @media (max-width: 480px) {
+    & { padding: 16px 8px 32px; gap: 40px; }
+    .screen { padding: 14px 12px 12px; }
+  }
+
+  .screen.theme-cream { --screen: #d2c6b2; --fg: #1a1612; --dim: #6e6055; --bg: #c3b69f; }
+  .screen.theme-mono  { --screen: #0a0a0a; --fg: #f2f2f2; --dim: #3a3a3a; --bg: #060606; }
+  .screen.theme-blood { --screen: #150a09; --fg: #e7d9c9; --dim: #5a3025; --bg: #1a0e0c; }
+  .screen.theme-ice   { --screen: #0a1015; --fg: #d6e3ee; --dim: #2f4050; --bg: #070d12; }
+
+  .screen * { box-sizing: border-box; }
+
+  .statusbar {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 10px; letter-spacing: 0.12em; padding: 0 2px;
+  }
+
+  .header {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding: 2px 0; border-bottom: 1px dotted var(--dim);
+  }
+  .header .title {
+    font-family: 'TG Malromur', ui-monospace, monospace;
+    font-variation-settings: 'wght' 900;
+    font-size: 18px; letter-spacing: 0.03em;
+  }
+  .header .meta { font-size: 10px; letter-spacing: 0.14em; opacity: 0.9; }
+
+  .section-label {
+    font-size: 9px; letter-spacing: 0.2em; color: var(--dim);
+    text-transform: uppercase; padding: 2px 0;
+    display: flex; justify-content: space-between;
+  }
+  .section-label .on { color: var(--fg); }
+
+  .widget {
+    background: var(--bg); padding: 3px; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+    image-rendering: pixelated;
+  }
+  .widget canvas {
+    image-rendering: pixelated; display: block; width: 100%; height: auto;
+  }
+  .widget.naked { padding: 0; background: transparent; }
+
+  .row { display: flex; gap: 6px; }
+  .row > * { flex: 1; min-width: 0; }
+  .row.fixed > * { flex: initial; }
+
+  .grid-knobs { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; padding: 4px 2px; }
+  .grid-knobs-3x3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 6px 0; }
+  .knob-cell { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .knob-cell .widget { width: 42px; height: 42px; padding: 0; background: transparent; }
+  .knob-cell.big .widget { width: 72px; height: 72px; }
+  .knob-cell .lbl { font-size: 8px; letter-spacing: 0.2em; opacity: 0.85; }
+
+  .numeric-block {
+    display: grid; grid-template-columns: repeat(2, 1fr); gap: 2px 12px;
+    padding: 4px 4px; border-top: 1px dotted var(--dim); border-bottom: 1px dotted var(--dim);
+    font-size: 11px; letter-spacing: 0.06em;
+  }
+  .numeric-block .r { display: flex; justify-content: space-between; gap: 6px; }
+  .numeric-block .k { color: var(--dim); }
+  .numeric-block .v { color: var(--fg); }
+
+  .numeric-strip {
+    font-size: 10px; line-height: 1.5; padding: 4px 2px; color: var(--fg);
+    word-break: break-all; letter-spacing: 0.04em; opacity: 0.9;
+  }
+
+  .transport {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 6px 4px 0; border-top: 1px dotted var(--dim);
+    font-size: 11px; letter-spacing: 0.22em;
+  }
+  .transport .btns { display: flex; gap: 10px; font-size: 13px; }
+  .transport .btns span { color: var(--fg); opacity: 0.6; cursor: default; }
+  .transport .btns span.active { opacity: 1; }
+  .transport .label { color: var(--dim); font-size: 10px; letter-spacing: 0.18em; }
+
+  .beat-dot {
+    display: inline-block; width: 7px; height: 7px;
+    background: var(--fg); border-radius: 1px; vertical-align: middle; margin-right: 6px;
+    animation: blink 0.46875s steps(2, start) infinite;
+  }
+
+  .frame {
+    position: relative;
+    padding: 18px 14px 14px;
+    margin: 4px 0;
+  }
+  .frame::before, .frame::after,
+  .frame > .fc-br::before, .frame > .fc-br::after {
+    content: ''; position: absolute; width: 10px; height: 10px;
+    border-color: var(--dim); border-style: solid;
+  }
+  .frame::before  { top: 0; left: 0; border-width: 1px 0 0 1px; }
+  .frame::after   { top: 0; right: 0; border-width: 1px 1px 0 0; }
+  .frame > .fc-br::before { bottom: 0; left: 0; border-width: 0 0 1px 1px; }
+  .frame > .fc-br::after  { bottom: 0; right: 0; border-width: 0 1px 1px 0; }
+
+  .frame-title {
+    position: absolute; top: 6px; left: 12px;
+    font-size: 11px; letter-spacing: 0.22em; color: var(--fg);
+    background: var(--screen); padding: 0 6px;
+  }
+  .frame-status {
+    position: absolute; bottom: 6px; left: 12px;
+    font-size: 9px; letter-spacing: 0.2em; color: var(--dim);
+    background: var(--screen); padding: 0 6px;
+  }
+  .frame-badge {
+    position: absolute; top: 6px; right: 12px;
+    width: 14px; height: 14px; background: var(--dim);
+    image-rendering: pixelated;
+  }
+
+  .dualnum {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 2px 12px;
+    font-size: 11px; letter-spacing: 0.05em; line-height: 1.5;
+    padding: 6px 2px 0; color: var(--fg);
+  }
+  .dualnum .col { white-space: pre; }
+}
+
+@keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.2; } }

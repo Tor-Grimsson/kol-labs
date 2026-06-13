@@ -1,0 +1,125 @@
+@font-face {
+  font-family: 'TG Gullhamrar';
+  src: url('/fonts/TG/TGGullhamrarVF.ttf') format('truetype-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: block;
+}
+
+/* Scoped to the page wrapper: this gallery is a route inside the labs shell,
+   and its sheet stays in the document after navigating away — unscoped rules
+   would collide with the shell and the interfaces sheet (both define
+   --bg/--fg/--dim and .pager). The standalone build's :root + html,body rules
+   are merged into the wrapper; everything else nests verbatim. */
+.glyph-lab-page {
+  --bg: #0a0b14;
+  --fg: #f0ead8;
+  --dim: #4a4d60;
+  --accent: #8b8fd6;
+  --warm: #f3c9c4;
+
+  color: var(--fg);
+  min-height: 100vh;
+  font-family: ui-monospace, 'SF Mono', Menlo, Monaco, Courier, monospace;
+  -webkit-font-smoothing: antialiased;
+
+  #app {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    padding: 48px 16px;
+    gap: 28px;
+    box-sizing: border-box;
+  }
+
+  /* ---- Single-mode row: canvas + knobs ---- */
+  .single-row {
+    display: flex;
+    flex-direction: row;
+    gap: 20px;
+    align-items: flex-start;
+  }
+  .canvas-wrap {
+    position: relative;
+    width: 640px;
+    height: 640px;
+    max-width: 100vmin;
+    max-height: 100vmin;
+    perspective: 1400px;
+  }
+  #stage {
+    display: block;
+    background: var(--bg);
+    width: 100%;
+    height: 100%;
+    cursor: grab;
+    transform-origin: center center;
+    will-change: transform;
+    touch-action: none;
+    user-select: none;
+  }
+  #stage:active { cursor: grabbing; }
+
+  /* ---- Grid ---- */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 200px));
+    gap: 14px;
+    padding-bottom: 80px;
+    width: 100%;
+    max-width: 1300px;
+    justify-content: center;
+  }
+  @media (max-width: 720px) {
+    .grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+  }
+  .tile {
+    display: flex; flex-direction: column; gap: 4px;
+    cursor: pointer;
+    position: relative;
+  }
+  .tile canvas {
+    display: block;
+    background: var(--bg);
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1 / 1;
+  }
+  .tile .tile-label {
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    color: var(--fg);
+    opacity: 0.8;
+    line-height: 1.35;
+  }
+  .tile .tile-label b { color: var(--accent); font-weight: 400; }
+  .tile:hover canvas {
+    outline: 1px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .tile .tile-tip {
+    position: absolute;
+    inset: 0;
+    background: rgba(8, 9, 16, 0.92);
+    color: var(--fg);
+    padding: 12px;
+    font-size: 10px;
+    line-height: 1.45;
+    letter-spacing: 0.03em;
+    opacity: 0;
+    transition: opacity 0.12s ease;
+    pointer-events: none;
+    overflow: hidden;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .tile:hover .tile-tip { opacity: 1; }
+  .tile .tile-tip .n { color: var(--accent); font-weight: 400; letter-spacing: 0.18em; font-size: 10px; }
+  .tile .tile-tip .repo { color: var(--accent); font-size: 9px; opacity: 0.8; }
+  .tile .tile-tip .helps { color: var(--warm); margin-top: auto; }
+
+}

@@ -1,0 +1,15 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Experiment working files (poster sources/outputs/thumbs/plans)
+workspace/
+
+# OS cruft
+.DS_Store
+docs/
+.claude/
+.playwright-mcp/
+LLM_RULES.md
