@@ -74,11 +74,7 @@ function PreviewPanel({
             <div dangerouslySetInnerHTML={{ __html: preview.html }} />
           </div>
         </div>
-      ) : (
-        <div className="kol-mono-12 text-meta">
-          Distorted SVG preview will render here.
-        </div>
-      )}
+      ) : null}
     </div>
   )
 }

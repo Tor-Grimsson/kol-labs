@@ -237,6 +237,51 @@ export default async function handler(req, res) {
       return res.end(buf)
     }
 
+    /* GET /api/poster/plans/<id>/doc — the kol-docs markdown only (no zip) */
+    if (route.startsWith('/api/poster/plans/') && route.endsWith('/doc') && req.method === 'GET') {
+      const id = safe(route.split('/')[4] || '')
+      const plan = JSON.parse(await fs.readFile(path.join(DIRS.plans, `${id}.json`), 'utf8'))
+      const date = new Date(plan.updated || Date.now()).toISOString().slice(0, 10)
+      const slug = `${date}-${kebab(plan.title) || 'untitled'}`
+      const assets = (plan.assets || []).map(safe)
+      const cover = plan.thumb ? safe(plan.thumb) : null
+      const md = buildPlanDoc(plan, { date, assets, cover })
+      res.statusCode = 200
+      res.setHeader('Content-Type', 'text/markdown; charset=utf-8')
+      res.setHeader('Content-Disposition', `attachment; filename="${slug}.md"`)
+      return res.end(md)
+    }
+
+    /* GET /api/poster/plans/<id>/images — zip of just the plan's asset images */
+    if (route.startsWith('/api/poster/plans/') && route.endsWith('/images') && req.method === 'GET') {
+      const id = safe(route.split('/')[4] || '')
+      const plan = JSON.parse(await fs.readFile(path.join(DIRS.plans, `${id}.json`), 'utf8'))
+      const date = new Date(plan.updated || Date.now()).toISOString().slice(0, 10)
+      const slug = `${date}-${kebab(plan.title) || 'untitled'}-images`
+      const bundles = path.join(WS, 'bundles')
+      const stage = path.join(bundles, slug)
+      await fs.rm(stage, { recursive: true, force: true })
+      await fs.mkdir(stage, { recursive: true })
+      for (const f of plan.assets || []) {
+        try { await fs.copyFile(path.join(DIRS.outputs, safe(f)), path.join(stage, safe(f))) } catch { /* skip missing */ }
+      }
+      if (plan.thumb) {
+        try { await fs.copyFile(path.join(DIRS.thumbs, safe(plan.thumb)), path.join(stage, safe(plan.thumb))) } catch { /* skip missing */ }
+      }
+      const zipPath = path.join(bundles, `${slug}.zip`)
+      await fs.rm(zipPath, { force: true })
+      await new Promise((r, j) => {
+        const c = spawn('zip', ['-r', `${slug}.zip`, slug], { cwd: bundles })
+        c.on('close', (code) => (code === 0 ? r() : j(new Error('zip failed'))))
+      })
+      await fs.rm(stage, { recursive: true, force: true })
+      const buf = await fs.readFile(zipPath)
+      res.statusCode = 200
+      res.setHeader('Content-Type', 'application/zip')
+      res.setHeader('Content-Disposition', `attachment; filename="${slug}.zip"`)
+      return res.end(buf)
+    }
+
     /* DELETE /api/poster/plans/<id> — remove a saved plan */
     if (route.startsWith('/api/poster/plans/') && req.method === 'DELETE') {
       const id = safe(route.split('/')[4] || '')

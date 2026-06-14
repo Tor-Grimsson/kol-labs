@@ -23,7 +23,15 @@ export async function rasterizeGlyph(
   ctx.fillStyle = 'white'
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
-  ctx.font = `${weight} ${fontSize}px "${family}"`
+  // Shrink the requested size so multi-letter strings fit the canvas width.
+  let fs = fontSize
+  ctx.font = `${weight} ${fs}px "${family}"`
+  const maxW = w * 0.9
+  const measured = ctx.measureText(text).width
+  if (measured > maxW) {
+    fs = Math.max(8, fs * (maxW / measured))
+    ctx.font = `${weight} ${fs}px "${family}"`
+  }
   ctx.fillText(text, w / 2, h / 2)
   const img = ctx.getImageData(0, 0, w, h)
   const mask = new Uint8Array(w * h)

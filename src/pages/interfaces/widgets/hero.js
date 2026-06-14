@@ -27,7 +27,7 @@ export function hero(opts          )     {
     p.draw = () => {
       p.background(bg)
 
-      const t = p.frameCount / 30
+      const t = p.millis() / 1000 // virtualised by the tempo clock at mount
 
       // grid dots
       p.noStroke()

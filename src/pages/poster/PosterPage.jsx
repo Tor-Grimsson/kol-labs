@@ -131,12 +131,11 @@ export default function PosterPage() {
     return saved
   }
 
-  // Save first so the bundle matches what's on screen, then pull the zip
-  // (kol-docs doc + _assets + _files/plan.json).
-  const downloadPlan = async () => {
+  // Save first so the download matches what's on screen, then pull the file.
+  const download = async (kind) => {
     const saved = await save()
     const a = document.createElement('a')
-    a.href = `/api/poster/plans/${saved.id}/bundle`
+    a.href = `/api/poster/plans/${saved.id}/${kind}` // 'doc' (md) | 'images' (zip)
     a.click()
   }
 
@@ -172,7 +171,7 @@ export default function PosterPage() {
     <div className="min-h-dvh bg-surface-primary text-emphasis flex">
       {/* ── workbench ── */}
       <main className="flex-1 p-6 flex flex-col gap-6 min-w-0">
-          {!selected && <div className="kol-helper-12 text-meta">Drop a source on the right to start.</div>}
+          {!selected && <div className="kol-helper-12 text-meta">Upload a source on the right to start.</div>}
 
           {selected && (
             <>
@@ -287,14 +286,7 @@ export default function PosterPage() {
           <RailHeader>Poster</RailHeader>
 
           <Section label="Sources">
-            <div
-              className="border border-dashed border-fg-24 rounded p-4 text-center kol-helper-10 text-meta cursor-pointer hover:border-fg-48 hover:text-emphasis transition-colors"
-              onClick={() => fileRef.current?.click()}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => { e.preventDefault(); onUpload([...e.dataTransfer.files]) }}
-            >
-              drop image / video<br />or click to choose
-            </div>
+            <Button variant="primary" size="sm" iconLeft="upload" className="w-full" onClick={() => fileRef.current?.click()}>Upload image / video</Button>
             <input ref={fileRef} type="file" accept="image/*,video/*" multiple className="hidden" onChange={(e) => onUpload([...e.target.files])} />
             <ul className="flex flex-col gap-1">
               {sources.map((s) => (
@@ -369,10 +361,11 @@ export default function PosterPage() {
               </div>
             )}
           </div>
-          <Button variant="outline" size="sm" onClick={downloadPlan} iconLeft="download" className="w-full">Download plan</Button>
+          <Button variant="primary" size="sm" onClick={() => download('doc')} iconLeft="download" className="w-full">Download plan md</Button>
+          <Button variant="primary" size="sm" onClick={() => download('images')} iconLeft="download" className="w-full">Download images</Button>
           <Button variant="primary" size="sm" onClick={save} className="w-full">Save plan</Button>
 
-          <p className="kol-helper-10 text-body">social post pre-flight · drop a master, pick crops, plan the post</p>
+          <p className="kol-helper-10 text-body">social post pre-flight · upload a master, pick crops, plan the post</p>
         </EditorRail>
     </div>
   )

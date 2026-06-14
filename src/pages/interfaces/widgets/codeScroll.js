@@ -8,6 +8,8 @@
 
 
 
+import { poolFor } from '../lib/charsets.js'
+
 export function codeScroll(opts                )       {
   const rows = opts.rows ?? 4
   const groups = opts.groupsPerRow ?? 5
@@ -17,7 +19,7 @@ export function codeScroll(opts                )       {
   const fontSize = opts.fontSize ?? 11
 
   const el = document.createElement('div')
-  el.style.fontFamily = 'ui-monospace, Monaco, monospace'
+  el.style.fontFamily = 'inherit' // inherit the screen / per-element face
   el.style.fontSize = `${fontSize}px`
   el.style.lineHeight = '1.5'
   el.style.letterSpacing = '0.08em'
@@ -25,11 +27,7 @@ export function codeScroll(opts                )       {
   el.style.color = 'var(--fg)'
   el.style.whiteSpace = 'pre'
 
-  const charset =
-    mode === 'hex' ? '0123456789ABCDEF'
-    : mode === 'alpha' ? 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-    : mode === 'dna' ? 'ACGT'
-    : 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+  const charset = poolFor(mode, opts.custom)
 
   const pick = () => charset[(Math.random() * charset.length) | 0]
   const grp = () => { let s = ''; for (let i = 0; i < chars; i++) s += pick(); return s }

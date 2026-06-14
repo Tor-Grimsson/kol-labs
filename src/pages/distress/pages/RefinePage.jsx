@@ -1041,7 +1041,7 @@ function RefinePage() {
                 </div>
                 <div className="flex gap-3">
                   <Button
-                    variant="outline"
+                    variant="primary"
                     size="sm"
                     onClick={handleExport}
                     className="bg-surface-primary border-fg-08"
@@ -1049,7 +1049,7 @@ function RefinePage() {
                     Download SVG
                   </Button>
                   <Button
-                    variant="outline"
+                    variant="primary"
                     size="sm"
                     onClick={handleCopyPath}
                     className="bg-surface-primary border-fg-08"

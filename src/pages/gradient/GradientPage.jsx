@@ -6,7 +6,7 @@ import Dropdown from '../../components/molecules/Dropdown.jsx'
 import LabeledControl from '../../components/molecules/LabeledControl.jsx'
 import Section from '../../components/molecules/Section.jsx'
 import EditorRail, { RailHeader } from '../../components/framework/EditorRail.jsx'
-import { SHAPES, DRIVERS, PALETTES, shiftHue } from './data/palettes.js'
+import { SHAPES, DRIVERS, PALETTES, BG_STYLES, shiftHue } from './data/palettes.js'
 import { mulberry32 } from './engine/prng.js'
 import GradientEngine from './engine/GradientEngine.js'
 
@@ -53,6 +53,8 @@ export default function GradientPage() {
   const [grain, setGrain] = useState(0.06)
   const [speed, setSpeed] = useState(1)
   const [paused, setPaused] = useState(false)
+  const [bg, setBg] = useState(0.85)
+  const [bgStyle, setBgStyle] = useState(0)
 
   const wrapRef = useRef(null)
   const canvasRef = useRef(null)
@@ -63,7 +65,7 @@ export default function GradientPage() {
     () => seeds.map((seed) => resolveSpec(seed, { shape, paletteId, hueShift, driver, distortMult })),
     [seeds, shape, paletteId, hueShift, driver, distortMult],
   )
-  const globals = useMemo(() => ({ glow, grain, speed, paused }), [glow, grain, speed, paused])
+  const globals = useMemo(() => ({ glow, grain, speed, paused, bg, bgStyle }), [glow, grain, speed, paused, bg, bgStyle])
 
   // Engine lifecycle — one renderer for the page's lifetime.
   useEffect(() => {
@@ -139,11 +141,11 @@ export default function GradientPage() {
       <EditorRail>
         <RailHeader>Gradient</RailHeader>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" onClick={toggleView}>{view === 'grid' ? 'single' : 'grid'}</Button>
-          <Button variant="outline" size="sm" onClick={() => go(-1)}>← prev</Button>
-          <Button variant="outline" size="sm" onClick={() => go(1)}>next →</Button>
-          <Button variant="ghost" size="sm" onClick={randomize}>randomize</Button>
-          <Button variant="ghost" size="sm" onClick={() => engineRef.current?.resetCamera()}>cam reset</Button>
+          <Button variant="primary" size="sm" onClick={toggleView}>{view === 'grid' ? 'single' : 'grid'}</Button>
+          <Button variant="primary" size="sm" onClick={() => go(-1)}>← prev</Button>
+          <Button variant="primary" size="sm" onClick={() => go(1)}>next →</Button>
+          <Button variant="primary" size="sm" onClick={randomize}>randomize</Button>
+          <Button variant="primary" size="sm" onClick={() => engineRef.current?.resetCamera()}>cam reset</Button>
         </div>
 
         <Divider />
@@ -171,6 +173,20 @@ export default function GradientPage() {
           <Slider label="Hue Shift" min={-180} max={180} step={5} value={hueShift} onChange={(v) => setHueShift(Math.round(v))} className="w-full" />
         </Section>
 
+        <Section label="Background">
+          <LabeledControl inline label="style">
+            <Dropdown
+              size="sm"
+              variant="subtle"
+              className="w-full"
+              options={BG_STYLES.map((s) => ({ value: String(s.id), label: s.label }))}
+              value={String(bgStyle)}
+              onChange={(v) => setBgStyle(Number(v))}
+            />
+          </LabeledControl>
+          <Slider label="Intensity" min={0} max={1} step={0.05} value={bg} onChange={setBg} className="w-full" />
+        </Section>
+
         <Section label="Surface">
           <LabeledControl inline label="gradient">
             <Dropdown
@@ -189,7 +205,7 @@ export default function GradientPage() {
 
         <Section label="Motion">
           <Slider label="Speed" min={0} max={2} step={0.05} value={speed} onChange={setSpeed} className="w-full" />
-          <Button variant="ghost" size="sm" onClick={() => setPaused((p) => !p)}>{paused ? 'play' : 'pause'}</Button>
+          <Button variant="primary" size="sm" onClick={() => setPaused((p) => !p)}>{paused ? 'play' : 'pause'}</Button>
         </Section>
 
         <Divider />

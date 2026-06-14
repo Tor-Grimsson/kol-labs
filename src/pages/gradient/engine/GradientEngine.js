@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
-import { gradientVertex, gradientFragment } from './shaders.js'
+import { gradientVertex, gradientFragment, bgVertex, bgFragment } from './shaders.js'
 
 /* GradientEngine — one renderer, one WebGL context. Grid mode renders every
  * variation into its own scissored viewport (the three.js multi-scene
@@ -44,6 +44,11 @@ export default class GradientEngine {
     this.controls.minDistance = 1.6
     this.controls.maxDistance = 12
     this.glowTex = makeGlowTexture()
+    // background field: a shared fullscreen quad + dummy camera; each tile owns
+    // its own bg material (its palette). The bg shader is camera-independent.
+    this.bgGeo = new THREE.PlaneGeometry(2, 2)
+    this.bgCam = new THREE.Camera()
+    this.bgBase = new THREE.Color(BG)
     this.geoms = {
       sphere: new THREE.SphereGeometry(1.02, 96, 96),
       cube: new RoundedBoxGeometry(1.55, 1.55, 1.55, 6, 0.26),
@@ -55,7 +60,7 @@ export default class GradientEngine {
     this.rects = []
     this.mode = 'grid'
     this.idx = 0
-    this.globals = { glow: 0.6, grain: 0.06, speed: 1, paused: false }
+    this.globals = { glow: 0.6, grain: 0.06, speed: 1, paused: false, bg: 0.85, bgStyle: 0 }
     this.time = 0
     this.last = performance.now()
     this.raf = requestAnimationFrame(this.loop)
@@ -90,7 +95,25 @@ export default class GradientEngine {
     glow.scale.set(3.6, 3.6, 1)
     scene.add(glow)
     scene.add(mesh)
-    return { scene, mesh, material, glow, spec }
+    // background field for this tile (its own palette uniforms)
+    const bgMaterial = new THREE.ShaderMaterial({
+      vertexShader: bgVertex,
+      fragmentShader: bgFragment,
+      depthTest: false,
+      depthWrite: false,
+      uniforms: {
+        uTime: { value: 0 },
+        uColors: { value: Array.from({ length: MAX_COLORS }, () => new THREE.Color()) },
+        uCount: { value: 2 },
+        uSeedOffset: { value: 0 },
+        uIntensity: { value: 0.75 },
+        uStyle: { value: 0 },
+        uBase: { value: this.bgBase },
+      },
+    })
+    const bgScene = new THREE.Scene()
+    bgScene.add(new THREE.Mesh(this.bgGeo, bgMaterial))
+    return { scene, mesh, material, glow, bgScene, bgMaterial, spec }
   }
 
   applySpec(tile, spec) {
@@ -103,6 +126,11 @@ export default class GradientEngine {
     u.uCount.value = Math.min(spec.colors.length, MAX_COLORS)
     spec.colors.slice(0, MAX_COLORS).forEach((hex, i) => u.uColors.value[i].set(hex))
     tile.glow.material.color.set(spec.colors[Math.floor(spec.colors.length / 2)])
+    // background shares the tile's palette + seed
+    const b = tile.bgMaterial.uniforms
+    b.uCount.value = Math.min(spec.colors.length, MAX_COLORS)
+    spec.colors.slice(0, MAX_COLORS).forEach((hex, i) => b.uColors.value[i].set(hex))
+    b.uSeedOffset.value = spec.seed % 977
     tile.spec = spec
   }
 
@@ -128,11 +156,18 @@ export default class GradientEngine {
 
   renderTile(tile, rect) {
     // setViewport/setScissor take logical units; three applies the pixel ratio.
-    this.renderer.setViewport(rect.x, this.h - rect.y - rect.h, rect.w, rect.h)
-    this.renderer.setScissor(rect.x, this.h - rect.y - rect.h, rect.w, rect.h)
+    const r = this.renderer
+    r.setViewport(rect.x, this.h - rect.y - rect.h, rect.w, rect.h)
+    r.setScissor(rect.x, this.h - rect.y - rect.h, rect.w, rect.h)
+    // background pass — autoClear wipes the rect (colour + depth); the bg quad
+    // writes no depth, so the shape pass gets a clean depth buffer over it.
+    r.autoClear = true
+    r.render(tile.bgScene, this.bgCam)
+    r.autoClear = false
     this.camera.aspect = rect.w / rect.h
     this.camera.updateProjectionMatrix()
-    this.renderer.render(tile.scene, this.camera)
+    r.render(tile.scene, this.camera)
+    r.autoClear = true
   }
 
   loop = () => {
@@ -149,6 +184,10 @@ export default class GradientEngine {
       u.uTime.value = this.time
       u.uGlow.value = this.globals.glow
       u.uGrain.value = this.globals.grain
+      const b = tile.bgMaterial.uniforms
+      b.uTime.value = this.time
+      b.uIntensity.value = this.globals.bg
+      b.uStyle.value = this.globals.bgStyle
       tile.glow.material.opacity = 0.18 + this.globals.glow * 0.3
       const wave = tile.spec.shape === 'wave'
       tile.mesh.rotation.y = tile.spec.phase + this.time * tile.spec.rotSpeed * (wave ? 0.3 : 1)
@@ -196,8 +235,10 @@ export default class GradientEngine {
     for (const tile of this.tiles) {
       tile.material.dispose()
       tile.glow.material.dispose()
+      tile.bgMaterial.dispose()
     }
     for (const g of Object.values(this.geoms)) g.dispose()
+    this.bgGeo.dispose()
     this.glowTex.dispose()
     this.renderer.dispose()
   }

@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { renderDither, MODE_OPTIONS, SHAPE_OPTIONS, DEFAULT_PARAMS } from '../effects/ditherEngine'
 import { CANVAS_FX_DEFS, getDefaultCanvasFxParams, applyCanvasFx } from '../hooks/useCanvasFx'
+import { EXPORT_SPECS, DEFAULT_EXPORT_SPEC, maxWidthFor } from '../data/exportSpecs'
 import Button from '../../../components/atoms/Button.jsx'
 import Divider from '../../../components/atoms/Divider.jsx'
 import Slider from '../../../components/atoms/Slider.jsx'
@@ -9,7 +10,6 @@ import Dropdown from '../../../components/molecules/Dropdown.jsx'
 import Section from '../../../components/molecules/Section.jsx'
 import EditorRail, { RailHeader } from '../../../components/framework/EditorRail.jsx'
 import ColorPicker from '../components/ColorPicker'
-import EffectSwitcher from '../components/EffectSwitcher'
 import { useImage } from '../state/ImageContext'
 
 export default function DitherPage() {
@@ -25,6 +25,7 @@ export default function DitherPage() {
   const recorderRef = useRef(null)
   const chunksRef = useRef([])
   const [exporting, setExporting] = useState(false)
+  const [exportSpec, setExportSpec] = useState(DEFAULT_EXPORT_SPEC)
 
   // Draw raw image to canvas
   const drawRawImage = useCallback(() => {
@@ -138,11 +139,27 @@ export default function DitherPage() {
     loadImageFromFile(e.dataTransfer.files[0])
   }
 
+  // Re-render to an offscreen canvas at the chosen output standard (crisp at
+  // any size) rather than scaling the display canvas.
   const handleDownload = () => {
-    if (!canvasRef.current) return
+    if (!sourceImage) return
+    const maxWidth = maxWidthFor(exportSpec)
+    const out = document.createElement('canvas')
+    if (effectApplied) {
+      renderDither(out, sourceImage, { ...params, maxDisplay: maxWidth })
+      if (fxChain.length > 0) applyCanvasFx(out, fxChain)
+    } else {
+      const aspect = sourceImage.width / sourceImage.height
+      let dw = sourceImage.width
+      let dh = sourceImage.height
+      if (dw > maxWidth) { dw = maxWidth; dh = Math.round(dw / aspect) }
+      out.width = dw
+      out.height = dh
+      out.getContext('2d').drawImage(sourceImage, 0, 0, dw, dh)
+    }
     const link = document.createElement('a')
     link.download = `kol-radar-${Date.now()}.png`
-    link.href = canvasRef.current.toDataURL()
+    link.href = out.toDataURL()
     link.click()
   }
 
@@ -180,7 +197,7 @@ export default function DitherPage() {
   }
 
   return (
-    <div className="min-h-dvh bg-surface-primary flex">
+    <div className="min-h-dvh bg-surface-secondary flex">
       {/* Canvas / drop area */}
       <div
         className="flex-1 flex items-center justify-center p-4 overflow-hidden"
@@ -212,9 +229,6 @@ export default function DitherPage() {
       {/* Controls panel */}
       <EditorRail>
         <RailHeader>kol-radar</RailHeader>
-        <EffectSwitcher />
-
-        <Divider />
 
         <Section label="Mode">
           <Dropdown size="sm" options={MODE_OPTIONS} value={params.mode} onChange={(v) => updateParam('mode', v)} variant="subtle" className="w-full" />
@@ -222,7 +236,7 @@ export default function DitherPage() {
 
         <Section label="Shape">
           <Dropdown size="sm" options={SHAPE_OPTIONS} value={params.shape} onChange={(v) => updateParam('shape', v)} variant="subtle" className="w-full" />
-          <Button variant="ghost" size="sm" onClick={randomize}>Randomize</Button>
+          <Button variant="primary" size="sm" iconLeft="cycle" onClick={randomize} className="w-full">Randomize</Button>
         </Section>
 
         <Divider />
@@ -238,7 +252,7 @@ export default function DitherPage() {
         <Divider />
 
         <Section label="Color">
-          <ToggleSwitch label="Original Color" checked={params.useColor} onChange={(v) => updateParam('useColor', v)} />
+          <ToggleSwitch variant="plain" label="Original Color" checked={params.useColor} onChange={(v) => updateParam('useColor', v)} />
 
           {!params.useColor && (
             <div className="flex items-center justify-between">
@@ -293,6 +307,12 @@ export default function DitherPage() {
 
         <Divider />
 
+        <Section label="Output">
+          <Dropdown size="sm" options={EXPORT_SPECS} value={exportSpec} onChange={setExportSpec} variant="subtle" className="w-full" />
+        </Section>
+
+        <Divider />
+
         {/* Actions */}
         {sourceImage && !effectApplied && (
           <Button variant="accent" size="sm" onClick={handleApplyEffect} className="w-full">
@@ -301,21 +321,21 @@ export default function DitherPage() {
         )}
 
         {sourceImage && effectApplied && (
-          <Button variant="outline" size="sm" onClick={handleRemoveEffect} className="w-full">
+          <Button variant="ghost" size="sm" onClick={handleRemoveEffect} className="w-full">
             Remove Effect
           </Button>
         )}
 
-        <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} iconLeft="upload" className="w-full">
+        <Button variant="ghost" size="sm" onClick={() => fileInputRef.current?.click()} iconLeft="upload" className="w-full">
           Upload Image
         </Button>
 
-        <Button variant="outline" size="sm" onClick={() => videoInputRef.current?.click()} iconLeft="video" className="w-full">
+        <Button variant="ghost" size="sm" onClick={() => videoInputRef.current?.click()} iconLeft="video" className="w-full">
           Upload Video
         </Button>
 
         {isVideo && sourceImage && (
-          <Button variant="outline" size="sm" onClick={toggleVideo} iconLeft={videoPlaying ? 'pause' : 'play'} className="w-full">
+          <Button variant="ghost" size="sm" onClick={toggleVideo} iconLeft={videoPlaying ? 'pause' : 'play'} className="w-full">
             {videoPlaying ? 'Pause Video' : 'Play Video'}
           </Button>
         )}

@@ -8,6 +8,13 @@ export const DRIVERS = [
   { id: 2, label: 'height' },
 ]
 
+/* Background field styles (engine bgFragment uStyle). */
+export const BG_STYLES = [
+  { id: 0, label: 'flow' },
+  { id: 1, label: 'streaks' },
+  { id: 2, label: 'aurora' },
+]
+
 export const PALETTES = [
   { id: 'spectrum', label: 'Spectrum', colors: ['#ff3b30', '#ffcc00', '#34c759', '#5ac8fa', '#af52de'] },
   { id: 'heat', label: 'Heat', colors: ['#1a0a04', '#a8210b', '#ff6a00', '#ffd000'] },

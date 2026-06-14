@@ -5,6 +5,16 @@
   font-style: normal;
   font-display: block;
 }
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('/fonts/jetbrains-mono/JetBrainsMono-Regular.woff2') format('woff2');
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'PP Right Grotesk';
+  src: url('/fonts/Right-Grotesk-ttf/PPRightGrotesk-Regular.ttf') format('truetype');
+  font-weight: 400; font-style: normal; font-display: swap;
+}
 
 /* Scoped to the page wrapper: this gallery is a route inside the labs shell,
    and its sheet stays in the document after navigating away — unscoped rules
@@ -52,6 +62,13 @@
   .screen.theme-mono  { --screen: #0a0a0a; --fg: #f2f2f2; --dim: #3a3a3a; --bg: #060606; }
   .screen.theme-blood { --screen: #150a09; --fg: #e7d9c9; --dim: #5a3025; --bg: #1a0e0c; }
   .screen.theme-ice   { --screen: #0a1015; --fg: #d6e3ee; --dim: #2f4050; --bg: #070d12; }
+  /* KOL theme — every var mapped to a design-system token (surfaces + brand yellow). */
+  .screen.theme-kol   {
+    --screen: var(--kol-surface-secondary, #19191d);
+    --fg: var(--kol-accent-primary, #ffcf33);
+    --dim: color-mix(in srgb, var(--kol-accent-primary, #ffcf33) 32%, var(--kol-surface-primary, #121215));
+    --bg: var(--kol-surface-primary, #121215);
+  }
 
   .screen * { box-sizing: border-box; }
 
@@ -169,3 +186,49 @@
 }
 
 @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.2; } }
+
+/* Gallery/library tiles reuse the .interfaces-page CSS scope (themes, .screen
+   layout, pixelated canvases) but must NOT impose the page's flex-column +
+   padding — bare shrinks to the .screen so ScaleToFit can measure + scale it. */
+.interfaces-page.bare { display: inline-block; padding: 0; gap: 0; min-height: 0; }
+
+/* Frame screens (41–49): the creature canvas renders at its intrinsic pixel
+   size, centered — NOT stretched to the frame width. */
+.interfaces-page .frame .widget canvas { width: auto; height: auto; max-width: 100%; }
+
+/* p5 hides every canvas with `visibility:hidden` + data-hidden="true" on create
+   (anti-FOUC) and reveals them after setup — but that reveal races across p5
+   instances and misses canvases in some mounts (creatures blank in the player).
+   We mount deliberately, so FOUC is a non-issue: force them visible. */
+.interfaces-page canvas { visibility: visible !important; }
+
+/* Square controls (knob, reel) keep 1:1 at a fixed small size — never stretched
+   to the column/row width (a stretched knob stops reading as a knob). */
+.interfaces-page .widget.sq { flex: 0 0 auto; width: 56px; height: 56px; margin: 0 auto; }
+.interfaces-page .widget.sq canvas { width: 56px; height: 56px; }
+
+/* Generator: hover a section to reveal its remove (×) affordance. */
+.interfaces-page .gen-section { position: relative; }
+.interfaces-page .gen-remove {
+  position: absolute; top: 0; right: 0; z-index: 6;
+  width: 16px; height: 16px; padding: 0; line-height: 14px; text-align: center;
+  font-size: 13px; color: var(--fg, #e5dfcf); background: rgba(0, 0, 0, 0.55);
+  border: 0; cursor: pointer; opacity: 0; transition: opacity 0.1s;
+}
+.interfaces-page .gen-section:hover > .gen-remove { opacity: 1; }
+
+/* Generator: click-selected section. outline (not border) so it never shifts
+   layout or retriggers the height trim. The × stays visible while selected. */
+.interfaces-page .gen-section { cursor: pointer; }
+.interfaces-page .gen-section.selected { outline: 1px dashed var(--fg, #e5dfcf); outline-offset: 2px; }
+.interfaces-page .gen-section.selected > .gen-remove { opacity: 1; }
+
+/* Cipher — encoded text block, themed. */
+.interfaces-page .cipher { color: var(--fg); line-height: 1.5; letter-spacing: 0.04em; word-break: break-all; padding: 2px 0; }
+
+/* Render-style: "smooth" = without the lofi pixelation. Drops nearest-neighbour
+   upscaling on the canvases and re-enables font smoothing (the page is
+   font-smooth:none by default). Per-screen so Generate can toggle it live. */
+.interfaces-page .screen.smooth { -webkit-font-smoothing: antialiased; font-smooth: auto; }
+.interfaces-page .screen.smooth .widget canvas,
+.interfaces-page .screen.smooth canvas { image-rendering: auto; }

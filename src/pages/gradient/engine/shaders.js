@@ -50,6 +50,68 @@ float snoise(vec3 v) {
 }
 `
 
+/* Background field — a fullscreen quad (camera-independent: clip-space straight
+ * from position) drawn behind the shape in each tile. Domain-warped fbm noise
+ * mapped through the tile's palette → a soft flowing mesh-gradient
+ * (unicorn.studio / effect.app look). uStyle: 0 flow · 1 streaks · 2 aurora. */
+export const bgVertex = /* glsl */ `
+varying vec2 vUv;
+void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }
+`
+
+export const bgFragment = /* glsl */ `
+uniform vec3 uColors[5];
+uniform int uCount;
+uniform float uTime;
+uniform float uSeedOffset;
+uniform float uIntensity;
+uniform int uStyle;
+uniform vec3 uBase;
+varying vec2 vUv;
+${SNOISE}
+vec3 ramp(float t) {
+  float ft = clamp(t, 0.0, 1.0) * float(uCount - 1);
+  int i = int(floor(ft));
+  vec3 a = uColors[i];
+  vec3 b = uColors[i + 1 < uCount ? i + 1 : uCount - 1];
+  return mix(a, b, fract(ft));
+}
+float fbm(vec2 p) {
+  float a = 0.5, s = 0.0;
+  for (int i = 0; i < 4; i++) { s += a * snoise(vec3(p, uTime * 0.06 + uSeedOffset)); p *= 2.02; a *= 0.5; }
+  return s;
+}
+void main() {
+  vec2 p = vUv * 2.0 - 1.0;
+  float t1 = uTime * 0.08;
+  float f;
+  float sheen = 0.0;
+  if (uStyle == 1) {
+    // streaks — anisotropic diagonal smear
+    vec2 ps = vec2(p.x * 0.28 + p.y * 0.22, p.y * 1.25);
+    f = fbm(ps + vec2(t1 * 2.2, t1 * 0.4));
+  } else if (uStyle == 2) {
+    // aurora — vertical wavy bands
+    float band = p.x * 1.6 + 0.5 * fbm(vec2(p.y * 1.2, t1));
+    f = sin(band * 3.14159) * 0.5 + 0.4 * fbm(p + vec2(0.0, t1));
+  } else {
+    // flow — domain-warped fbm at low frequency = big smooth lobes; the warp
+    // magnitude drives an iridescent sheen on the ridges.
+    vec2 sp = p * 0.62;
+    vec2 q = vec2(fbm(sp + vec2(0.0, t1)), fbm(sp + vec2(5.2, 1.3) - t1));
+    vec2 r = vec2(fbm(sp + 1.6 * q + vec2(1.7, 9.2) + t1 * 0.7), fbm(sp + 1.6 * q + vec2(8.3, 2.8) - t1 * 0.6));
+    f = fbm(sp + 2.2 * r);
+    sheen = pow(clamp(length(r) * 0.6, 0.0, 1.0), 3.0);
+  }
+  float tt = smoothstep(0.1, 0.9, clamp(f * 0.5 + 0.5, 0.0, 1.0)); // contrast
+  vec3 col = ramp(tt);
+  col += sheen * 0.18; // iridescent lift on flow ridges
+  col *= mix(1.0, smoothstep(1.6, 0.1, length(p)), 0.4); // soft vignette
+  col = mix(uBase, col, uIntensity);
+  gl_FragColor = vec4(col, 1.0);
+}
+`
+
 export const gradientVertex = /* glsl */ `
 uniform float uTime;
 uniform float uDistort;

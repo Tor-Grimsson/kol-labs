@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import Button from '../../components/atoms/Button.jsx'
 import Divider from '../../components/atoms/Divider.jsx'
 import Input from '../../components/atoms/Input.jsx'
@@ -6,14 +7,26 @@ import Slider from '../../components/atoms/Slider.jsx'
 import Textarea from '../../components/atoms/Textarea.jsx'
 import Dropdown from '../../components/molecules/Dropdown.jsx'
 import LabeledControl from '../../components/molecules/LabeledControl.jsx'
+import SegmentedToggle from '../../components/molecules/SegmentedToggle.jsx'
 import Section from '../../components/molecules/Section.jsx'
 import EditorRail, { RailHeader } from '../../components/framework/EditorRail.jsx'
 import { RATIOS, FACES, BODY_FACE, ensureFace } from './data/registry.js'
 import { compose } from './engine/composer.js'
 import { renderLayout, serializeSvg } from './engine/renderer.js'
+import { composeCutting } from './engine/cutting/composeCutting.js'
+import { renderCutting, serializeCuttingSvg } from './engine/cutting/renderCutting.js'
+import { PALETTES } from './engine/cutting/palettes.js'
 
 const VARIATIONS = 12
 const TILE_W = 240
+
+// Two generators behind one shell — `/layout` (conformed, quiet editorial) and
+// `/layout/cutting` (bold Swiss-shout posters). Each owns a compose + canvas
+// render + SVG serialize; the page just routes between them.
+const ENGINES = {
+  conformed: { compose, render: renderLayout, serialize: serializeSvg },
+  cutting: { compose: composeCutting, render: renderCutting, serialize: serializeCuttingSvg },
+}
 
 const download = (url, name) => {
   const a = document.createElement('a')
@@ -23,7 +36,7 @@ const download = (url, name) => {
 }
 
 /* One canvas per layout spec; redraws every render (cheap, deterministic). */
-function Tile({ layout, drawOpts, w }) {
+function Tile({ layout, drawOpts, w, render }) {
   const ref = useRef(null)
   useEffect(() => {
     const c = ref.current
@@ -34,12 +47,16 @@ function Tile({ layout, drawOpts, w }) {
     c.height = Math.round(h * dpr)
     c.style.width = `${w}px`
     c.style.height = `${h}px`
-    renderLayout(c.getContext('2d'), layout, { ...drawOpts, pixelScale: scale * dpr })
+    render(c.getContext('2d'), layout, { ...drawOpts, pixelScale: scale * dpr })
   })
   return <canvas ref={ref} className="block" />
 }
 
 export default function LayoutPage() {
+  const { pathname } = useLocation()
+  const mode = pathname.includes('/cutting') ? 'cutting' : 'conformed'
+  const engine = ENGINES[mode]
+
   const [ready, setReady] = useState(false)
   const [view, setView] = useState('grid')
   const [idx, setIdx] = useState(0)
@@ -51,6 +68,8 @@ export default function LayoutPage() {
   const [columns, setColumns] = useState(4)
   const [gutter, setGutter] = useState(0.02)
   const [margin, setMargin] = useState(0.06)
+  const [paletteId, setPaletteId] = useState('random')
+  const [format, setFormat] = useState('png')
 
   const [headline, setHeadline] = useState('Headline')
   const [body, setBody] = useState('Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.')
@@ -73,11 +92,12 @@ export default function LayoutPage() {
     return () => { alive = false }
   }, [headFace])
 
+  const palette = useMemo(() => (paletteId === 'random' ? null : PALETTES.find((p) => p.id === paletteId)), [paletteId])
   const seeds = useMemo(() => Array.from({ length: VARIATIONS }, (_, i) => seedBase + i * 7919), [seedBase])
-  const params = useMemo(() => ({ columns, gutter, margin, scale }), [columns, gutter, margin, scale])
+  const params = useMemo(() => ({ columns, gutter, margin, scale, palette }), [columns, gutter, margin, scale, palette])
   const layouts = useMemo(
-    () => seeds.map((seed) => compose({ ratio, seed, params, imageCount: images.length })),
-    [seeds, ratio, params, images.length],
+    () => seeds.map((seed) => engine.compose({ ratio, seed, params, imageCount: images.length })),
+    [engine, seeds, ratio, params, images.length],
   )
 
   const content = { headline, body }
@@ -123,19 +143,20 @@ export default function LayoutPage() {
     const pixelScale = 2000 / exportLayout.W
     c.width = 2000
     c.height = Math.round(exportLayout.H * pixelScale)
-    renderLayout(c.getContext('2d'), exportLayout, { ...drawOpts, pixelScale })
+    engine.render(c.getContext('2d'), exportLayout, { ...drawOpts, pixelScale })
     c.toBlob((blob) => {
       const url = URL.createObjectURL(blob)
-      download(url, `kol-layout-${seeds[idx]}.png`)
+      download(url, `kol-layout-${mode}-${seeds[idx]}.png`)
       URL.revokeObjectURL(url)
     })
   }
   const exportSvg = () => {
-    const svg = serializeSvg(exportLayout, drawOpts)
+    const svg = engine.serialize(exportLayout, drawOpts)
     const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }))
-    download(url, `kol-layout-${seeds[idx]}.svg`)
+    download(url, `kol-layout-${mode}-${seeds[idx]}.svg`)
     URL.revokeObjectURL(url)
   }
+  const onDownload = () => (format === 'svg' ? exportSvg() : exportPng())
 
   if (!ready) return null
 
@@ -144,19 +165,19 @@ export default function LayoutPage() {
 
   return (
     <div className="flex min-h-dvh">
-      <div className="flex-1 min-w-0 bg-surface-primary p-8 flex">
+      <div className="flex-1 min-w-0 bg-surface-secondary p-8 flex">
         {view === 'grid' ? (
           <div className="grid grid-cols-[repeat(auto-fill,240px)] gap-5 w-full content-start justify-center">
             {layouts.map((ly, i) => (
               <button key={seeds[i]} type="button" className="block text-left cursor-pointer" onClick={() => { setIdx(i); setView('single') }}>
-                <Tile layout={ly} drawOpts={drawOpts} w={TILE_W} />
+                <Tile layout={ly} drawOpts={drawOpts} w={TILE_W} render={engine.render} />
                 <div className="kol-helper-10 text-meta mt-1">{String(i + 1).padStart(2, '0')} · {ly.arch} · {seeds[i]}</div>
               </button>
             ))}
           </div>
         ) : (
           <div className="m-auto">
-            <Tile layout={single} drawOpts={drawOpts} w={singleW} />
+            <Tile layout={single} drawOpts={drawOpts} w={singleW} render={engine.render} />
             <div className="kol-helper-10 text-meta mt-2">{String(idx + 1).padStart(2, '0')} / {String(VARIATIONS).padStart(2, '0')} · {single.arch} · seed {seeds[idx]}</div>
           </div>
         )}
@@ -164,11 +185,14 @@ export default function LayoutPage() {
 
       <EditorRail>
         <RailHeader>Layout</RailHeader>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" onClick={toggleView}>{view === 'grid' ? 'single' : 'grid'}</Button>
-          <Button variant="outline" size="sm" onClick={() => go(-1)}>← prev</Button>
-          <Button variant="outline" size="sm" onClick={() => go(1)}>next →</Button>
-          <Button variant="ghost" size="sm" onClick={randomize}>randomize</Button>
+
+        <div className="flex flex-col gap-2">
+          <SegmentedToggle value={view} onChange={setView} options={[{ value: 'grid', label: 'Grid' }, { value: 'single', label: 'Single' }]} />
+          <div className="flex gap-2">
+            <Button variant="ghost" size="sm" iconOnly="chevron-left" className="flex-1" onClick={() => go(-1)} aria-label="Previous" />
+            <Button variant="ghost" size="sm" iconOnly="chevron-right" className="flex-1" onClick={() => go(1)} aria-label="Next" />
+          </div>
+          <Button variant="primary" size="sm" iconLeft="cycle" className="w-full" onClick={randomize}>Randomize</Button>
         </div>
 
         <Divider />
@@ -176,6 +200,12 @@ export default function LayoutPage() {
         <Section label="Artboard">
           <Dropdown size="sm" variant="subtle" className="w-full" options={RATIOS.map((r) => ({ value: r.id, label: r.label }))} value={ratioId} onChange={setRatioId} />
         </Section>
+
+        {mode === 'cutting' && (
+          <Section label="Palette">
+            <Dropdown size="sm" variant="subtle" className="w-full" options={[{ value: 'random', label: 'Random' }, ...PALETTES.map((p) => ({ value: p.id, label: p.label }))]} value={paletteId} onChange={setPaletteId} />
+          </Section>
+        )}
 
         <Section label="Typography">
           <LabeledControl inline label="face">
@@ -185,8 +215,12 @@ export default function LayoutPage() {
         </Section>
 
         <Section label="Grid">
-          <Slider label="Columns" min={2} max={6} step={1} value={columns} onChange={(v) => setColumns(Math.round(v))} className="w-full" />
-          <Slider label="Gutter" min={0.01} max={0.05} step={0.002} value={gutter} onChange={setGutter} className="w-full" />
+          {mode === 'conformed' && (
+            <>
+              <Slider label="Columns" min={2} max={6} step={1} value={columns} onChange={(v) => setColumns(Math.round(v))} className="w-full" />
+              <Slider label="Gutter" min={0.01} max={0.05} step={0.002} value={gutter} onChange={setGutter} className="w-full" />
+            </>
+          )}
           <Slider label="Margin" min={0.02} max={0.12} step={0.005} value={margin} onChange={setMargin} className="w-full" />
         </Section>
 
@@ -196,7 +230,7 @@ export default function LayoutPage() {
         </Section>
 
         <Section label="Images">
-          <Button variant="outline" size="sm" className="w-full" iconLeft="upload" onClick={() => fileRef.current?.click()}>
+          <Button variant="ghost" size="sm" className="w-full" iconLeft="upload" onClick={() => fileRef.current?.click()}>
             Upload Images
           </Button>
           <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => { addImages([...e.target.files]); e.target.value = '' }} />
@@ -215,8 +249,10 @@ export default function LayoutPage() {
 
         <Divider />
 
-        <Button variant="outline" size="sm" className="w-full" onClick={exportSvg}>Export SVG</Button>
-        <Button variant="primary" size="sm" className="w-full" iconLeft="download" onClick={exportPng}>Export PNG</Button>
+        <Section label="Export">
+          <Dropdown size="sm" variant="subtle" className="w-full" options={[{ value: 'png', label: 'PNG' }, { value: 'svg', label: 'SVG' }]} value={format} onChange={setFormat} />
+          <Button variant="primary" size="sm" className="w-full" iconLeft="download" onClick={onDownload}>Download</Button>
+        </Section>
 
         <div className="kol-helper-10 text-body flex flex-col gap-1">
           <div>← / →</div>

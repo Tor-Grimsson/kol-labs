@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import SegmentedToggle from '../../../components/molecules/SegmentedToggle.jsx'
-import EditorRail from '../../../components/framework/EditorRail.jsx'
+import EditorRail, { RailHeader } from '../../../components/framework/EditorRail.jsx'
 import ModesPanel from '../components/ModesPanel.jsx'
 import PreviewPanel from '../components/PreviewPanel.jsx'
 import ControlsPanel from '../components/ControlsPanel.jsx'
@@ -77,6 +77,7 @@ function MainPage() {
   const [zoom, setZoom] = useState(1)
   const [objectScale, setObjectScale] = useState(1)
   const [pan, setPan] = useState({ x: 0, y: 0 })
+  const [showGrid, setShowGrid] = useState(true)
 
   const preview = useSvgDistortion({
     svgSource,
@@ -192,7 +193,7 @@ function MainPage() {
   return (
     <div className="h-dvh bg-surface-primary flex">
       <div className="relative flex-1 min-w-0 overflow-hidden">
-        <GridOverlay zoom={zoom} pan={pan} gridSpacing={64} />
+        {showGrid && <GridOverlay zoom={zoom} pan={pan} gridSpacing={64} />}
         <div className="relative z-10 flex h-full w-full items-center justify-center">
           <PreviewPanel
             svgSource={svgSource}
@@ -207,6 +208,7 @@ function MainPage() {
       </div>
 
       <EditorRail>
+        <RailHeader>Distress</RailHeader>
         <SegmentedToggle
           value={railTab}
           onChange={setRailTab}
@@ -227,6 +229,7 @@ function MainPage() {
         {railTab === 'controls' && (
         <ControlsPanel
           svgInput={svgInput}
+          svgFileName={svgFileName}
           onUpload={handleUpload}
           onPasteChange={handlePasteChange}
           amount={amount}
@@ -241,6 +244,8 @@ function MainPage() {
           setZoom={setZoom}
           objectScale={objectScale}
           setObjectScale={setObjectScale}
+          showGrid={showGrid}
+          setShowGrid={setShowGrid}
           previewMode={previewMode}
           onToggleMode={() =>
             setPreviewMode((mode) => (mode === 'bake' ? 'filter' : 'bake'))

@@ -10,13 +10,15 @@
    and its sheet stays in the document after navigating away — unscoped rules
    would collide with the shell and the interfaces sheet (both define
    --bg/--fg/--dim and .pager). The standalone build's :root + html,body rules
-   are merged into the wrapper; everything else nests verbatim. */
-.glyph-lab-page {
+   are merged into the wrapper; everything else nests verbatim.
+   The color vars below are defaults; the active theme overrides them inline. */
+.penrose-page {
   --bg: #0a0b14;
   --fg: #f0ead8;
   --dim: #4a4d60;
   --accent: #8b8fd6;
   --warm: #f3c9c4;
+  --grid: rgba(240, 234, 216, 0.07);
 
   color: var(--fg);
   min-height: 100vh;
@@ -33,35 +35,73 @@
     box-sizing: border-box;
   }
 
-  /* ---- Single-mode row: canvas + knobs ---- */
+  /* ---- Single-mode row: artboard frame ---- */
   .single-row {
     display: flex;
     flex-direction: row;
     gap: 20px;
-    align-items: flex-start;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
   }
+
+  /* The artboard FRAME: fixed in place, owns the background + clip + ratio +
+     shadow. Its size (one axis) is set inline from the chosen ratio; the other
+     axis follows aspect-ratio. The camera transforms #stage *inside* this box,
+     so zoom/pan/rotate move the letterform within a frame that never moves. */
   .canvas-wrap {
     position: relative;
-    width: 640px;
-    height: 640px;
-    max-width: 100vmin;
-    max-height: 100vmin;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    max-width: 86vw;
+    max-height: 86vh;
+    overflow: hidden;
+    background: var(--bg);
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
     perspective: 1400px;
   }
+
   #stage {
     display: block;
     background: var(--bg);
-    width: 100%;
-    height: 100%;
+    aspect-ratio: 1 / 1;
     cursor: grab;
     transform-origin: center center;
     will-change: transform;
     touch-action: none;
     user-select: none;
   }
+  /* Square canvas fits the frame's short side: by height in landscape frames,
+     by width in portrait frames. */
+  #stage.fit-h { height: 100%; width: auto; }
+  #stage.fit-w { width: 100%; height: auto; }
   #stage:active { cursor: grabbing; }
 
-  /* ---- Grid ---- */
+  /* Fixed reference grid over the artboard — sits above the (clipped, moving)
+     canvas but never transforms, so the letterform reads against a steady grid.
+     pointer-events:none keeps camera drag on the canvas underneath. */
+  .frame-grid {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 40px 40px;
+    background-position: center center;
+  }
+  /* Center crosshair — a touch stronger than the field lines. */
+  .frame-grid::before,
+  .frame-grid::after {
+    content: '';
+    position: absolute;
+    background: var(--grid);
+  }
+  .frame-grid::before { left: 50%; top: 0; bottom: 0; width: 1px; transform: translateX(-0.5px); }
+  .frame-grid::after { top: 50%; left: 0; right: 0; height: 1px; transform: translateY(-0.5px); }
+
+  /* ---- Gallery grid ---- */
   .grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(180px, 200px));

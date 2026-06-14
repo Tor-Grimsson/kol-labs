@@ -1102,6 +1102,9 @@ const S50_CORE_FULL         = {
   },
 }
 
+// Chrome builders reused by the generator (registry chrome entries).
+export { statusbar, label, readouts, numericStrip, transport, dualNum, el, widgetHost }
+
 export const SCREENS           = [
   S01_OSC, S02_DIAG, S03_EYE, S04_CORE, S05_STEPS,
   S06_DECK, S07_WAVES, S08_BIO, S09_DENSE, S10_MIN,

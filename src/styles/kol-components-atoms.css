@@ -206,7 +206,7 @@
 
 .kol-btn-ghost {
   background: transparent;
-  color: var(--kol-fg-48);
+  color: var(--kol-fg-80);
   border: 1px solid transparent;
 }
 .kol-btn-ghost:not(.kol-btn-animate):hover {

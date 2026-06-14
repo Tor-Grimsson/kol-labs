@@ -13,14 +13,29 @@
 
 export const NAV_TREE = [
   { id: 'home', label: 'Home', to: '/', icon: 'book-open' },
-  { id: 'interfaces', label: 'Interfaces', to: '/interfaces', icon: 'phone' },
-  { id: 'glyph-lab', label: 'Glyph Lab', to: '/glyph-lab', icon: 'a-framed' },
-  { id: 'radar', label: 'Radar', to: '/radar', icon: 'target-lock' },
+  { id: 'interfaces', label: 'Interfaces', to: '/interfaces', icon: 'phone', children: [
+    { to: '/interfaces', label: 'Generate' },
+    { to: '/interfaces/player', label: 'Player' },
+    { to: '/interfaces/gallery', label: 'Gallery' },
+    { to: '/interfaces/library', label: 'Library' },
+  ] },
+  { id: 'penrose', label: 'Penrose', to: '/penrose', icon: 'a-framed' },
+  { id: 'radar', label: 'Radar', to: '/radar', icon: 'target-lock', children: [
+    { label: 'Halftone', children: [
+      { to: '/radar', label: 'Dither' },
+      { to: '/radar/ascii', label: 'ASCII' },
+    ] },
+    { to: '/radar/distort', label: 'Distort' },
+  ] },
   { id: 'poster', label: 'Poster', to: '/poster', icon: 'image' },
   { id: 'distress', label: 'Distress', to: '/distress', icon: 'wave' },
-  { id: 'layout', label: 'Layout', to: '/layout', icon: 'layout-01' },
+  { id: 'layout', label: 'Layout', to: '/layout', icon: 'layout-01', children: [
+    { to: '/layout', label: 'Conformed' },
+    { to: '/layout/cutting', label: 'Cutting' },
+  ] },
   { id: 'gradient', label: 'Gradient', to: '/gradient', icon: 'ball' },
   { id: 'para-type', label: 'Para Type', to: '/para-type', icon: 'aa' },
+  { id: 'video', label: 'Video', to: '/video', icon: 'scissors' },
 ]
 
 /* Find the active top-level page given a pathname. */

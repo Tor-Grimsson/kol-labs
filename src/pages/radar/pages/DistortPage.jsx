@@ -5,7 +5,6 @@ import Slider from '../../../components/atoms/Slider.jsx'
 import Section from '../../../components/molecules/Section.jsx'
 import EditorRail, { RailHeader } from '../../../components/framework/EditorRail.jsx'
 import { useImage } from '../state/ImageContext'
-import EffectSwitcher from '../components/EffectSwitcher'
 import DistortionEngine from '../effects/distortion/distortionEngine'
 
 const DEFAULTS = { strength: 0.25, radius: 0.18, decay: 0.94, rgbShift: 0.03 }
@@ -165,7 +164,7 @@ export default function DistortPage() {
   }, [])
 
   return (
-    <div className="min-h-dvh bg-surface-primary flex">
+    <div className="min-h-dvh bg-surface-secondary flex">
       {/* Canvas / drop area */}
       <div
         ref={wrapRef}
@@ -202,9 +201,6 @@ export default function DistortPage() {
       {/* Controls panel */}
       <EditorRail>
         <RailHeader>kol-radar</RailHeader>
-        <EffectSwitcher />
-
-        <Divider />
 
         <Section label="Chromatic Aberration">
           <Slider label="Strength" min={0} max={0.6} step={0.005} value={params.strength} onChange={(v) => update('strength', v)} variant="default" />
@@ -215,11 +211,11 @@ export default function DistortPage() {
 
         <Divider />
 
-        <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} iconLeft="upload" className="w-full">
+        <Button variant="ghost" size="sm" onClick={() => fileInputRef.current?.click()} iconLeft="upload" className="w-full">
           Upload Image
         </Button>
 
-        <Button variant="outline" size="sm" onClick={() => videoInputRef.current?.click()} iconLeft="video" className="w-full">
+        <Button variant="ghost" size="sm" onClick={() => videoInputRef.current?.click()} iconLeft="video" className="w-full">
           Upload Video
         </Button>
 
@@ -229,7 +225,7 @@ export default function DistortPage() {
             <Section label="Motion">
             <div className="flex gap-2">
               <Button
-                variant={recording ? 'accent' : 'outline'}
+                variant={recording ? 'accent' : 'ghost'}
                 size="sm"
                 onClick={toggleRecord}
                 iconLeft={recording ? 'control-stop' : 'circle'}
@@ -238,7 +234,7 @@ export default function DistortPage() {
                 {recording ? 'Stop' : 'Record'}
               </Button>
               <Button
-                variant={playing ? 'accent' : 'outline'}
+                variant={playing ? 'accent' : 'ghost'}
                 size="sm"
                 onClick={togglePlay}
                 iconLeft={playing ? 'control-stop' : 'control-play'}
