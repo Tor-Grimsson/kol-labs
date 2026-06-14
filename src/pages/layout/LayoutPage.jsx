@@ -230,7 +230,7 @@ export default function LayoutPage() {
         </Section>
 
         <Section label="Images">
-          <Button variant="ghost" size="sm" className="w-full" iconLeft="upload" onClick={() => fileRef.current?.click()}>
+          <Button variant="primary" size="sm" className="w-full" iconLeft="upload" onClick={() => fileRef.current?.click()}>
             Upload Images
           </Button>
           <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => { addImages([...e.target.files]); e.target.value = '' }} />
@@ -240,7 +240,7 @@ export default function LayoutPage() {
                 <li key={`${im.name}-${i}`} className="flex items-center gap-2 kol-helper-10">
                   <span className="truncate text-body">{im.name}</span>
                   <span className="text-meta">{im.w}×{im.h}</span>
-                  <button type="button" className="ml-auto text-meta hover:text-emphasis" onClick={() => removeImage(i)}>x</button>
+                  <Button variant="ghost" size="sm" quiet iconOnly="cross" iconSize={12} className="ml-auto" aria-label="Remove image" onClick={() => removeImage(i)} />
                 </li>
               ))}
             </ul>

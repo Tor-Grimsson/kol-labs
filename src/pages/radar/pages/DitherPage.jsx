@@ -217,7 +217,7 @@ export default function DitherPage() {
             }}
             onClick={() => fileInputRef.current?.click()}
           >
-            <span className="kol-helper-12 text-fg-32 uppercase">
+            <span className="kol-mono-12 text-fg-32 uppercase">
               {dragging ? 'Drop image here' : 'Drag image here or click to upload'}
             </span>
           </div>
@@ -277,7 +277,7 @@ export default function DitherPage() {
             <div key={i} className="flex flex-col gap-2 p-2 rounded bg-fg-04">
               <div className="flex items-center gap-2">
                 <ToggleSwitch label={def.label} checked={fx.enabled} onChange={() => toggleFx(i)} />
-                <button onClick={() => removeFx(i)} className="kol-helper-10 text-fg-32 hover:text-fg-64 ml-auto">x</button>
+                <Button variant="ghost" size="sm" quiet iconOnly="cross" iconSize={12} className="ml-auto" aria-label="Remove effect" onClick={() => removeFx(i)} />
               </div>
               {fx.enabled && Object.entries(def.params).map(([key, spec]) => (
                 <Slider
@@ -321,21 +321,21 @@ export default function DitherPage() {
         )}
 
         {sourceImage && effectApplied && (
-          <Button variant="ghost" size="sm" onClick={handleRemoveEffect} className="w-full">
+          <Button variant="primary" size="sm" onClick={handleRemoveEffect} className="w-full">
             Remove Effect
           </Button>
         )}
 
-        <Button variant="ghost" size="sm" onClick={() => fileInputRef.current?.click()} iconLeft="upload" className="w-full">
+        <Button variant="primary" size="sm" onClick={() => fileInputRef.current?.click()} iconLeft="upload" className="w-full">
           Upload Image
         </Button>
 
-        <Button variant="ghost" size="sm" onClick={() => videoInputRef.current?.click()} iconLeft="video" className="w-full">
+        <Button variant="primary" size="sm" onClick={() => videoInputRef.current?.click()} iconLeft="video" className="w-full">
           Upload Video
         </Button>
 
         {isVideo && sourceImage && (
-          <Button variant="ghost" size="sm" onClick={toggleVideo} iconLeft={videoPlaying ? 'pause' : 'play'} className="w-full">
+          <Button variant="primary" size="sm" onClick={toggleVideo} iconLeft={videoPlaying ? 'pause' : 'play'} className="w-full">
             {videoPlaying ? 'Pause Video' : 'Play Video'}
           </Button>
         )}

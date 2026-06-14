@@ -14,7 +14,10 @@ import { pixelate } from '../pixel'
 export function knob(opts          )     {
   const S = opts.size ?? 28
   const seed = opts.seed ?? 0
-  const lfoHz = opts.lfoHz ?? 0.12
+  const speed = opts.speed ?? opts.lfoHz ?? 0.12 // LFO rate
+  const animate = opts.animate !== false // animate button drives the sweep
+  const manual = opts.value ?? 0.5 // static position when not animating (0..1)
+  const modulate = opts.modulate !== false // publish value as --knob (modulates the UI)
   const fg = opts.fg ?? '#e5dfcf'
   const bg = opts.bg ?? '#0b0907'
   const dim = opts.dim ?? '#4a3e34'
@@ -59,8 +62,9 @@ export function knob(opts          )     {
         }
       }
 
-      // indicator (LFO driven, bounded)
-      const v = (Math.sin(t * lfoHz * Math.PI * 2 + seed) + 1) * 0.5 // 0..1
+      // indicator: LFO-driven when animating, else the manual position
+      const v = animate ? (Math.sin(t * speed * Math.PI * 2 + seed) + 1) * 0.5 : manual // 0..1
+      if (modulate) document.documentElement.style.setProperty('--knob', v.toFixed(3)) // knob → UI modulation
       const ang = -Math.PI * 0.75 + v * Math.PI * 1.5 // -135°..+135°, pointing down-left → down-right
       const ix = Math.round(cx + Math.cos(ang - Math.PI / 2) * (rd - 1))
       const iy = Math.round(cy + Math.sin(ang - Math.PI / 2) * (rd - 1))

@@ -29,6 +29,8 @@ export const GROUPS = [
 
 const R = (key, min, max, step, label) => ({ key, min, max, step, label: label || key })
 const SEL = (key, options, label) => ({ key, type: 'select', options, label: label || key })
+const BOOL = (key, label) => ({ key, type: 'boolean', label: label || key })
+const TXT = (key, label) => ({ key, type: 'text', label: label || key })
 
 export const WIDGETS = [
   // displays
@@ -58,8 +60,8 @@ export const WIDGETS = [
 
   // controls (square: circular, must keep 1:1 — render at a fixed small size)
   { key: 'knob', label: 'Knob', group: 'controls', factory: knob, square: true,
-    defaults: { size: 30, seed: 0, lfoHz: 0.12 },
-    params: [R('size', 16, 64, 2), R('lfoHz', 0.02, 0.6, 0.02), R('seed', 0, 6, 0.1)] },
+    defaults: { size: 30, seed: 0, speed: 0.12, animate: true, value: 0.5, modulate: true },
+    params: [R('size', 16, 64, 2), BOOL('animate', 'animate'), R('speed', 0.02, 1, 0.02), R('value', 0, 1, 0.01, 'position'), BOOL('modulate', 'modulate UI'), R('seed', 0, 6, 0.1)] },
   { key: 'reel', label: 'Reel', group: 'controls', factory: reel, square: true,
     defaults: { size: 56, speed: 0.7, spokes: 6 },
     params: [R('size', 24, 96, 2), R('speed', 0.1, 2, 0.05), R('spokes', 3, 10, 1)] },
@@ -74,8 +76,8 @@ export const WIDGETS = [
 
   // readouts
   { key: 'sevenSeg', label: 'Seven Seg', group: 'readouts', factory: sevenSeg,
-    defaults: { digits: 6, scale: 3, interval: 1000, delta: 1, seed: 0 },
-    params: [R('digits', 2, 10, 1), R('scale', 1, 6, 1), R('seed', 0, 9, 1)] },
+    defaults: { digits: 6, scale: 3, interval: 1000, delta: 1, seed: 0, text: '' },
+    params: [TXT('text', 'value (blank = counter)'), R('digits', 2, 10, 1), R('scale', 1, 6, 1), R('seed', 0, 9, 1)] },
   { key: 'codeScroll', label: 'Code Scroll', group: 'readouts', factory: codeScroll,
     defaults: { rows: 4, groupsPerRow: 5, charsPerGroup: 3, interval: 180, mode: 'alphanum', custom: '', fontSize: 11 },
     params: [R('rows', 2, 10, 1), R('groupsPerRow', 2, 10, 1), R('charsPerGroup', 1, 6, 1), SEL('mode', [...CHARSET_KEYS, 'custom'], 'charset'), { key: 'custom', type: 'text', label: 'Custom glyphs' }, R('fontSize', 8, 18, 1)] },

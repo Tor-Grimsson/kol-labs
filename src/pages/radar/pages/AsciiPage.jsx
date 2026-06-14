@@ -188,7 +188,7 @@ export default function AsciiPage() {
             }}
             onClick={() => fileInputRef.current?.click()}
           >
-            <span className="kol-helper-12 text-fg-32 uppercase">
+            <span className="kol-mono-12 text-fg-32 uppercase">
               {dragging ? 'Drop image here' : 'Drag image here or click to upload'}
             </span>
           </div>
@@ -271,21 +271,21 @@ export default function AsciiPage() {
         )}
 
         {sourceImage && effectApplied && (
-          <Button variant="ghost" size="sm" onClick={handleRemoveEffect} className="w-full">
+          <Button variant="primary" size="sm" onClick={handleRemoveEffect} className="w-full">
             Remove Effect
           </Button>
         )}
 
-        <Button variant="ghost" size="sm" onClick={() => fileInputRef.current?.click()} iconLeft="upload" className="w-full">
+        <Button variant="primary" size="sm" onClick={() => fileInputRef.current?.click()} iconLeft="upload" className="w-full">
           Upload Image
         </Button>
 
-        <Button variant="ghost" size="sm" onClick={() => videoInputRef.current?.click()} iconLeft="video" className="w-full">
+        <Button variant="primary" size="sm" onClick={() => videoInputRef.current?.click()} iconLeft="video" className="w-full">
           Upload Video
         </Button>
 
         {isVideo && sourceImage && (
-          <Button variant="ghost" size="sm" onClick={toggleVideo} iconLeft={videoPlaying ? 'pause' : 'play'} className="w-full">
+          <Button variant="primary" size="sm" onClick={toggleVideo} iconLeft={videoPlaying ? 'pause' : 'play'} className="w-full">
             {videoPlaying ? 'Pause Video' : 'Play Video'}
           </Button>
         )}

@@ -1,5 +1,6 @@
 import p5 from 'p5'
 import { pixelate } from '../pixel'
+import { sample } from '../lib/audio.js'
 
 
 
@@ -45,7 +46,9 @@ export function eqBars(opts        )     {
         const f2 = Math.sin(t * 5.3 + i * 0.23) * 0.5 + 0.5
         const f3 = Math.sin(t * 0.9 + i * 1.1 + seed * 3) * 0.5 + 0.5
         const env = Math.max(0, 1 - Math.abs(i / bars - 0.5) * 1.2)
-        const v = Math.max(0, Math.min(1, f1 * 0.6 + f2 * 0.25 + f3 * 0.15)) * env
+        const proc = Math.max(0, Math.min(1, f1 * 0.6 + f2 * 0.25 + f3 * 0.15)) * env
+        const a = sample(i, bars) // null when mic off → procedural fallback
+        const v = a != null ? a : proc
         const barH = Math.round(v * (H - 4)) | 0
 
         // baseline

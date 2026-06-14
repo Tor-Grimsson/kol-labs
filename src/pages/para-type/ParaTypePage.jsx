@@ -141,11 +141,11 @@ function XYTab({ paramNames, paramConfigs, updateParam, xKey, yKey, setXKey, set
     <div className="p-3 flex flex-col gap-3">
       <div className="flex gap-2">
         <div className="flex-1">
-          <div className="kol-helper-10 uppercase text-meta mb-1">x axis</div>
+          <div className="kol-helper-10 uppercase text-meta mb-1">X axis</div>
           <Dropdown size="sm" variant="subtle" className="w-full" options={options} value={xKey} onChange={setXKey} />
         </div>
         <div className="flex-1">
-          <div className="kol-helper-10 uppercase text-meta mb-1">y axis</div>
+          <div className="kol-helper-10 uppercase text-meta mb-1">Y axis</div>
           <Dropdown size="sm" variant="subtle" className="w-full" options={options} value={yKey} onChange={setYKey} />
         </div>
       </div>
@@ -407,10 +407,10 @@ export default function ParametricTypeLab() {
         <RailHeader>Para Type</RailHeader>
 
         <Section label="Engine">
-          <LabeledControl inline label="engine">
+          <LabeledControl inline label="Engine">
             <Dropdown size="sm" variant="subtle" className="w-full" options={ENGINE_OPTIONS} value={engine} onChange={setEngine} />
           </LabeledControl>
-          <LabeledControl inline label="preset">
+          <LabeledControl inline label="Preset">
             <Dropdown size="sm" variant="subtle" className="w-full" options={PRESET_OPTIONS} value="" onChange={(v) => applyPreset(v)} />
           </LabeledControl>
           <div className="flex gap-1">
@@ -425,11 +425,11 @@ export default function ParametricTypeLab() {
             <Button variant="ghost" size="sm" iconOnly="grid-01" iconSize={14} title="Anatomy" onClick={() => setShowAnatomy(s => !s)} quiet />
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="kol-helper-10 uppercase text-meta">set</span>
+            <span className="kol-helper-10 uppercase text-meta">Set</span>
             <ChipsRow options={FILTER_SET_OPTIONS} value={filterSet} onChange={setFilterSet} />
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="kol-helper-10 uppercase text-meta">visible</span>
+            <span className="kol-helper-10 uppercase text-meta">Visible</span>
             <SegmentedToggle
               size="sm"
               value={String(visibleCount)}

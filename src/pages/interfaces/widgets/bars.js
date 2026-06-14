@@ -1,5 +1,6 @@
 import p5 from 'p5'
 import { pixelate } from '../pixel'
+import { sample } from '../lib/audio.js'
 
 
 
@@ -26,7 +27,7 @@ export function hBars(opts          )     {
     p.setup = () => {
       p.createCanvas(W, H)
       pixelate(p)
-      p.frameRate(12)
+      p.frameRate(24)
     }
     p.draw = () => {
       p.background(bg)
@@ -34,9 +35,10 @@ export function hBars(opts          )     {
       const t = p.millis() / 1000
       for (let i = 0; i < rows; i++) {
         const y = 1 + i * (rowH + 2)
-        const v = Math.abs(Math.sin(t * 0.4 + i * 0.9 + seed)) * 0.6 +
+        const proc = Math.abs(Math.sin(t * 0.4 + i * 0.9 + seed)) * 0.6 +
                   Math.abs(Math.sin(t * 1.7 + i * 0.23 + seed * 2)) * 0.4
-        const clamped = Math.max(0.05, Math.min(1, v))
+        const a = sample(i, rows) // null when mic off → procedural fallback
+        const clamped = Math.max(0.05, Math.min(1, a != null ? a : proc))
         const barW = Math.round(clamped * (W - 6))
         // baseline
         p.fill(dim)

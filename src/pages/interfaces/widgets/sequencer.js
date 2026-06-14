@@ -1,5 +1,6 @@
 import p5 from 'p5'
 import { pixelate } from '../pixel'
+import { isActive, beatCount, beat } from '../lib/audio.js'
 
 
 
@@ -58,8 +59,11 @@ export function sequencer(opts         )     {
       p.background(bg)
       p.noStroke()
 
+      // locked to the track: advance one step per detected beat; else free-run bpm
+      const live = isActive()
       const beatsPerSec = (bpm / 60) * 2 // 8ths
-      const step = Math.floor((p.millis() / 1000) * beatsPerSec) % cols
+      const step = live ? (beatCount() % cols) : (Math.floor((p.millis() / 1000) * beatsPerSec) % cols)
+      const hit = live ? beat() : 0 // brighten the playhead on the downbeat
 
       for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
@@ -69,8 +73,10 @@ export function sequencer(opts         )     {
           const head = c === step
 
           if (on && head) {
+            // a hit landing on the playhead pops a bright outline ring on the beat
             p.fill(fg)
             p.rect(x, y, cellW, cellH)
+            if (hit > 0.4) { p.fill(bg); p.rect(x + 1, y + 1, cellW - 2, cellH - 2); p.fill(fg); p.rect(x + 2, y + 2, cellW - 4, cellH - 4) }
           } else if (on) {
             p.fill(fg)
             p.rect(x, y, cellW, cellH)

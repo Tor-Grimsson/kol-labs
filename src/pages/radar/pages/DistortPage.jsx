@@ -190,7 +190,7 @@ export default function DistortPage() {
               }}
               onClick={() => fileInputRef.current?.click()}
             >
-              <span className="kol-helper-12 text-fg-32 uppercase">
+              <span className="kol-mono-12 text-fg-32 uppercase">
                 {dragging ? 'Drop image here' : 'Drag image here or click to upload'}
               </span>
             </div>
@@ -211,11 +211,11 @@ export default function DistortPage() {
 
         <Divider />
 
-        <Button variant="ghost" size="sm" onClick={() => fileInputRef.current?.click()} iconLeft="upload" className="w-full">
+        <Button variant="primary" size="sm" onClick={() => fileInputRef.current?.click()} iconLeft="upload" className="w-full">
           Upload Image
         </Button>
 
-        <Button variant="ghost" size="sm" onClick={() => videoInputRef.current?.click()} iconLeft="video" className="w-full">
+        <Button variant="primary" size="sm" onClick={() => videoInputRef.current?.click()} iconLeft="video" className="w-full">
           Upload Video
         </Button>
 
@@ -225,7 +225,7 @@ export default function DistortPage() {
             <Section label="Motion">
             <div className="flex gap-2">
               <Button
-                variant={recording ? 'accent' : 'ghost'}
+                variant={recording ? 'accent' : 'primary'}
                 size="sm"
                 onClick={toggleRecord}
                 iconLeft={recording ? 'control-stop' : 'circle'}
@@ -234,7 +234,7 @@ export default function DistortPage() {
                 {recording ? 'Stop' : 'Record'}
               </Button>
               <Button
-                variant={playing ? 'accent' : 'ghost'}
+                variant={playing ? 'accent' : 'primary'}
                 size="sm"
                 onClick={togglePlay}
                 iconLeft={playing ? 'control-stop' : 'control-play'}
@@ -257,7 +257,7 @@ export default function DistortPage() {
           </>
         )}
 
-        <p className="kol-helper-10 text-fg-32">Move the cursor to distort. Record captures the cursor motion as keyframes; Play loops it hands-free; Export Video renders the canvas to a webm.</p>
+        <p className="kol-mono-10 text-fg-32">Move the cursor to distort. Record captures the cursor motion as keyframes; Play loops it hands-free; Export Video renders the canvas to a webm.</p>
       </EditorRail>
 
       <input ref={fileInputRef} type="file" accept="image/*,.svg" onChange={handleFileUpload} className="hidden" />

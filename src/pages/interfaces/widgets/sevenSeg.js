@@ -36,6 +36,7 @@ export function sevenSeg(opts              )     {
   const interval = opts.interval ?? 1000
   const delta = opts.delta ?? 1
   const seed = opts.seed ?? 0
+  const fixed = opts.text != null && String(opts.text).length > 0 // typed value → static readout
   const fg = opts.fg ?? '#e5dfcf'
   const bg = opts.bg ?? '#0b0907'
   const dim = opts.dim ?? '#3a322b'
@@ -56,8 +57,13 @@ export function sevenSeg(opts              )     {
       p.background(bg)
       p.noStroke()
 
-      const n = Math.floor(p.millis() / interval) * delta + seed
-      const str = String(Math.abs(n)).padStart(digits, '0').slice(-digits)
+      let str
+      if (fixed) {
+        str = String(opts.text).slice(0, digits).padStart(digits, ' ')
+      } else {
+        const n = Math.floor(p.millis() / interval) * delta + seed
+        str = String(Math.abs(n)).padStart(digits, '0').slice(-digits)
+      }
 
       for (let i = 0; i < digits; i++) {
         const ch = str[i] ?? ' '

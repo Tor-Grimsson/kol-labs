@@ -141,11 +141,11 @@ export default function GradientPage() {
       <EditorRail>
         <RailHeader>Gradient</RailHeader>
         <div className="flex flex-wrap gap-2">
-          <Button variant="primary" size="sm" onClick={toggleView}>{view === 'grid' ? 'single' : 'grid'}</Button>
+          <Button variant="primary" size="sm" onClick={toggleView}>{view === 'grid' ? 'Single' : 'Grid'}</Button>
           <Button variant="primary" size="sm" onClick={() => go(-1)}>← prev</Button>
           <Button variant="primary" size="sm" onClick={() => go(1)}>next →</Button>
-          <Button variant="primary" size="sm" onClick={randomize}>randomize</Button>
-          <Button variant="primary" size="sm" onClick={() => engineRef.current?.resetCamera()}>cam reset</Button>
+          <Button variant="primary" size="sm" onClick={randomize}>Randomize</Button>
+          <Button variant="primary" size="sm" onClick={() => engineRef.current?.resetCamera()}>Cam reset</Button>
         </div>
 
         <Divider />
@@ -205,7 +205,7 @@ export default function GradientPage() {
 
         <Section label="Motion">
           <Slider label="Speed" min={0} max={2} step={0.05} value={speed} onChange={setSpeed} className="w-full" />
-          <Button variant="primary" size="sm" onClick={() => setPaused((p) => !p)}>{paused ? 'play' : 'pause'}</Button>
+          <Button variant="primary" size="sm" onClick={() => setPaused((p) => !p)}>{paused ? 'Play' : 'Pause'}</Button>
         </Section>
 
         <Divider />

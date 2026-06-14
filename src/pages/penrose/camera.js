@@ -41,6 +41,17 @@ export class Camera {
     this.apply()
   }
 
+  // Zoom about the frame center (on-screen +/- buttons). Mirrors the wheel
+  // math with the cursor pinned to center (cx = cy = 0 → tx scales by f).
+  zoomAtCenter(factor) {
+    const next = Math.max(0.1, Math.min(40, this.state.scale * factor))
+    const f = next / this.state.scale
+    this.state.tx *= f
+    this.state.ty *= f
+    this.state.scale = next
+    this.apply()
+  }
+
           apply() {
     const { tx, ty, scale, rx, ry, rz } = this.state
     this.el.style.transform =

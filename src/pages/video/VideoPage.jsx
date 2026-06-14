@@ -178,10 +178,10 @@ export default function VideoPage() {
       >
         {!srcUrl && (
           <div
-            className="flex-1 flex items-center justify-center border border-dashed border-fg-24 rounded kol-helper-12 text-meta cursor-pointer hover:border-fg-48 hover:text-emphasis transition-colors"
+            className="flex-1 flex items-center justify-center border border-dashed border-fg-24 rounded kol-mono-12 text-meta cursor-pointer hover:border-fg-48 hover:text-emphasis transition-colors"
             onClick={() => fileRef.current?.click()}
           >
-            drop a video here, or click to choose
+            Drop a video here, or click to choose
           </div>
         )}
 
@@ -240,7 +240,7 @@ export default function VideoPage() {
             onDragOver={(e) => e.preventDefault()}
             onDrop={(e) => { e.preventDefault(); onFile(e.dataTransfer.files[0]) }}
           >
-            drop video<br />or click to choose
+            Drop video<br />or click to choose
           </div>
           <input ref={fileRef} type="file" accept="video/*" className="hidden" onChange={(e) => onFile(e.target.files[0])} />
         </Section>

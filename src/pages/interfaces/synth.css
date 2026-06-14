@@ -6,6 +6,41 @@
   font-display: block;
 }
 @font-face {
+  font-family: 'TG Malromur';
+  src: url('/fonts/TG/TGMalromurItalicVF.ttf') format('truetype-variations');
+  font-weight: 100 900; font-style: italic; font-display: block;
+}
+@font-face {
+  font-family: 'TG Gullhamrar';
+  src: url('/fonts/TG/TGGullhamrarVF.ttf') format('truetype-variations');
+  font-weight: 100 900; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'TG Ordspor';
+  src: url('/fonts/TG/TGOrdsporVF.ttf') format('truetype-variations');
+  font-weight: 100 900; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'TG Rot';
+  src: url('/fonts/TG/TGRotVF.ttf') format('truetype-variations');
+  font-weight: 100 900; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'TG Dylgjur';
+  src: url('/fonts/TG/TGDylgjur-Regular.otf') format('opentype');
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'TG Silfurbarki';
+  src: url('/fonts/TG/TGSilfurbarki-Regular.otf') format('opentype');
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'TG Trollatunga';
+  src: url('/fonts/TG/TGTrollatunga-Regular.otf') format('opentype');
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
   font-family: 'JetBrains Mono';
   src: url('/fonts/jetbrains-mono/JetBrainsMono-Regular.woff2') format('woff2');
   font-weight: 400; font-style: normal; font-display: swap;
@@ -64,7 +99,7 @@
   .screen.theme-ice   { --screen: #0a1015; --fg: #d6e3ee; --dim: #2f4050; --bg: #070d12; }
   /* KOL theme — every var mapped to a design-system token (surfaces + brand yellow). */
   .screen.theme-kol   {
-    --screen: var(--kol-surface-secondary, #19191d);
+    --screen: var(--kol-surface-tertiary, #0e0e11);
     --fg: var(--kol-accent-primary, #ffcf33);
     --dim: color-mix(in srgb, var(--kol-accent-primary, #ffcf33) 32%, var(--kol-surface-primary, #121215));
     --bg: var(--kol-surface-primary, #121215);
@@ -211,9 +246,11 @@
 .interfaces-page .gen-section { position: relative; }
 .interfaces-page .gen-remove {
   position: absolute; top: 0; right: 0; z-index: 6;
+  transform: translate(35%, -35%);
   width: 16px; height: 16px; padding: 0; line-height: 14px; text-align: center;
-  font-size: 13px; color: var(--fg, #e5dfcf); background: rgba(0, 0, 0, 0.55);
-  border: 0; cursor: pointer; opacity: 0; transition: opacity 0.1s;
+  font-size: 12px; color: var(--fg, #e5dfcf); background: var(--screen, #100e0b);
+  border: 1px solid var(--dim, #4a3e34); border-radius: 50%;
+  cursor: pointer; opacity: 0; transition: opacity 0.1s;
 }
 .interfaces-page .gen-section:hover > .gen-remove { opacity: 1; }
 
@@ -226,9 +263,18 @@
 /* Cipher — encoded text block, themed. */
 .interfaces-page .cipher { color: var(--fg); line-height: 1.5; letter-spacing: 0.04em; word-break: break-all; padding: 2px 0; }
 
-/* Render-style: "smooth" = without the lofi pixelation. Drops nearest-neighbour
-   upscaling on the canvases and re-enables font smoothing (the page is
-   font-smooth:none by default). Per-screen so Generate can toggle it live. */
-.interfaces-page .screen.smooth { -webkit-font-smoothing: antialiased; font-smooth: auto; }
-.interfaces-page .screen.smooth .widget canvas,
-.interfaces-page .screen.smooth canvas { image-rendering: auto; }
+/* Audio-reactive: lib/audio.js publishes overall amplitude to --audio (0..1).
+   The focused stage breathes slightly so non-canvas chrome reacts too; the
+   grids don't carry the attribute, so they stay calm (no repaint storm). */
+[data-audio-stage] {
+  /* --audio = overall level, --beat = onset flash (both from lib/audio.js) */
+  filter: brightness(calc(1 + var(--audio, 0) * 0.18 + var(--beat, 0) * 0.12));
+  transform: scale(calc(1 + var(--audio, 0) * 0.006));
+  will-change: filter, transform;
+}
+
+/* Knob modulation: an animating knob publishes its value to --knob (0..1),
+   which here breathes the section-label + status-bar tracking — the knob
+   visibly "drives" the UI. */
+[data-audio-stage] .section-label { letter-spacing: calc(0.2em + var(--knob, 0) * 0.18em); }
+[data-audio-stage] .statusbar { letter-spacing: calc(0.12em + var(--knob, 0) * 0.12em); }

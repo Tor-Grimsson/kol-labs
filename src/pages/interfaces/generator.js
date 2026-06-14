@@ -53,7 +53,10 @@ function randParams(w, rng) {
   const o = { ...w.defaults }
   for (const p of w.params) {
     if (p.type === 'select') o[p.key] = pick(rng, p.options)
-    else if (p.type === 'text') o[p.key] = `${pick(rng, NOUNS)} ${pick(rng, NOUNS)}`
+    else if (p.type === 'boolean') { /* keep the default — don't randomise toggles */ }
+    // only randomise a text param that ships with copy (cipher); leave opt-in
+    // fields (sevenSeg value, codeScroll custom) blank so their default behaviour holds
+    else if (p.type === 'text') { if (o[p.key]) o[p.key] = `${pick(rng, NOUNS)} ${pick(rng, NOUNS)}` }
     else { const steps = Math.round((p.max - p.min) / p.step); o[p.key] = p.min + Math.round(rng() * steps) * p.step }
   }
   return o
@@ -156,10 +159,9 @@ export function renderComposition(spec, node, { editable = false } = {}) {
   screen.style.overflow = 'hidden'
   screen.style.position = 'relative'
 
-  // global layout / typography / render-style controls (spec-level)
+  // global layout / typography controls (spec-level)
   const lay = spec.layout || {}
   if (spec.uiFont) screen.style.fontFamily = fontStack(spec.uiFont)
-  if (spec.renderStyle === 'smooth') screen.classList.add('smooth')
   if (lay.padT != null) screen.style.padding = `${lay.padT}px ${lay.padR}px ${lay.padB}px ${lay.padL}px`
   node.appendChild(screen)
 

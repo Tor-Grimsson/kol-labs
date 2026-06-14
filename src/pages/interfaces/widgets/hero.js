@@ -1,5 +1,6 @@
 import p5 from 'p5'
 import { pixelate, bayer, dither } from '../pixel'
+import { isActive, wave } from '../lib/audio.js'
 
 
 
@@ -48,12 +49,20 @@ export function hero(opts          )     {
         p.rect(W - 1 - i, H - 1, 1, 1); p.rect(W - 1, H - 1 - i, 1, 1)
       }
 
-      // central waveform: two overlaid sines, Bayer-dithered thickness
+      // central waveform: the live audio signal when playing, else two sines
+      const live = isActive()
+      const amp = (H / 2 - 3)
       const mid = (H / 2) | 0
       for (let x = 1; x < W - 1; x++) {
-        const s1 = Math.sin((x + t * 18) * 0.18) * 8
-        const s2 = Math.sin((x - t * 11) * 0.11 + 1) * 5
-        const y = mid + ((s1 + s2) | 0)
+        let y
+        if (live) {
+          const s = wave(x - 1, W - 2) ?? 0 // -1..1 oscilloscope sample
+          y = mid + Math.round(s * amp)
+        } else {
+          const s1 = Math.sin((x + t * 18) * 0.18) * 8
+          const s2 = Math.sin((x - t * 11) * 0.11 + 1) * 5
+          y = mid + ((s1 + s2) | 0)
+        }
 
         // main line
         p.fill(fg)

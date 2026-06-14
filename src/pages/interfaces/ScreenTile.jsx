@@ -6,7 +6,7 @@ import ScaleToFit from './ScaleToFit.jsx'
  * scrolled into view (50 screens × many p5 loops would melt the tab otherwise)
  * and pauses its instances when off-screen.
  */
-export default function ScreenTile({ def, playing, onClick }) {
+export default function ScreenTile({ def, playing, focused, onClick }) {
   const wrapRef = useRef(null)
   const hostRef = useRef(null)
   const instancesRef = useRef([])
@@ -17,6 +17,8 @@ export default function ScreenTile({ def, playing, onClick }) {
     if (wrapRef.current) io.observe(wrapRef.current)
     return () => io.disconnect()
   }, [])
+
+  useEffect(() => { if (focused) wrapRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }) }, [focused])
 
   useEffect(() => {
     if (!visible) return
@@ -41,7 +43,7 @@ export default function ScreenTile({ def, playing, onClick }) {
 
   return (
     <button ref={wrapRef} type="button" onClick={onClick} className="group flex flex-col gap-1 text-left">
-      <ScaleToFit className="h-44 w-full rounded border border-fg-08 group-hover:border-fg-24 transition-colors">
+      <ScaleToFit className={`h-44 w-full rounded border transition-colors ${focused ? 'border-yellow-400 ring-2 ring-yellow-400' : 'border-fg-08 group-hover:border-fg-24'}`}>
         <div className="interfaces-page bare">
           <div className={`screen theme-${def.theme ?? 'default'}`} ref={hostRef} />
         </div>

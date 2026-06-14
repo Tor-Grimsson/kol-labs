@@ -171,13 +171,11 @@ export default function PosterPage() {
     <div className="min-h-dvh bg-surface-primary text-emphasis flex">
       {/* ── workbench ── */}
       <main className="flex-1 p-6 flex flex-col gap-6 min-w-0">
-          {!selected && <div className="kol-helper-12 text-meta">Upload a source on the right to start.</div>}
-
           {selected && (
             <>
               {/* focal picker */}
               <section>
-                <div className="kol-helper-10 text-meta uppercase mb-2">Framing — click to set the focal point{previewCrop ? ` · showing ${previewCrop.label} crop` : ''}</div>
+                <div className="kol-mono-10 text-meta uppercase mb-2">Framing — click to set the focal point{previewCrop ? ` · showing ${previewCrop.label} crop` : ''}</div>
                 <div ref={previewRef} className="relative inline-block max-w-full cursor-crosshair select-none" onClick={onPickFocal}>
                   {selected.isVideo
                     ? <video src={srcUrl(selected.id)} className="max-h-[340px] max-w-full block rounded" muted playsInline />
@@ -196,7 +194,7 @@ export default function PosterPage() {
               <section>
                 <div className="kol-helper-10 text-meta uppercase mb-2">Outputs</div>
                 {!anyFit && (
-                  <div className="kol-helper-10 text-meta mb-2">
+                  <div className="kol-mono-10 text-meta mb-2">
                     source is {selected.width}×{selected.height} — too small for every output size · upload a larger master
                   </div>
                 )}
@@ -257,7 +255,7 @@ export default function PosterPage() {
 
               {/* job queue + outputs */}
               <section>
-                <div className="kol-helper-10 text-meta uppercase mb-2">Queue & outputs — click an output to add it to the plan</div>
+                <div className="kol-mono-10 text-meta uppercase mb-2">Queue & outputs — click an output to add it to the plan</div>
                 <ul className="flex flex-col gap-1 max-w-[640px]">
                   {jobs.map((j) => (
                     <li key={j.id} className="flex items-center gap-3 kol-helper-10">
@@ -294,7 +292,7 @@ export default function PosterPage() {
                   <button
                     type="button"
                     onClick={() => { setSelected(s); setThumbs([]); setFocal({ x: 0.5, y: 0.5 }) }}
-                    className={`w-full text-left px-2 py-1 rounded kol-helper-10 truncate transition-colors ${selected?.id === s.id ? 'bg-fg-08 text-emphasis' : 'text-body hover:bg-fg-04'}`}
+                    className={`w-full text-left px-2 py-1 rounded kol-helper-10 truncate transition-colors text-emphasis ${selected?.id === s.id ? 'bg-fg-12' : 'hover:bg-fg-04'}`}
                   >
                     {s.name.replace(/^[a-z0-9]+-/, '')} <span className="text-meta">{s.width}×{s.height}{s.isVideo ? ` · ${Math.round(s.duration)}s` : ''}</span>
                   </button>
@@ -307,10 +305,10 @@ export default function PosterPage() {
             <ul className="flex flex-col gap-1">
               {plans.map((p) => (
                 <li key={p.id} className="flex items-center gap-1">
-                  <button type="button" onClick={() => loadPlan(p)} className={`flex-1 min-w-0 text-left px-2 py-1 rounded kol-helper-10 truncate transition-colors ${plan.id === p.id ? 'bg-fg-08 text-emphasis' : 'text-body hover:bg-fg-04'}`}>
-                    {p.title || '(untitled)'} <span className="text-meta">· {p.assets.length} assets</span>
+                  <button type="button" onClick={() => loadPlan(p)} className={`flex-1 min-w-0 text-left px-2 py-1 rounded kol-helper-10 truncate transition-colors text-emphasis ${plan.id === p.id ? 'bg-fg-12' : 'hover:bg-fg-04'}`}>
+                    {p.title || '(Untitled)'} <span className="text-meta">· {p.assets.length} assets</span>
                   </button>
-                  <button type="button" aria-label="Delete plan" onClick={() => deletePlan(p.id)} className="kol-helper-10 text-meta hover:text-emphasis px-1 shrink-0">x</button>
+                  <Button variant="ghost" size="sm" quiet iconOnly="cross" iconSize={12} className="shrink-0" aria-label="Delete plan" onClick={() => deletePlan(p.id)} />
                 </li>
               ))}
             </ul>
@@ -323,17 +321,17 @@ export default function PosterPage() {
           <div>
             <div className="flex items-center justify-between mb-1">
               <span className="kol-helper-10 text-meta">Caption</span>
-              <button type="button" onClick={() => copy('caption', plan.caption)} className="kol-helper-10 text-meta hover:text-emphasis">{copied === 'caption' ? 'copied ✓' : 'copy'}</button>
+              <button type="button" onClick={() => copy('caption', plan.caption)} className="kol-helper-10 text-meta hover:text-emphasis">{copied === 'caption' ? 'Copied ✓' : 'Copy'}</button>
             </div>
             <Textarea rows={6} value={plan.caption} onChange={(e) => setPlan((p) => ({ ...p, caption: e.target.value }))} placeholder="Write the caption here…" />
           </div>
           <div>
             <div className="flex items-center justify-between mb-1">
               <span className="kol-helper-10 text-meta">Tags</span>
-              <button type="button" onClick={() => copy('tags', plan.tags.map((t) => `#${t}`).join(' '))} className="kol-helper-10 text-meta hover:text-emphasis">{copied === 'tags' ? 'copied ✓' : 'copy all'}</button>
+              <button type="button" onClick={() => copy('tags', plan.tags.map((t) => `#${t}`).join(' '))} className="kol-helper-10 text-meta hover:text-emphasis">{copied === 'tags' ? 'Copied ✓' : 'Copy all'}</button>
             </div>
             <div className="flex gap-1">
-              <Input value={tagDraft} onChange={(e) => setTagDraft(e.target.value)} placeholder="add tag + enter" onKeyDown={(e) => e.key === 'Enter' && addTag()} />
+              <Input value={tagDraft} onChange={(e) => setTagDraft(e.target.value)} placeholder="Add tag + enter" onKeyDown={(e) => e.key === 'Enter' && addTag()} />
             </div>
             <div className="flex flex-wrap gap-1 mt-2">
               {plan.tags.map((t) => (
@@ -350,7 +348,7 @@ export default function PosterPage() {
                   {/\.(jpg|png)$/.test(f)
                     ? <img src={outUrl(f)} className="w-full aspect-square object-cover rounded" alt="" />
                     : <video src={outUrl(f)} className="w-full aspect-square object-cover rounded" muted />}
-                  <span className="absolute inset-0 hidden group-hover:flex items-center justify-center bg-surface-primary/60 kol-helper-10">remove</span>
+                  <span className="absolute inset-0 hidden group-hover:flex items-center justify-center bg-surface-primary/60 kol-helper-10">Remove</span>
                 </button>
               ))}
             </div>
@@ -361,11 +359,15 @@ export default function PosterPage() {
               </div>
             )}
           </div>
-          <Button variant="primary" size="sm" onClick={() => download('doc')} iconLeft="download" className="w-full">Download plan md</Button>
-          <Button variant="primary" size="sm" onClick={() => download('images')} iconLeft="download" className="w-full">Download images</Button>
-          <Button variant="primary" size="sm" onClick={save} className="w-full">Save plan</Button>
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-1">
+              <Button variant="primary" size="sm" onClick={() => download('doc')} iconLeft="download" className="w-full">Download plan md</Button>
+              <Button variant="primary" size="sm" onClick={() => download('images')} iconLeft="download" className="w-full">Download images</Button>
+            </div>
+            <Button variant="secondary" size="sm" onClick={save} className="w-full">Save plan</Button>
+          </div>
 
-          <p className="kol-helper-10 text-body">social post pre-flight · upload a master, pick crops, plan the post</p>
+          <p className="kol-mono-10 text-meta">social post pre-flight · upload a master, pick crops, plan the post</p>
         </EditorRail>
     </div>
   )

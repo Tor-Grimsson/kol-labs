@@ -27,22 +27,31 @@ export function downloadPng(canvas, name, scale = 4) {
   scaledCanvas(canvas, scale).toBlob((b) => b && save(b, `${name}.png`), 'image/png')
 }
 
+const pickType = (audio) => {
+  const order = audio
+    ? ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm']
+    : ['video/webm;codecs=vp9', 'video/webm']
+  return order.find((t) => MediaRecorder.isTypeSupported(t)) || 'video/webm'
+}
+
 /**
  * Record `seconds` of the live canvas to webm. Draws the source onto a scaled
  * offscreen canvas each frame (nearest-neighbour) and captures that stream.
- * Returns a stop() so the UI can end early. Resolves the blob via onDone too.
+ * Pass `audioStream` (a MediaStream) to mux its audio track in — the export is
+ * then the widget animation synced to that sound. Returns a stop() so the UI
+ * can end early; calls onStop when the file is saved.
  */
-export function recordWebm(canvas, name, { seconds = 4, fps = 30, scale = 4 } = {}) {
+export function recordWebm(canvas, name, { seconds = 4, fps = 30, scale = 4, audioStream = null, onStop } = {}) {
   if (!canvas || typeof MediaRecorder === 'undefined') return () => {}
   const off = scaledCanvas(canvas, scale)
   const offCtx = off.getContext('2d')
   offCtx.imageSmoothingEnabled = false
   const stream = off.captureStream(fps)
-  const type = MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ? 'video/webm;codecs=vp9' : 'video/webm'
-  const rec = new MediaRecorder(stream, { mimeType: type })
+  if (audioStream) for (const t of audioStream.getAudioTracks()) stream.addTrack(t)
+  const rec = new MediaRecorder(stream, { mimeType: pickType(audioStream) })
   const chunks = []
   rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data) }
-  rec.onstop = () => { cancelAnimationFrame(raf); save(new Blob(chunks, { type: 'video/webm' }), `${name}.webm`) }
+  rec.onstop = () => { cancelAnimationFrame(raf); save(new Blob(chunks, { type: 'video/webm' }), `${name}.webm`); onStop?.() }
 
   let raf
   const draw = () => { offCtx.drawImage(canvas, 0, 0, off.width, off.height); raf = requestAnimationFrame(draw) }

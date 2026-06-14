@@ -1,6 +1,7 @@
 
 
 import { CLOCK } from '../clock'
+import { PALETTE } from '../settings'
 
 export function makeSampler(sdf              , w        , h        ) {
   return (x        , y        )         => {
@@ -38,7 +39,7 @@ export function inwardDir(sdf     , x        , y        )                   {
   return [-gx / m, -gy / m]
 }
 
-export function clear(ctx                          , W        , H        , bg = '#0a0b14') {
+export function clear(ctx                          , W        , H        , bg = PALETTE.bg) {
   ctx.fillStyle = bg
   ctx.fillRect(0, 0, W, H)
 }

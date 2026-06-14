@@ -1,5 +1,6 @@
 import p5 from 'p5'
 import { pixelate } from '../pixel'
+import { level, isActive } from '../lib/audio.js'
 
 
 
@@ -34,7 +35,7 @@ export function vu(opts        )     {
 
       const t = p.millis() / 1000
       const env = Math.max(0, Math.sin(t * 1.6 + seed) * 0.6 + 0.4 + Math.sin(t * 5.2 + seed * 2) * 0.18)
-      const v = Math.max(0, Math.min(1, env))
+      const v = isActive() ? level() : Math.max(0, Math.min(1, env))
       const lit = Math.round(v * segs)
       const segW = Math.floor(W / segs)
       for (let i = 0; i < segs; i++) {

@@ -85,7 +85,7 @@ function ModalView({ state, closeWith }) {
           maxWidth: '90vw',
         }}
       >
-        <p className="kol-helper-12 text-emphasis">{state.title}</p>
+        <p className="kol-mono-12 text-emphasis">{state.title}</p>
         {state.kind === 'prompt' && (
           <Input
             ref={inputRef}

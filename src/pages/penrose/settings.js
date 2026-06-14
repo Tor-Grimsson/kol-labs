@@ -36,3 +36,10 @@ export const THEMES = [
 ]
 
 export const themeFor = (id) => THEMES.find((t) => t.id === id) || THEMES[0]
+
+// Live palette singleton. The active theme writes here (setPalette) so the
+// prototype draw helpers (common.js → clear/strokeOutline) retint their
+// background + outline globally without editing all 115 prototype files.
+// (Bespoke per-stroke hues stay authored in each prototype.)
+export const PALETTE = { ...THEMES[0].vars }
+export const setPalette = (vars) => Object.assign(PALETTE, vars)

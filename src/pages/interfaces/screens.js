@@ -1,5 +1,6 @@
 
 import { hero, sequencer, eqBars, knob, tape, matrix, vu, helix, reel, hBars, sevenSeg, bitmap, codeScroll, creature3d } from './widgets'
+import { liveEncode } from './widgets/cipher.js'
 
 
 
@@ -33,7 +34,7 @@ function numericStrip(host             , groups        , perGroup        ) {
       for (let i = 0; i < perGroup; i++) parts.push(hex(4))
       rows.push(parts.join(' '))
     }
-    strip.textContent = rows.join('  ')
+    strip.textContent = liveEncode(rows.join('  '))
   }
   paint()
   const id = setInterval(paint, 140)
@@ -951,8 +952,8 @@ function dualNum(host             , rows        )       {
   const paint = () => {
     const a           = []; const b           = []
     for (let i = 0; i < rows; i++) { a.push(genRow()); b.push(genRow()) }
-    colA.textContent = a.join('\n')
-    colB.textContent = b.join('\n')
+    colA.textContent = liveEncode(a.join('\n'))
+    colB.textContent = liveEncode(b.join('\n'))
   }
   paint()
   const id = setInterval(paint, 260)

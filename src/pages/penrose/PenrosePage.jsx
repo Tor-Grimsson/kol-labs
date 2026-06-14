@@ -8,6 +8,7 @@ import Dropdown from '../../components/molecules/Dropdown.jsx'
 import LabeledControl from '../../components/molecules/LabeledControl.jsx'
 import Section from '../../components/molecules/Section.jsx'
 import EditorRail, { RailHeader } from '../../components/framework/EditorRail.jsx'
+import Pager from '../../components/framework/Pager.jsx'
 import './main.css'
 import { mulberry32 } from './prng'
 import { rasterizeGlyph, computeSDF } from './sdf'
@@ -16,7 +17,7 @@ import { makeSDF } from './prototypes/common'
 import { Camera } from './camera'
 import { CLOCK } from './clock'
 import { defaultValues, fmt } from './knobs'
-import { FRAMES, FONTS, THEMES, frameFor, themeFor } from './settings'
+import { FRAMES, FONTS, THEMES, frameFor, themeFor, setPalette } from './settings'
 
 const LOGICAL = 640
 const MASK_RES = LOGICAL
@@ -161,15 +162,9 @@ function Grid({ onSelect, seedBase }) {
   return (
     <div className="grid" ref={gridRef}>
       {PROTOTYPES.map((proto, i) => (
-        <div className="tile" data-i={i} key={proto.id} onClick={() => onSelect(i)}>
+        <div className="tile" data-i={i} key={proto.id} onClick={() => onSelect(i)} title={proto.summary}>
           <canvas width={TILE * dpr} height={TILE * dpr} style={{ width: `${TILE}px`, height: `${TILE}px` }} />
-          <div className="tile-tip">
-            <div className="n">{pad(i + 1)} · {proto.name}</div>
-            <div className="repo">ref: {proto.repo}</div>
-            <div>{proto.summary}</div>
-            <div className="helps">→ {proto.helps}</div>
-          </div>
-          <div className="tile-label"><b>{pad(i + 1)}</b> {proto.name}</div>
+          <div className="tile-label"><span className="n">{pad(i + 1)}</span><span className="nm">{proto.name}</span></div>
         </div>
       ))}
     </div>
@@ -179,10 +174,12 @@ function Grid({ onSelect, seedBase }) {
 function App() {
   const [view, setView] = useState(INITIAL_VIEW)
   const [idx, setIdx] = useState(INITIAL_IDX)
-  const [letter, setLetter] = useState('a')
+  const [letter, setLetter] = useState('A')
   const [weight, setWeight] = useState('700')
   const [font, setFont] = useState(FONTS[0].id)
   const [paused, setPaused] = useState(CLOCK.isPaused())
+  const [speed, setSpeed] = useState(CLOCK.speed)
+  const [camState, setCamState] = useState(null)
   const [sdfVersion, setSdfVersion] = useState(0)
   const [resetNonce, setResetNonce] = useState(0)
   // Artboard settings (global — apply across single + gallery)
@@ -200,7 +197,9 @@ function App() {
   useEffect(() => {
     const cam = new Camera(canvasRef.current)
     cameraRef.current = cam
-    return () => cam.detach()
+    const unsub = cam.subscribe((s) => setCamState({ ...s }))
+    setCamState(cam.snapshot)
+    return () => { unsub(); cam.detach() }
   }, [])
 
   // Debounced glyph/weight/font rebake (220ms), skipped on first render.
@@ -208,7 +207,7 @@ function App() {
   useEffect(() => {
     if (!booted.current) { booted.current = true; return }
     const id = setTimeout(() => {
-      void rasterizeGlyph(letter || 'a', font, weight, LOGICAL * 0.9, MASK_RES, MASK_RES).then((m) => {
+      void rasterizeGlyph(letter || 'A', font, weight, LOGICAL * 0.9, MASK_RES, MASK_RES).then((m) => {
         sdfData.set(computeSDF(m, MASK_RES, MASK_RES))
         setSdfVersion((v) => v + 1)
       })
@@ -224,7 +223,7 @@ function App() {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     const cleanup = initProto(idx, canvas, ctx, LOGICAL, LOGICAL, 'init', seedBase)
     return () => { if (cleanup) cleanup() }
-  }, [view, idx, sdfVersion, resetNonce, seedBase])
+  }, [view, idx, sdfVersion, resetNonce, seedBase, theme])
 
   // Hash routing (write-only, like the imperative shell)
   useEffect(() => {
@@ -237,7 +236,9 @@ function App() {
   }
   const reset = () => setResetNonce((n) => n + 1)
   const togglePause = () => { CLOCK.toggle(); setPaused(CLOCK.isPaused()) }
+  const setClockSpeed = (v) => { CLOCK.setSpeed(v); setSpeed(v) }
   const camReset = () => cameraRef.current?.reset()
+  const camZoom = (f) => cameraRef.current?.zoomAtCenter(f)
   const toggleView = () => setView((v) => (v === 'grid' ? 'single' : 'grid'))
   // New generation: re-seed every prototype's RNG in lockstep.
   const randomise = () => setSeedBase(Math.floor(Math.random() * 1e9))
@@ -274,6 +275,9 @@ function App() {
     ? { aspectRatio: `${fr.w} / ${fr.h}`, width: `min(86vw, ${Math.round(LOGICAL * aspect)}px)` }
     : { aspectRatio: `${fr.w} / ${fr.h}`, height: `min(86vh, ${Math.round(LOGICAL / aspect)}px)` }
   const th = themeFor(theme)
+  // Push the active theme into the live palette BEFORE child init effects fire,
+  // so prototype clear()/outline pick up the themed background (idempotent).
+  setPalette(th.vars)
   const themeVars = {
     '--bg': th.vars.bg,
     '--fg': th.vars.fg,
@@ -301,12 +305,24 @@ function App() {
               height={LOGICAL * dpr}
             />
             {showGrid && <div className="frame-grid" aria-hidden="true" />}
+            <div className="cam-hud">
+              <div className="cam-zoom">
+                <button type="button" onClick={() => camZoom(1.25)} aria-label="zoom in">+</button>
+                <button type="button" onClick={() => camZoom(1 / 1.25)} aria-label="zoom out">−</button>
+                <button type="button" onClick={camReset} aria-label="reset view">⌂</button>
+              </div>
+              <div className="cam-xy">
+                <span>{Math.round((camState?.scale ?? 1) * 100)}%</span>
+                <span>x {Math.round(camState?.tx ?? 0)}</span>
+                <span>y {Math.round(camState?.ty ?? 0)}</span>
+              </div>
+            </div>
           </div>
         </div>
 
         {view === 'grid' && (
           <Grid
-            key={`${sdfVersion}:${resetNonce}:${seedBase}`}
+            key={`${sdfVersion}:${resetNonce}:${seedBase}:${theme}`}
             seedBase={seedBase}
             onSelect={(i) => { setIdx(i); setView('single') }}
           />
@@ -321,29 +337,25 @@ function App() {
         {/* nav + position — the counter lives with the pager, not pinned to the top */}
         <div className="flex flex-col gap-2">
           <Button variant="primary" size="sm" className="w-full" onClick={toggleView}>
-            {view === 'grid' ? 'single' : 'gallery'}
+            {view === 'grid' ? 'Single' : 'Gallery'}
           </Button>
-          <div className="flex items-center gap-2">
-            <Button variant="primary" size="sm" onClick={() => go(-1)}>← prev</Button>
-            <span className="kol-helper-10 text-meta flex-1 text-center tabular-nums">{pad(idx + 1)} / {pad(PROTOTYPES.length)}</span>
-            <Button variant="primary" size="sm" onClick={() => go(1)}>next →</Button>
-          </div>
+          <Pager index={idx} total={PROTOTYPES.length} onPrev={() => go(-1)} onNext={() => go(1)} />
         </div>
 
         <Divider />
 
         <Section label="Glyph">
-          <LabeledControl inline label="letter">
+          <LabeledControl inline label="Letter">
             <Input
               size="sm"
               width="100%"
               maxLength={8}
               value={letter}
-              placeholder="a"
+              placeholder="A"
               onChange={(e) => setLetter(e.target.value.slice(0, 8))}
             />
           </LabeledControl>
-          <LabeledControl inline label="weight">
+          <LabeledControl inline label="Weight">
             <Dropdown
               size="sm"
               variant="subtle"
@@ -353,7 +365,7 @@ function App() {
               onChange={(v) => setWeight(v)}
             />
           </LabeledControl>
-          <LabeledControl inline label="font">
+          <LabeledControl inline label="Font">
             <Dropdown
               size="sm"
               variant="subtle"
@@ -366,7 +378,7 @@ function App() {
         </Section>
 
         <Section label="Artboard">
-          <LabeledControl inline label="frame">
+          <LabeledControl inline label="Frame">
             <Dropdown
               size="sm"
               variant="subtle"
@@ -376,7 +388,7 @@ function App() {
               onChange={(v) => setFrameRatio(v)}
             />
           </LabeledControl>
-          <LabeledControl inline label="theme">
+          <LabeledControl inline label="Theme">
             <Dropdown
               size="sm"
               variant="subtle"
@@ -386,11 +398,27 @@ function App() {
               onChange={(v) => setTheme(v)}
             />
           </LabeledControl>
-          <ToggleCheckbox label="grid overlay" checked={showGrid} onChange={setShowGrid} />
+          <ToggleCheckbox label="Grid overlay" checked={showGrid} onChange={setShowGrid} />
           <div className="flex items-center gap-2">
-            <Button variant="primary" size="sm" className="flex-1" onClick={randomise}>↻ randomise</Button>
+            <Button variant="primary" size="sm" className="flex-1" onClick={randomise}>↻ Randomise</Button>
             <span className="kol-helper-10 text-meta tabular-nums">gen {seedBase}</span>
           </div>
+        </Section>
+
+        <Section label="Time">
+          <Button variant="primary" size="sm" className="w-full" onClick={togglePause}>
+            {paused ? '▶ Play' : '⏸ Pause'}
+          </Button>
+          <Slider
+            label="Speed"
+            min={0}
+            max={3}
+            step={0.05}
+            value={speed}
+            onChange={setClockSpeed}
+            formatValue={(v) => `${v.toFixed(2)}×`}
+            className="w-full"
+          />
         </Section>
 
         {/* per-prototype controls — single view only */}
@@ -399,24 +427,23 @@ function App() {
             <Divider />
             <KnobsPanel key={proto.id} proto={proto} onTweak={() => setResetNonce((n) => n + 1)} />
             <div className="flex flex-wrap gap-1">
-              <Button variant="ghost" size="sm" onClick={reset}>reset</Button>
-              <Button variant="ghost" size="sm" onClick={camReset}>cam reset</Button>
-              <Button variant="ghost" size="sm" onClick={togglePause}>{paused ? 'play' : 'pause'}</Button>
-              <Button variant="ghost" size="sm" onClick={downloadPng}>↓ png</Button>
+              <Button variant="primary" size="sm" onClick={reset}>Reset</Button>
+              <Button variant="primary" size="sm" onClick={camReset}>Cam reset</Button>
+              <Button variant="primary" size="sm" onClick={downloadPng}>↓ PNG</Button>
             </div>
 
             <Divider />
 
             <div className="flex flex-col gap-1">
               <div className="kol-mono-14 text-emphasis">{proto.name}</div>
-              <div className="kol-helper-10 text-body">ref: {proto.repo}</div>
+              <div className="kol-mono-12 text-body">ref: {proto.repo}</div>
               <div className="kol-mono-12 text-body">{proto.summary}</div>
               <div className="kol-mono-12 text-body">→ {proto.helps}</div>
             </div>
 
             <Divider />
 
-            <div className="kol-helper-10 text-body flex flex-col gap-1">
+            <div className="kol-mono-10 text-body flex flex-col gap-1">
               <div>drag = pan · wheel = zoom</div>
               <div>shift+drag = rotate XY · alt+drag = rotate Z</div>
               <div>← / → step · G gallery · R reset · C cam · space pause</div>
@@ -434,7 +461,7 @@ export default function PenrosePage() {
   const [ready, setReady] = useState(false)
   useEffect(() => {
     let alive = true
-    void rasterizeGlyph('a', FONTS[0].id, '700', LOGICAL * 0.9, MASK_RES, MASK_RES).then((mask0) => {
+    void rasterizeGlyph('A', FONTS[0].id, '700', LOGICAL * 0.9, MASK_RES, MASK_RES).then((mask0) => {
       if (!alive) return
       sdfData = computeSDF(mask0, MASK_RES, MASK_RES)
       sdf = makeSDF(sdfData, MASK_RES, MASK_RES)

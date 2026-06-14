@@ -1,5 +1,6 @@
 import p5 from 'p5'
 import { pixelate } from '../pixel'
+import { isActive, beatCount, beat } from '../lib/audio.js'
 
 
 
@@ -43,12 +44,16 @@ export function matrix(opts            )     {
       p.noStroke()
 
       const t = p.millis() / 1000
-      const bucket = Math.floor(t * speed)
+      // locked to the track: re-roll the field on each beat; else free-run on time
+      const live = isActive()
+      const bucket = live ? beatCount() : Math.floor(t * speed)
+      const hit = live ? beat() : 0 // on a beat, more cells light up
+      const onThresh = 0.7 - hit * 0.25 // beat lowers the bar → field flares on the hit
 
       for (let y = 0; y < rows; y++) {
         for (let x = 0; x < cols; x++) {
           const v = rngAt(x, y, bucket)
-          if (v > 0.7) {
+          if (v > onThresh) {
             p.fill(fg)
             p.rect(x * cell, y * cell, cell - 1, cell - 1)
           } else if (v > 0.5) {

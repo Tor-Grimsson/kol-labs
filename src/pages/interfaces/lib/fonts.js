@@ -9,6 +9,12 @@ export const FONTS = [
   { key: 'jetbrains', label: 'JetBrains', stack: "'JetBrains Mono', ui-monospace, monospace" },
   { key: 'malromur', label: 'Malromur', stack: "'TG Malromur', ui-monospace, monospace" },
   { key: 'grotesk', label: 'Grotesk', stack: "'PP Right Grotesk', system-ui, sans-serif" },
+  { key: 'gullhamrar', label: 'Gullhamrar', stack: "'TG Gullhamrar', serif" },
+  { key: 'ordspor', label: 'Ordspor', stack: "'TG Ordspor', sans-serif" },
+  { key: 'rot', label: 'Rot', stack: "'TG Rot', sans-serif" },
+  { key: 'dylgjur', label: 'Dylgjur', stack: "'TG Dylgjur', sans-serif" },
+  { key: 'silfurbarki', label: 'Silfurbarki', stack: "'TG Silfurbarki', sans-serif" },
+  { key: 'trollatunga', label: 'Trollatunga', stack: "'TG Trollatunga', sans-serif" },
 ]
 
 export const fontStack = (key) => FONTS.find((f) => f.key === key)?.stack || FONTS[0].stack

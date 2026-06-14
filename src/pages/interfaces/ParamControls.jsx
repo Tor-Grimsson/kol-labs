@@ -1,6 +1,7 @@
 import Slider from '../../components/atoms/Slider.jsx'
 import Dropdown from '../../components/molecules/Dropdown.jsx'
 import Input from '../../components/atoms/Input.jsx'
+import ToggleCheckbox from '../../components/atoms/ToggleCheckbox.jsx'
 
 /**
  * Renders a registry param schema as live controls. Shared by the Library
@@ -23,8 +24,10 @@ export default function ParamControls({ params, opts, onChange }) {
     ) : p.type === 'text' ? (
       <div key={p.key}>
         <div className="kol-helper-10 text-meta mb-1">{p.label}</div>
-        <Input value={opts[p.key] ?? ''} onChange={(e) => onChange(p.key, e.target.value)} placeholder="English text…" />
+        <Input value={opts[p.key] ?? ''} onChange={(e) => onChange(p.key, e.target.value)} placeholder="text…" />
       </div>
+    ) : p.type === 'boolean' ? (
+      <ToggleCheckbox key={p.key} label={p.label} checked={!!opts[p.key]} onChange={(v) => onChange(p.key, v)} />
     ) : (
       <Slider key={p.key} label={p.label} min={p.min} max={p.max} step={p.step} value={opts[p.key]} onChange={(v) => onChange(p.key, v)} />
     )
