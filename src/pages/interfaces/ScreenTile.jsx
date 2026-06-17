@@ -11,6 +11,9 @@ export default function ScreenTile({ def, playing, focused, onClick }) {
   const hostRef = useRef(null)
   const instancesRef = useRef([])
   const [visible, setVisible] = useState(false)
+  const [hovered, setHovered] = useState(false)
+  // Gallery tiles don't auto-play — they animate only while hovered.
+  const active = playing && hovered
 
   useEffect(() => {
     const io = new IntersectionObserver(([e]) => setVisible(e.isIntersecting), { rootMargin: '300px' })
@@ -26,8 +29,8 @@ export default function ScreenTile({ def, playing, focused, onClick }) {
     const instances = def.build(node)
     instancesRef.current = instances
     const cleanups = []
-    node.querySelectorAll('*').forEach((n) => { if (n._cleanup) cleanups.push(n._cleanup) })
-    for (const p of instances) playing ? p.loop() : p.noLoop()
+    node.querySelectorAll('*').forEach((n) => { if (n._cleanup) cleanups.push(n._cleanup); n._setPlaying?.(active) })
+    for (const p of instances) active ? p.loop() : p.noLoop()
     return () => {
       for (const p of instances) p.remove()
       for (const c of cleanups) c()
@@ -38,11 +41,21 @@ export default function ScreenTile({ def, playing, focused, onClick }) {
   }, [visible])
 
   useEffect(() => {
-    for (const p of instancesRef.current) playing ? p.loop() : p.noLoop()
-  }, [playing, visible])
+    for (const p of instancesRef.current) active ? p.loop() : p.noLoop()
+    // DOM widgets (hex strip / dual numbers) expose _setPlaying — gate them on
+    // the same hover state so a paused tile's numbers freeze too.
+    hostRef.current?.querySelectorAll('*').forEach((n) => n._setPlaying?.(active))
+  }, [active, visible])
 
   return (
-    <button ref={wrapRef} type="button" onClick={onClick} className="group flex flex-col gap-1 text-left">
+    <button
+      ref={wrapRef}
+      type="button"
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      className="group flex flex-col gap-1 text-left"
+    >
       <ScaleToFit className={`h-44 w-full rounded border transition-colors ${focused ? 'border-yellow-400 ring-2 ring-yellow-400' : 'border-fg-08 group-hover:border-fg-24'}`}>
         <div className="interfaces-page bare">
           <div className={`screen theme-${def.theme ?? 'default'}`} ref={hostRef} />

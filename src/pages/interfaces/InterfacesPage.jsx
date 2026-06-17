@@ -7,6 +7,7 @@ import Slider from '../../components/atoms/Slider.jsx'
 import Input from '../../components/atoms/Input.jsx'
 import Dropdown from '../../components/molecules/Dropdown.jsx'
 import SegmentedToggle from '../../components/molecules/SegmentedToggle.jsx'
+import ButtonGroup from '../../components/molecules/ButtonGroup.jsx'
 import EditorRail from '../../components/framework/EditorRail.jsx'
 import RailNav from '../../components/framework/RailNav.jsx'
 import TransportBar from '../../components/framework/TransportBar.jsx'
@@ -21,8 +22,9 @@ import WidgetCard from './WidgetCard.jsx'
 import ScreenTile from './ScreenTile.jsx'
 import ParamControls from './ParamControls.jsx'
 import { downloadPng, recordWebm } from './lib/download.js'
+import { recordRegion, regionCaptureSupported } from './lib/capture.js'
 import { startClock, tempoMillis, setTempoScale } from './lib/clock.js'
-import { stop as stopAudio } from './lib/audio.js'
+import { stop as stopAudio, recStream, isActive as audioActive, isFile as audioIsFile, seek as audioSeek, play as audioPlay, pause as audioPause, duration as audioDuration } from './lib/audio.js'
 import AudioControls from './AudioControls.jsx'
 import CollapsibleSection from './CollapsibleSection.jsx'
 import { FONTS } from './lib/fonts.js'
@@ -45,6 +47,9 @@ const writeSaved = (a) => { try { localStorage.setItem(SAVED_KEY, JSON.stringify
 const DRAFT_KEY = 'kol-interfaces:draft'
 const readDraft = () => { try { return JSON.parse(localStorage.getItem(DRAFT_KEY) || '{}') || {} } catch { return {} } }
 
+/* Factory layout — shared by initial state and Reset to default so they can't drift. */
+const DEFAULT_LAYOUT = { padT: 18, padR: 16, padB: 16, padL: 16, gap: 8, scale: 1 }
+
 /* mount helper shared by player / generate / saved tiles */
 function useMount(buildFn, deps, playing, encodeMode) {
   const hostRef = useRef(null)
@@ -60,7 +65,7 @@ function useMount(buildFn, deps, playing, encodeMode) {
     for (const p of instances) { if (p && typeof p.millis === 'function') p.millis = () => tempoMillis() }
     encodeDom(node, encodeMode) // global "looks encoded" pass over the rendered DOM text
     const cleanups = []
-    node.querySelectorAll('*').forEach((n) => { if (n._cleanup) cleanups.push(n._cleanup) })
+    node.querySelectorAll('*').forEach((n) => { if (n._cleanup) cleanups.push(n._cleanup); n._setPlaying?.(playing) })
     for (const p of instances) playing ? p.loop() : p.noLoop()
     return () => {
       for (const p of instances) p.remove()
@@ -72,6 +77,9 @@ function useMount(buildFn, deps, playing, encodeMode) {
   }, [...deps, encodeMode])
   useEffect(() => {
     for (const p of instancesRef.current) playing ? p.loop() : p.noLoop()
+    // DOM widgets (hex strip / dual numbers / codeScroll) aren't p5 instances —
+    // they expose _setPlaying so the transport freezes them too.
+    hostRef.current?.querySelectorAll('*').forEach((n) => n._setPlaying?.(playing))
   }, [playing])
   return hostRef
 }
@@ -85,8 +93,10 @@ function PlayerStage({ def, playing, stopNonce, encodeMode }) {
   )
 }
 
-function GenerateStage({ spec, playing, onRemove, onSelect, onInfo, selSec, encodeMode }) {
+function GenerateStage({ spec, playing, onRemove, onSelect, onInfo, selSec, encodeMode, stageHostRef }) {
   const hostRef = useMount((node) => renderComposition(spec, node, { editable: true }), [spec], playing, encodeMode)
+  // surface the host node so the Output tab can target its .screen for capture
+  useEffect(() => { if (stageHostRef) stageHostRef.current = hostRef.current })
   // selection is a class toggle (not a rebuild) so changing it never re-mounts
   // the p5 instances; re-runs after each rebuild too (spec in deps).
   useEffect(() => {
@@ -212,13 +222,20 @@ export default function InterfacesPage() {
   const [genFont, setGenFont] = useState(draft.genFont ?? 'mono')
   const [encodeMode, setEncodeMode] = useState(draft.encodeMode ?? 'off') // global text-encode scheme
   setLiveEncode(encodeMode) // keep interval-driven painters (hex strip / dual numbers) in sync
-  const [layout, setLayout] = useState(draft.layout ?? { padT: 18, padR: 16, padB: 16, padL: 16, gap: 8, scale: 1 })
+  const [layout, setLayout] = useState(draft.layout ?? DEFAULT_LAYOUT)
   const setLay = (k, v) => setLayout((l) => ({ ...l, [k]: v }))
   // next added-block id: clear of any restored added ids so new blocks don't collide
   const addIdRef = useRef(null)
   if (addIdRef.current === null) addIdRef.current = (draft.added ?? []).reduce((m, s) => Math.max(m, (s.id ?? 0) + 1), 1000)
   const canvasRef = useRef(null)
   const recStopRef = useRef(null)
+  // composition capture (Output tab)
+  const [recLen, setRecLen] = useState(10) // seconds
+  const [capturing, setCapturing] = useState(false)
+  const [recElapsed, setRecElapsed] = useState(0) // live counter while recording
+  const capStopRef = useRef(null)
+  const recTickRef = useRef(null)
+  const stageHostRef = useRef(null) // the GenerateStage host node (holds the .screen crop target)
 
   const def = SCREENS[idx]
   const widget = selKey ? widgetFor(selKey) : null
@@ -256,6 +273,15 @@ export default function InterfacesPage() {
   // generate: pager over saved compositions (saved grid)
   const goSaved = (d) => { if (saved.length) setSavedIdx((i) => (i + d + saved.length) % saved.length) }
   const reroll = () => setGenSeed(Math.floor(Math.random() * 1e9))
+  // Full factory reset across all three tabs — keeps the current seed (the
+  // composition identity), strips every tweak. Edit: sections/edits/selection.
+  // Design: aspect/theme/chrome/font/encode/layout. Mix: tempo. (Playback +
+  // audio are momentary I/O, left as-is.)
+  const resetAll = () => {
+    setRemoved(new Set()); setAdded([]); setEdits({}); setSelSec(null); setAddPick('eqBars')
+    setShowChrome(true); setAspectKey('9:16'); setThemeSel('random'); setGenFont('mono'); setEncodeMode('off'); setLayout(DEFAULT_LAYOUT)
+    setTempo(50)
+  }
   const saveComposition = () => {
     setSaved((s) => {
       const next = [{ seed: genSeed, aspectKey, theme: spec.theme, ts: Date.now() }, ...s].slice(0, 60)
@@ -344,13 +370,59 @@ export default function InterfacesPage() {
     setTimeout(() => setRecording(false), 5000)
   }
 
+  // Output tab — record the whole composition (canvas + DOM + optional audio)
+  // via Region Capture. Crop target is the live .screen inside the stage host.
+  const startCapture = async () => {
+    const screen = stageHostRef.current?.querySelector('.screen')
+    if (!screen || capturing) return
+    setSelSec(null) // drop the edit-selection outline / × badge so it isn't filmed
+    setCapturing(true)
+    const withAudio = audioActive()
+    const stop = await recordRegion(screen, {
+      seconds: Math.max(1, recLen),
+      name: `interfaces-${spec.seed}`,
+      audioStream: withAudio ? recStream() : null,
+      // start file playback + the counter only once recording truly begins (a
+      // cancelled share prompt then never leaves the track playing/ticking)
+      onStart: () => {
+        if (withAudio && audioIsFile()) { audioSeek(0); audioPlay(); setPlaying(true) }
+        const t0 = performance.now()
+        setRecElapsed(0)
+        recTickRef.current = setInterval(() => setRecElapsed((performance.now() - t0) / 1000), 200)
+      },
+      onStop: () => {
+        clearInterval(recTickRef.current); recTickRef.current = null
+        setRecElapsed(0)
+        setCapturing(false)
+        capStopRef.current = null
+        if (withAudio && audioIsFile()) { audioPause(); setPlaying(false) }
+      },
+    })
+    capStopRef.current = stop
+  }
+  const stopCapture = () => capStopRef.current?.()
+  // end any in-flight capture + counter if the page unmounts mid-record
+  useEffect(() => () => { clearInterval(recTickRef.current); capStopRef.current?.() }, [])
+
+  // Browse = the two overview grids on one sidebar entry; this segmented
+  // toggle is the Screens↔Elements switch, routed between the gallery/library
+  // routes so existing cross-nav (player ↔ screens, variant detail) is intact.
+  const browseTab = view === 'library' ? 'elements' : 'screens'
+  const browseToggle = (
+    <SegmentedToggle
+      value={browseTab}
+      onChange={(v) => navigate(v === 'elements' ? VIEW_PATHS.library : VIEW_PATHS.gallery)}
+      options={[{ value: 'screens', label: 'Screens' }, { value: 'elements', label: 'Elements' }]}
+    />
+  )
+
   return (
     <div className="flex min-h-dvh">
       {/* ── stage ── */}
       <div className="flex-1 min-w-0 h-dvh bg-surface-secondary">
         {view === 'generate' && genView === 'current' && (
           <div data-audio-stage className="relative h-full flex items-center justify-center">
-            <GenerateStage spec={visibleSpec} playing={playing} onRemove={removeSection} onSelect={setSelSec} onInfo={setInfoSec} selSec={selSec} encodeMode={encodeMode} />
+            <GenerateStage spec={visibleSpec} playing={playing} onRemove={removeSection} onSelect={setSelSec} onInfo={setInfoSec} selSec={selSec} encodeMode={encodeMode} stageHostRef={stageHostRef} />
             {infoSec != null && <SectionInfo sec={visibleSpec.sections.find((s) => s.id === infoSec)} onClose={() => setInfoSec(null)} />}
           </div>
         )}
@@ -423,7 +495,7 @@ export default function InterfacesPage() {
             />
             {genView === 'current' ? (
               <>
-                <SegmentedToggle value={genTab} onChange={setGenTab} options={[{ value: 'edit', label: 'Edit' }, { value: 'design', label: 'Design' }, { value: 'mix', label: 'Mix' }]} />
+                <SegmentedToggle value={genTab} onChange={setGenTab} options={[{ value: 'edit', label: 'Edit' }, { value: 'design', label: 'Design' }, { value: 'output', label: 'Output' }]} />
 
                 {genTab === 'edit' && (
                   <>
@@ -483,7 +555,10 @@ export default function InterfacesPage() {
                         <Divider />
                       </>
                     )}
-                    <Button variant="primary" size="sm" className="w-full" iconLeft="cycle" onClick={reroll}>Reroll</Button>
+                    <ButtonGroup orientation="vertical" className="w-full">
+                      <Button variant="primary" size="sm" iconLeft="cycle" onClick={reroll}>Reroll</Button>
+                      <Button variant="secondary" size="sm" onClick={resetAll}>Reset to default</Button>
+                    </ButtonGroup>
                     <Section label="Add block">
                       <Dropdown size="sm" variant="subtle" className="w-full" value={addPick} onChange={setAddPick} options={ALL.map((w) => ({ value: w.key, label: w.label }))} />
                       <Button variant="secondary" size="sm" className="w-full" onClick={() => addBlock(addPick)}>Add to composition</Button>
@@ -530,21 +605,53 @@ export default function InterfacesPage() {
                   </>
                 )}
 
-                {genTab === 'mix' && (
-                  <>
-                    <Section label="Transport">
-                      <TransportBar
-                        playing={playing}
-                        onPlay={() => setPlaying(true)}
-                        onPause={() => setPlaying(false)}
-                        onStop={() => setPlaying(false)}
-                        tempo={tempo}
-                        onTempo={setTempo}
-                      />
-                    </Section>
-                    <AudioControls />
-                  </>
+                {genTab === 'output' && (
+                  <Section label="Record composition">
+                    <div className="flex gap-1.5">
+                      {[5, 10, 20, 30, 60].map((s) => (
+                        <button key={s} type="button" onClick={() => setRecLen(s)}
+                          className={`flex-1 rounded kol-helper-10 py-1 border transition-colors ${recLen === s ? 'bg-surface-secondary text-emphasis border-fg-48' : 'text-meta border-fg-08 hover:text-emphasis hover:border-fg-24'}`}>
+                          {s}s
+                        </button>
+                      ))}
+                    </div>
+                    <Slider label="Length (s)" min={1} max={120} step={1} value={recLen} onChange={setRecLen} />
+                    {audioActive() && audioIsFile() && audioDuration() > 0 && (
+                      <button type="button" onClick={() => setRecLen(Math.ceil(audioDuration()))} className="kol-helper-10 text-meta hover:text-emphasis text-left">
+                        audio track is {Math.ceil(audioDuration())}s · use track length
+                      </button>
+                    )}
+                    {capturing && (
+                      <div className="kol-mono-12 text-emphasis flex items-center gap-2">
+                        <span className="inline-block w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                        Recording · {Math.floor(recElapsed)} / {recLen}s
+                      </div>
+                    )}
+                    {regionCaptureSupported() ? (
+                      <Button variant={capturing ? 'accent' : 'primary'} size="sm" className="w-full" iconLeft="circle" onClick={capturing ? stopCapture : startCapture}>
+                        {capturing ? 'Stop recording' : 'Record composition'}
+                      </Button>
+                    ) : (
+                      <div className="kol-mono-10 text-meta">Composition recording needs Chrome or Edge (Region Capture).</div>
+                    )}
+                    <p className="kol-mono-10 text-body">
+                      Captures the live composition — canvas + UI{audioActive() ? ' + audio' : ''} — as a webm at screen resolution. You'll be asked to share this tab; pick this tab to start.
+                    </p>
+                  </Section>
                 )}
+
+                {/* Mix pinned to the rail bottom — transport + audio stay relevant across Edit/Design */}
+                <div className="mt-auto sticky bottom-0 -mx-5 -mb-5 px-5 pt-3 pb-5 bg-surface-primary border-t border-fg-08 flex flex-col gap-3">
+                  <TransportBar
+                    playing={playing}
+                    onPlay={() => setPlaying(true)}
+                    onPause={() => setPlaying(false)}
+                    onStop={() => setPlaying(false)}
+                    tempo={tempo}
+                    onTempo={setTempo}
+                  />
+                  <AudioControls />
+                </div>
               </>
             ) : (
               <div className="kol-mono-10 text-body">{saved.length} saved · click to load, × to remove.</div>
@@ -554,7 +661,7 @@ export default function InterfacesPage() {
 
         {view === 'player' && (
           <>
-            <RailNav title={def.title} toggleLabel="gallery" onToggle={() => navigate(VIEW_PATHS.gallery)} index={idx} total={SCREENS.length} onPrev={() => go(-1)} onNext={() => go(1)} />
+            <RailNav title={def.title} toggleLabel="screens" onToggle={() => navigate(VIEW_PATHS.gallery)} index={idx} total={SCREENS.length} onPrev={() => go(-1)} onNext={() => go(1)} />
             <Section label="Transport">
               <div className="w-full rounded bg-surface-secondary text-emphasis kol-mono-12 text-center py-1.5">Transport Controls</div>
               <TransportBar
@@ -582,6 +689,7 @@ export default function InterfacesPage() {
 
         {view === 'gallery' && (
           <>
+            {browseToggle}
             <RailNav title={def.title} toggleLabel="single" onToggle={() => navigate(VIEW_PATHS.player)} index={idx} total={SCREENS.length} onPrev={() => go(-1)} onNext={() => go(1)} />
             <div className="kol-mono-10 text-body">{SCREENS.length} screens · click one to open it in the player.</div>
           </>
@@ -589,14 +697,16 @@ export default function InterfacesPage() {
 
         {view === 'library' && !widget && (
           <>
-            <RailNav title="Library" toggleLabel="single" onToggle={() => openVariant(libIdx)} index={libIdx} total={CATALOG.length} onPrev={() => goLib(-1)} onNext={() => goLib(1)} />
+            {browseToggle}
+            <RailNav title="Elements" toggleLabel="single" onToggle={() => openVariant(libIdx)} index={libIdx} total={CATALOG.length} onPrev={() => goLib(-1)} onNext={() => goLib(1)} />
             <div className="kol-mono-10 text-body">{CATALOG.length} variants · {ALL.length} elements across {GROUPS.length} groups · click one to tweak + download.</div>
           </>
         )}
 
         {view === 'library' && widget && (
           <>
-            <RailNav title={widget.label} toggleLabel="gallery" onToggle={() => setSelKey(null)} index={libIdx} total={CATALOG.length} onPrev={() => goLib(-1)} onNext={() => goLib(1)} />
+            {browseToggle}
+            <RailNav title={widget.label} toggleLabel="elements" onToggle={() => setSelKey(null)} index={libIdx} total={CATALOG.length} onPrev={() => goLib(-1)} onNext={() => goLib(1)} />
             {['eqBars', 'hBars', 'vu'].includes(selKey) && <AudioControls getCanvas={() => canvasRef.current} />}
             {widget.params.length > 0 && (
               <Section label="Parameters">

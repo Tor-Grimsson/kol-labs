@@ -52,12 +52,16 @@ function SectionLeaf({ leaf, basePath, isActive, indent }) {
 }
 
 function RouteLeaf({ leaf, indent }) {
+  const { pathname } = useLocation()
+  // matchPaths lets one leaf stay active across sibling routes it represents
+  // (e.g. Browse spans /interfaces/gallery + /interfaces/library).
+  const matchActive = leaf.matchPaths?.some((p) => pathname.startsWith(p))
   return (
     <li>
       <NavLink
         to={leaf.to}
         end
-        className={({ isActive }) => (isActive ? linkActiveCls : linkCls)}
+        className={({ isActive }) => ((isActive || matchActive) ? linkActiveCls : linkCls)}
         style={leafStyle(indent)}
       >
         {leaf.label}

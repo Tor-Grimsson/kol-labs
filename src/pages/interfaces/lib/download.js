@@ -3,7 +3,7 @@
  * so we upscale with nearest-neighbour (imageSmoothing off) to keep the pixel
  * look crisp in the downloaded PNG / webm.
  */
-const save = (blob, name) => {
+export const save = (blob, name) => {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
@@ -27,7 +27,7 @@ export function downloadPng(canvas, name, scale = 4) {
   scaledCanvas(canvas, scale).toBlob((b) => b && save(b, `${name}.png`), 'image/png')
 }
 
-const pickType = (audio) => {
+export const pickType = (audio) => {
   const order = audio
     ? ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm']
     : ['video/webm;codecs=vp9', 'video/webm']

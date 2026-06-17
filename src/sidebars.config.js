@@ -16,8 +16,8 @@ export const NAV_TREE = [
   { id: 'interfaces', label: 'Interfaces', to: '/interfaces', icon: 'phone', children: [
     { to: '/interfaces', label: 'Generate' },
     { to: '/interfaces/player', label: 'Player' },
-    { to: '/interfaces/gallery', label: 'Gallery' },
-    { to: '/interfaces/library', label: 'Library' },
+    // Browse = the two overview grids (Screens + Elements), switched in-rail.
+    { to: '/interfaces/gallery', label: 'Browse', matchPaths: ['/interfaces/gallery', '/interfaces/library'] },
   ] },
   { id: 'penrose', label: 'Penrose', to: '/penrose', icon: 'a-framed' },
   { id: 'radar', label: 'Radar', to: '/radar', icon: 'target-lock', children: [

@@ -27,7 +27,9 @@ function hex(n        )         {
 
 function numericStrip(host             , groups        , perGroup        ) {
   const strip = el('div', 'numeric-strip')
+  let playing = true // gated by the mount's play-state (transport / tile hover)
   const paint = () => {
+    if (!playing) return
     const rows           = []
     for (let g = 0; g < groups; g++) {
       const parts           = []
@@ -39,6 +41,7 @@ function numericStrip(host             , groups        , perGroup        ) {
   paint()
   const id = setInterval(paint, 140)
   ;(strip                                           )._cleanup = () => clearInterval(id)
+  ;(strip                                           )._setPlaying = (p) => { playing = p }
   host.appendChild(strip)
 }
 
@@ -942,6 +945,7 @@ function coreFrame(
 function dualNum(host             , rows        )       {
   const box = el('div', 'dualnum')
   const colA = el('div', 'col'); const colB = el('div', 'col')
+  let playing = true // gated by the mount's play-state (transport / tile hover)
   const genRow = () => {
     const parts           = []
     for (let i = 0; i < 4; i++) {
@@ -950,6 +954,7 @@ function dualNum(host             , rows        )       {
     return parts.join('.')
   }
   const paint = () => {
+    if (!playing) return
     const a           = []; const b           = []
     for (let i = 0; i < rows; i++) { a.push(genRow()); b.push(genRow()) }
     colA.textContent = liveEncode(a.join('\n'))
@@ -958,6 +963,7 @@ function dualNum(host             , rows        )       {
   paint()
   const id = setInterval(paint, 260)
   ;(box                                           )._cleanup = () => clearInterval(id)
+  ;(box                                           )._setPlaying = (p) => { playing = p }
   box.appendChild(colA); box.appendChild(colB)
   host.appendChild(box)
 }

@@ -121,9 +121,9 @@ const Button = ({
     if (iconLeft || iconRight || iconLeftHover || iconRightHover) {
       return (
         <span className="flex items-center" style={{ gap: iconGap ?? 8 }}>
-          {(iconLeft || iconLeftHover) && <span style={{ marginLeft: -2 }}>{renderIcon(iconLeft, iconLeftHover)}</span>}
+          {(iconLeft || iconLeftHover) && <span style={{ marginLeft: -2, display: 'inline-flex' }}>{renderIcon(iconLeft, iconLeftHover)}</span>}
           {children}
-          {(iconRight || iconRightHover) && <span style={{ marginRight: -2 }}>{renderIcon(iconRight, iconRightHover)}</span>}
+          {(iconRight || iconRightHover) && <span style={{ marginRight: -2, display: 'inline-flex' }}>{renderIcon(iconRight, iconRightHover)}</span>}
         </span>
       )
     }

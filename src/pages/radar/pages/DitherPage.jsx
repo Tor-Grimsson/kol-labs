@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { renderDither, MODE_OPTIONS, SHAPE_OPTIONS, DEFAULT_PARAMS } from '../effects/ditherEngine'
+import { makeSweep } from '../effects/sweeps'
 import { CANVAS_FX_DEFS, getDefaultCanvasFxParams, applyCanvasFx } from '../hooks/useCanvasFx'
 import { EXPORT_SPECS, DEFAULT_EXPORT_SPEC, maxWidthFor } from '../data/exportSpecs'
 import Button from '../../../components/atoms/Button.jsx'
@@ -10,6 +11,7 @@ import Dropdown from '../../../components/molecules/Dropdown.jsx'
 import Section from '../../../components/molecules/Section.jsx'
 import EditorRail, { RailHeader } from '../../../components/framework/EditorRail.jsx'
 import ColorPicker from '../components/ColorPicker'
+import SweepControls from '../components/SweepControls'
 import { useImage } from '../state/ImageContext'
 
 export default function DitherPage() {
@@ -21,6 +23,10 @@ export default function DitherPage() {
   const [params, setParams] = useState({ ...DEFAULT_PARAMS })
   const [dragging, setDragging] = useState(false)
   const [fxChain, setFxChain] = useState([])
+  const [sweeps, setSweeps] = useState([])
+  const [animating, setAnimating] = useState(false)
+  const [motionSpeed, setMotionSpeed] = useState(1)
+  const timeRef = useRef(0)
   const [videoPlaying, setVideoPlaying] = useState(true)
   const recorderRef = useRef(null)
   const chunksRef = useRef([])
@@ -45,40 +51,48 @@ export default function DitherPage() {
   useEffect(() => {
     setEffectApplied(false)
     setVideoPlaying(isVideo)
+    timeRef.current = 0
   }, [sourceImage, isVideo])
 
-  // Render: images draw once per state change; video runs a per-frame loop
-  // (requestVideoFrameCallback paces to the video, rAF as fallback) at a
-  // capped processing width — per-frame getImageData at full res is the cliff.
+  // Render: stills draw once per state change; video (or an Animate'd still
+  // with sweeps) runs a per-frame loop — requestVideoFrameCallback paces video,
+  // rAF drives still-animation. Animated frames process at a capped width
+  // (per-frame getImageData at full res is the cliff); the snapshot stays full.
+  const animated = isVideo || (animating && effectApplied)
   useEffect(() => {
     if (!sourceImage || !canvasRef.current) return
     const draw = () => {
       if (!canvasRef.current) return
       if (effectApplied) {
-        renderDither(canvasRef.current, sourceImage, isVideo ? { ...params, maxDisplay: 960 } : params)
+        const p = { ...params, sweeps, time: timeRef.current * motionSpeed, ...(animated ? { maxDisplay: 960 } : {}) }
+        renderDither(canvasRef.current, sourceImage, p)
         if (fxChain.length > 0) applyCanvasFx(canvasRef.current, fxChain)
       } else {
         drawRawImage()
       }
     }
-    if (!isVideo) { draw(); return }
+    if (!animated) { draw(); return }
     let alive = true
     let handle
-    const loop = () => {
+    let last = performance.now()
+    const loop = (now) => {
       if (!alive) return
+      const ts = now ?? performance.now()
+      timeRef.current += (ts - last) / 1000
+      last = ts
       draw()
-      handle = sourceImage.requestVideoFrameCallback
+      handle = (isVideo && sourceImage.requestVideoFrameCallback)
         ? sourceImage.requestVideoFrameCallback(loop)
         : requestAnimationFrame(loop)
     }
-    loop()
+    loop(performance.now())
     return () => {
       alive = false
       if (handle == null) return
-      if (sourceImage.cancelVideoFrameCallback) sourceImage.cancelVideoFrameCallback(handle)
+      if (isVideo && sourceImage.cancelVideoFrameCallback) sourceImage.cancelVideoFrameCallback(handle)
       else cancelAnimationFrame(handle)
     }
-  }, [params, fxChain, effectApplied, sourceImage, isVideo, drawRawImage])
+  }, [params, sweeps, motionSpeed, animated, fxChain, effectApplied, sourceImage, isVideo, drawRawImage])
 
   const updateParam = (key, value) => {
     setParams(prev => ({ ...prev, [key]: value }))
@@ -146,7 +160,7 @@ export default function DitherPage() {
     const maxWidth = maxWidthFor(exportSpec)
     const out = document.createElement('canvas')
     if (effectApplied) {
-      renderDither(out, sourceImage, { ...params, maxDisplay: maxWidth })
+      renderDither(out, sourceImage, { ...params, sweeps, time: timeRef.current * motionSpeed, maxDisplay: maxWidth })
       if (fxChain.length > 0) applyCanvasFx(out, fxChain)
     } else {
       const aspect = sourceImage.width / sourceImage.height
@@ -194,6 +208,13 @@ export default function DitherPage() {
     setFxChain(prev => prev.map((fx, i) =>
       i === index ? { ...fx, params: { ...fx.params, [key]: value } } : fx
     ))
+  }
+
+  // Sweeps (time-driven motion). Adding the first one auto-enables Animate.
+  const addSweep = () => { setSweeps(prev => [...prev, makeSweep()]); setAnimating(true) }
+  const removeSweep = (index) => setSweeps(prev => prev.filter((_, i) => i !== index))
+  const updateSweep = (index, key, value) => {
+    setSweeps(prev => prev.map((sw, i) => i === index ? { ...sw, [key]: value } : sw))
   }
 
   return (
@@ -307,6 +328,20 @@ export default function DitherPage() {
 
         <Divider />
 
+        <SweepControls
+          isVideo={isVideo}
+          animating={animating}
+          onAnimate={setAnimating}
+          speed={motionSpeed}
+          onSpeed={setMotionSpeed}
+          sweeps={sweeps}
+          onAdd={addSweep}
+          onRemove={removeSweep}
+          onUpdate={updateSweep}
+        />
+
+        <Divider />
+
         <Section label="Output">
           <Dropdown size="sm" options={EXPORT_SPECS} value={exportSpec} onChange={setExportSpec} variant="subtle" className="w-full" />
         </Section>
@@ -346,7 +381,7 @@ export default function DitherPage() {
           </Button>
         )}
 
-        {isVideo && sourceImage && (
+        {sourceImage && (isVideo || (animating && effectApplied)) && (
           <Button variant={exporting ? 'accent' : 'primary'} size="sm" onClick={toggleExport} iconLeft={exporting ? 'control-stop' : 'video'} className="w-full">
             {exporting ? 'Stop Export' : 'Export Video'}
           </Button>

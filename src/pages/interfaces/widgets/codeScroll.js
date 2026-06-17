@@ -29,10 +29,12 @@ export function codeScroll(opts                )       {
 
   const charset = poolFor(mode, opts.custom)
 
+  let playing = true // gated by the mount's play-state (transport / tile hover)
   const pick = () => charset[(Math.random() * charset.length) | 0]
   const grp = () => { let s = ''; for (let i = 0; i < chars; i++) s += pick(); return s }
   const row = () => { const parts           = []; for (let i = 0; i < groups; i++) parts.push(grp()); return parts.join('.') }
   const paint = () => {
+    if (!playing) return
     const arr           = []
     for (let i = 0; i < rows; i++) arr.push(row())
     el.textContent = arr.join('\n')
@@ -41,5 +43,6 @@ export function codeScroll(opts                )       {
   paint()
   const id = setInterval(paint, interval)
   ;(el                                           )._cleanup = () => clearInterval(id)
+  ;(el                                           )._setPlaying = (p) => { playing = p }
   opts.host.appendChild(el)
 }

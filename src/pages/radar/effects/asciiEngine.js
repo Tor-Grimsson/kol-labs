@@ -5,6 +5,10 @@
  * as ditherEngine: renderAscii(canvas, sourceImage, params).
  */
 
+import { evalSweeps, hasRevealSweep } from './sweeps'
+
+const NO_SWEEP = { bright: 0, scaleMul: 1, offX: 0, offY: 0, rot: 0, hasReveal: false, reveal: 0 }
+
 const DENSITY_RAMP = ' .:-=+*#%@'
 const EDGE_GLYPHS = ['—', '\\', '|', '/'] // by gradient direction, quantized
 
@@ -65,6 +69,13 @@ export function renderAscii(canvas, sourceImage, params) {
   const imgData = tmpCtx.getImageData(0, 0, dw, dh).data
   const step = Math.max(2, params.cellSize)
 
+  // Sweep field (see ditherEngine). Reveal sweeps wipe glyphs in/out, so the
+  // raw image goes underneath; geometry sweeps need a per-glyph transform.
+  const sweeps = params.sweeps || []
+  const time = params.time || 0
+  const geoActive = sweeps.some((s) => s.enabled && s.target === 'geometry')
+  if (hasRevealSweep(sweeps)) ctx.drawImage(sourceImage, 0, 0, dw, dh)
+
   const hex = params.monoColor.replace(/^#/, '')
   const mono = `rgb(${parseInt(hex.substring(0, 2), 16)},${parseInt(hex.substring(2, 4), 16)},${parseInt(hex.substring(4, 6), 16)})`
 
@@ -95,8 +106,12 @@ export function renderAscii(canvas, sourceImage, params) {
     for (let x = 0; x < dw; x += step) {
       const cx = x + step / 2
       const cy = y + step / 2
-      const l = lumaAt(cx, cy)
+      let l = lumaAt(cx, cy)
       if (l == null) continue
+
+      const sw = sweeps.length ? evalSweeps(sweeps, cx / dw, cy / dh, time) : NO_SWEEP
+      if (sw.hasReveal && sw.reveal < 0.5) continue // raw image (underlay) shows through
+      if (sw.bright) l = Math.max(0, Math.min(1, l + sw.bright))
 
       let ch = null
       switch (params.algorithm) {
@@ -142,7 +157,16 @@ export function renderAscii(canvas, sourceImage, params) {
       if (!ch || ch === ' ') continue
 
       ctx.fillStyle = params.useColor ? colorAt(cx, cy) : mono
-      ctx.fillText(ch, cx, cy)
+      if (geoActive) {
+        ctx.save()
+        ctx.translate(cx + sw.offX * step, cy + sw.offY * step)
+        ctx.rotate(sw.rot)
+        ctx.scale(sw.scaleMul, sw.scaleMul)
+        ctx.fillText(ch, 0, 0)
+        ctx.restore()
+      } else {
+        ctx.fillText(ch, cx, cy)
+      }
     }
   }
 }

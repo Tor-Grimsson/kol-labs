@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { renderAscii, ALGORITHM_OPTIONS, CHARSET_OPTIONS, DEFAULT_ASCII_PARAMS } from '../effects/asciiEngine'
+import { makeSweep } from '../effects/sweeps'
 import { EXPORT_SPECS, DEFAULT_EXPORT_SPEC, maxWidthFor } from '../data/exportSpecs'
 import Button from '../../../components/atoms/Button.jsx'
 import Divider from '../../../components/atoms/Divider.jsx'
@@ -10,6 +11,7 @@ import Dropdown from '../../../components/molecules/Dropdown.jsx'
 import Section from '../../../components/molecules/Section.jsx'
 import EditorRail, { RailHeader } from '../../../components/framework/EditorRail.jsx'
 import ColorPicker from '../components/ColorPicker'
+import SweepControls from '../components/SweepControls'
 import { useImage } from '../state/ImageContext'
 
 export default function AsciiPage() {
@@ -20,6 +22,10 @@ export default function AsciiPage() {
   const [effectApplied, setEffectApplied] = useState(false)
   const [params, setParams] = useState({ ...DEFAULT_ASCII_PARAMS })
   const [dragging, setDragging] = useState(false)
+  const [sweeps, setSweeps] = useState([])
+  const [animating, setAnimating] = useState(false)
+  const [motionSpeed, setMotionSpeed] = useState(1)
+  const timeRef = useRef(0)
   const [videoPlaying, setVideoPlaying] = useState(true)
   const recorderRef = useRef(null)
   const chunksRef = useRef([])
@@ -44,38 +50,53 @@ export default function AsciiPage() {
   useEffect(() => {
     setEffectApplied(false)
     setVideoPlaying(isVideo)
+    timeRef.current = 0
   }, [sourceImage, isVideo])
 
-  // Render: images draw once per state change; video runs a per-frame loop
-  // at a capped processing width (same pattern as DitherPage).
+  // Render: stills draw once; video (or an Animate'd still with sweeps) runs a
+  // per-frame loop at a capped processing width (same pattern as DitherPage).
+  const animated = isVideo || (animating && effectApplied)
   useEffect(() => {
     if (!sourceImage || !canvasRef.current) return
     const draw = () => {
       if (!canvasRef.current) return
-      if (effectApplied) renderAscii(canvasRef.current, sourceImage, isVideo ? { ...params, maxDisplay: 960 } : params)
-      else drawRawImage()
+      if (effectApplied) {
+        const p = { ...params, sweeps, time: timeRef.current * motionSpeed, ...(animated ? { maxDisplay: 960 } : {}) }
+        renderAscii(canvasRef.current, sourceImage, p)
+      } else drawRawImage()
     }
-    if (!isVideo) { draw(); return }
+    if (!animated) { draw(); return }
     let alive = true
     let handle
-    const loop = () => {
+    let last = performance.now()
+    const loop = (now) => {
       if (!alive) return
+      const ts = now ?? performance.now()
+      timeRef.current += (ts - last) / 1000
+      last = ts
       draw()
-      handle = sourceImage.requestVideoFrameCallback
+      handle = (isVideo && sourceImage.requestVideoFrameCallback)
         ? sourceImage.requestVideoFrameCallback(loop)
         : requestAnimationFrame(loop)
     }
-    loop()
+    loop(performance.now())
     return () => {
       alive = false
       if (handle == null) return
-      if (sourceImage.cancelVideoFrameCallback) sourceImage.cancelVideoFrameCallback(handle)
+      if (isVideo && sourceImage.cancelVideoFrameCallback) sourceImage.cancelVideoFrameCallback(handle)
       else cancelAnimationFrame(handle)
     }
-  }, [params, effectApplied, sourceImage, isVideo, drawRawImage])
+  }, [params, sweeps, motionSpeed, animated, effectApplied, sourceImage, isVideo, drawRawImage])
 
   const updateParam = (key, value) => {
     setParams(prev => ({ ...prev, [key]: value }))
+  }
+
+  // Sweeps (time-driven motion). Adding the first one auto-enables Animate.
+  const addSweep = () => { setSweeps(prev => [...prev, makeSweep()]); setAnimating(true) }
+  const removeSweep = (index) => setSweeps(prev => prev.filter((_, i) => i !== index))
+  const updateSweep = (index, key, value) => {
+    setSweeps(prev => prev.map((sw, i) => i === index ? { ...sw, [key]: value } : sw))
   }
 
   const handleApplyEffect = () => {
@@ -137,7 +158,7 @@ export default function AsciiPage() {
     const maxWidth = maxWidthFor(exportSpec)
     const out = document.createElement('canvas')
     if (effectApplied) {
-      renderAscii(out, sourceImage, { ...params, maxDisplay: maxWidth })
+      renderAscii(out, sourceImage, { ...params, sweeps, time: timeRef.current * motionSpeed, maxDisplay: maxWidth })
     } else {
       const aspect = sourceImage.width / sourceImage.height
       let dw = sourceImage.width
@@ -257,6 +278,20 @@ export default function AsciiPage() {
 
         <Divider />
 
+        <SweepControls
+          isVideo={isVideo}
+          animating={animating}
+          onAnimate={setAnimating}
+          speed={motionSpeed}
+          onSpeed={setMotionSpeed}
+          sweeps={sweeps}
+          onAdd={addSweep}
+          onRemove={removeSweep}
+          onUpdate={updateSweep}
+        />
+
+        <Divider />
+
         <Section label="Output">
           <Dropdown size="sm" options={EXPORT_SPECS} value={exportSpec} onChange={setExportSpec} variant="subtle" className="w-full" />
         </Section>
@@ -296,7 +331,7 @@ export default function AsciiPage() {
           </Button>
         )}
 
-        {isVideo && sourceImage && (
+        {sourceImage && (isVideo || (animating && effectApplied)) && (
           <Button variant={exporting ? 'accent' : 'primary'} size="sm" onClick={toggleExport} iconLeft={exporting ? 'control-stop' : 'video'} className="w-full">
             {exporting ? 'Stop Export' : 'Export Video'}
           </Button>

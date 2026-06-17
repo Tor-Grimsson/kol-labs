@@ -19,6 +19,7 @@ export default function WidgetMount({ factory, opts, playing = true, onCanvas, t
     if (cv) { cv.style.imageRendering = 'pixelated'; cv.style.display = 'block' }
     onCanvas?.(cv || null)
     if (playing) inst?.loop?.(); else inst?.noLoop?.()
+    node.querySelectorAll('*').forEach((n) => n._setPlaying?.(playing)) // DOM widgets (codeScroll)
     return () => {
       inst?.remove?.()
       node.querySelectorAll('*').forEach((n) => n._cleanup?.())
@@ -32,6 +33,8 @@ export default function WidgetMount({ factory, opts, playing = true, onCanvas, t
   useEffect(() => {
     const inst = instRef.current
     if (playing) inst?.loop?.(); else inst?.noLoop?.()
+    // DOM widgets (e.g. codeScroll) expose _setPlaying instead of loop/noLoop.
+    hostRef.current?.querySelectorAll('*').forEach((n) => n._setPlaying?.(playing))
   }, [playing])
 
   // .interfaces-page scope brings the canvas under the visibility-fix rule (p5

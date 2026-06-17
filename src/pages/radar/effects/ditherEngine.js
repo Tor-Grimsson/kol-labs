@@ -3,6 +3,10 @@
  * Ported from sabosugi's CodePen, adapted for React integration
  */
 
+import { evalSweeps, hasRevealSweep } from './sweeps'
+
+const NO_SWEEP = { bright: 0, scaleMul: 1, offX: 0, offY: 0, rot: 0, hasReveal: false, reveal: 0 }
+
 // --- SHAPE LIBRARY ---
 function drawPoly(ctx, x, y, rad, sides, offset) {
   const step = (Math.PI * 2) / sides
@@ -124,6 +128,13 @@ export function renderDither(canvas, sourceImage, params) {
   const imgData = tmpCtx.getImageData(0, 0, dw, dh).data
   const step = params.cellSize
 
+  // Sweep field (time-driven animation over a static frame). Reveal-target
+  // sweeps wipe the effect in/out, so lay the raw image underneath first —
+  // gated-off cells then show the photo instead of the background.
+  const sweeps = params.sweeps || []
+  const time = params.time || 0
+  if (hasRevealSweep(sweeps)) ctx.drawImage(sourceImage, 0, 0, dw, dh)
+
   // Mono color
   const hex = params.monoColor.replace(/^#/, '')
   const mR = parseInt(hex.substring(0, 2), 16)
@@ -149,7 +160,11 @@ export function renderDither(canvas, sourceImage, params) {
       g = Math.max(0, Math.min(255, contrastFactor * (g - 128) + 128))
       b = Math.max(0, Math.min(255, contrastFactor * (b - 128) + 128))
 
-      const luma = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+      const sw = sweeps.length ? evalSweeps(sweeps, (x + step / 2) / dw, (y + step / 2) / dh, time) : NO_SWEEP
+      if (sw.hasReveal && sw.reveal < 0.5) continue // raw image (underlay) shows through
+
+      let luma = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+      if (sw.bright) luma = Math.max(0, Math.min(1, luma + sw.bright))
 
       let scX = params.baseScale
       let scY = params.baseScale
@@ -243,9 +258,9 @@ export function renderDither(canvas, sourceImage, params) {
       const cy = y + step / 2 + offY
       const size = Math.max(0, step - params.gap)
 
-      ctx.translate(cx, cy)
-      ctx.rotate(rot)
-      ctx.scale(scX, scY)
+      ctx.translate(cx + sw.offX * step, cy + sw.offY * step)
+      ctx.rotate(rot + sw.rot)
+      ctx.scale(scX * sw.scaleMul, scY * sw.scaleMul)
 
       if (params.useColor) {
         ctx.fillStyle = `rgba(${Math.floor(r)},${Math.floor(g)},${Math.floor(b)},${alpha})`
