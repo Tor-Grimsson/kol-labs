@@ -2,6 +2,7 @@ import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
 import { resolveCam, projector } from '../uzumaki/engine/camera'
 import { drawAxes3D } from './axes3d'
 import { resolveRate } from '../../../lib/exprParam.js'
+import { useViewportZoom } from '../../../components/framework/useViewportZoom.js'
 
 // Shared interactive 3D viewport for the math visualisers. Owns the canvas, an
 // orbit camera (drag = yaw/pitch, wheel = zoom) built on the uzumaki camera, an
@@ -29,6 +30,12 @@ const Viewport3D = forwardRef(function Viewport3D(
   const dragRef = useRef(null)
   const exportReqRef = useRef(null)
   const sizeRef = useRef(null)
+
+  // = / − zoom · 0 reset framing. Wheel/two-finger zoom is already wired below.
+  useViewportZoom({
+    zoom: (f) => { const c = camRef.current; c.dist = Math.max(0.6, Math.min(20, c.dist / f)) },
+    reset: () => { camRef.current = { ...DEFAULT_CAM } },
+  })
 
   useImperativeHandle(ref, () => ({
     resetCamera() { camRef.current = { ...DEFAULT_CAM } },

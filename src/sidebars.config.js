@@ -65,6 +65,7 @@ export const NAV_TREE = [
   { id: '3d-scene', label: '3D Scene', to: '/3d-scene', icon: 'ball', children: [
     { to: '/3d-scene', label: 'Gradient' },
     { to: '/3d-scene/primitive', label: 'Primitive Scene' },
+    { to: '/3d-scene/forms', label: 'Forms' },
   ] },
   // Loops = the base-motion library — a router shell with one subpage per GROUP.
   // Each subpage lists its own PRESETS in the rail's Presets tab (no per-loop

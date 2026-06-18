@@ -5,6 +5,7 @@ import GradientPage from './GradientPage'
 // Primitive scene carries its own three.js geometry/preset code; lazy so the
 // default Gradient route doesn't bundle it.
 const PrimitiveScenePage = lazy(() => import('./primitive/PrimitiveScenePage'))
+const FormsPage = lazy(() => import('./forms/FormsPage'))
 
 // Descendant routes under the shell's /3d-scene/* mount. The #4 pipeline rebuild
 // will add more scene types as siblings here.
@@ -17,6 +18,14 @@ export default function ThreeDScenePage() {
         element={
           <Suspense fallback={<div className="min-h-dvh bg-surface-secondary" />}>
             <PrimitiveScenePage />
+          </Suspense>
+        }
+      />
+      <Route
+        path="forms"
+        element={
+          <Suspense fallback={<div className="min-h-dvh bg-surface-secondary" />}>
+            <FormsPage />
           </Suspense>
         }
       />

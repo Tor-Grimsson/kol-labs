@@ -4,6 +4,7 @@ import ExportPanel from '../../_shared/ExportPanel.jsx'
 import { DEFAULT_THEME } from '../../../lib/themes.js'
 import { mulberry32, randomSeed } from '../../../lib/rng.js'
 import SettingsPanel from '../../../components/framework/SettingsPanel.jsx'
+import { useViewportZoom } from '../../../components/framework/useViewportZoom.js'
 import StylePanel from '../components/StylePanel'
 import { drawAxes2D } from '../components/axes2d'
 import { useMathStyle, AXIS_2D } from '../style/mathStyle'
@@ -132,6 +133,12 @@ export default function ComplexPage() {
   const [funcId, setFuncId] = useState(DEFAULT_FUNC.id)
   const [range, setRange] = useState(6)
   const [center, setCenter] = useState({ x: 0, y: 0 })
+
+  // = / − zoom · 0 reset framing (wheel + drag already wired on the canvas).
+  useViewportZoom({
+    zoom: (f) => setRange((r) => Math.max(0.2, Math.min(40, r / f))),
+    reset: () => { setCenter({ x: 0, y: 0 }); setRange(6) },
+  })
   const [coloring, setColoring] = useState('rings')
   const [quality, setQuality] = useState('1700')
   const [aspect, setAspect] = useState(DEFAULT_ASPECT)

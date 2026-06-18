@@ -19,6 +19,7 @@ import Dropdown from '../../../components/molecules/Dropdown.jsx'
 import LabeledControl from '../../../components/molecules/LabeledControl.jsx'
 import Section from '../../../components/molecules/Section.jsx'
 import ColorField from '../../../components/color/ColorField.jsx'
+import { useViewportZoom } from '../../../components/framework/useViewportZoom.js'
 
 const EXAMPLES = [
   'sin(x)*cos(y)',
@@ -79,6 +80,12 @@ export default function FieldPage() {
   const [draft, setDraft] = useState(EXAMPLES[0])
   const [range, setRange] = useState(8)
   const [center, setCenter] = useState({ x: 0, y: 0 })
+
+  // = / − zoom · 0 reset framing (wheel + drag already wired on the canvas).
+  useViewportZoom({
+    zoom: (f) => setRange((r) => Math.max(0.5, Math.min(60, r / f))),
+    reset: () => { setCenter({ x: 0, y: 0 }); setRange(8) },
+  })
   const [low, setLow] = useState('#0b1530')
   const [high, setHigh] = useState('#ffce54')
   const [style, patchStyle, applyTheme] = useMathStyle({ stroke: '#ffffff' })

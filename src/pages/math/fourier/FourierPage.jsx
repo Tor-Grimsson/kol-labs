@@ -25,7 +25,7 @@ const SCAFFOLD_AXIS = [{ value: 'on', label: 'Circles' }, { value: 'none', label
 export default function FourierPage() {
   const [harmonics, setHarmonics] = useState(5)
   const [wave, setWave] = useState('square')
-  const [speed, setSpeed] = useState(0.6)
+  const [speed, setSpeed] = useState(0.3)
   const [aspect, setAspect] = useState(DEFAULT_ASPECT)
   const [scale, setScale] = useState(DEFAULT_SCALE)
   const [style, patchStyle, applyTheme] = useMathStyle({ bg: '#0b0907', stroke: '#e5dfcf', axis: 'on', gridColor: '#4a3e34', gridOpacity: 0.6, weight: 1.25 })

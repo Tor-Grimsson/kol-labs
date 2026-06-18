@@ -9,7 +9,7 @@ import { hexToRgb } from '../style/mathStyle'
 const Oscilloscope = forwardRef(function Oscilloscope({
   expr, setExpr, fn,
   min, max, duration,
-  zoomX, zoomY, panX, panY, setPanX, setPanY,
+  zoomX, zoomY, panX, panY, setPanX, setPanY, onZoom,
   playing = true, tempo = 120, resetKey = 0, aspect = null, vstyle = null,
 }, ref) {
   const canvasRef = useRef(null)
@@ -29,6 +29,8 @@ const Oscilloscope = forwardRef(function Oscilloscope({
   const boxRef = useRef(null)
   const vstyleRef = useRef(vstyle)
   vstyleRef.current = vstyle
+  const onZoomRef = useRef(onZoom)
+  onZoomRef.current = onZoom
 
   const minRef = useRef(min)
   const maxRef = useRef(max)
@@ -99,6 +101,19 @@ const Oscilloscope = forwardRef(function Oscilloscope({
     })
     ro.observe(canvas.parentElement)
     return () => ro.disconnect()
+  }, [])
+
+  // Two-finger trackpad / wheel over the scope → zoom. Native non-passive
+  // listener so preventDefault actually stops the page from scrolling.
+  useEffect(() => {
+    const box = boxRef.current
+    if (!box) return
+    const onWheel = (e) => {
+      e.preventDefault()
+      onZoomRef.current?.(e.deltaY < 0 ? 1.1 : 1 / 1.1)
+    }
+    box.addEventListener('wheel', onWheel, { passive: false })
+    return () => box.removeEventListener('wheel', onWheel)
   }, [])
 
   useEffect(() => {

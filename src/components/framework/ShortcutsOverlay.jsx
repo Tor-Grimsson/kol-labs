@@ -119,6 +119,7 @@ export default function ShortcutsOverlay() {
         </div>
 
         <div className="mt-6 flex items-center gap-4 border-t border-fg-08 pt-3">
+          <span className="kol-helper-10 text-meta"><kbd className="text-emphasis">Space</kbd> play / pause</span>
           <span className="kol-helper-10 text-meta"><kbd className="text-emphasis">S</kbd> toggle this</span>
           <span className="kol-helper-10 text-meta"><kbd className="text-emphasis">Esc</kbd> close</span>
         </div>

@@ -20,6 +20,7 @@ import SegmentedToggle from '../../../components/molecules/SegmentedToggle.jsx'
 import TransportBar from '../../../components/framework/TransportBar.jsx'
 import EditorRail, { RailHeader } from '../../../components/framework/EditorRail.jsx'
 import { usePublishShortcuts } from '../../../components/framework/pageShortcuts.jsx'
+import { useViewportZoom } from '../../../components/framework/useViewportZoom.js'
 
 // A clickable expression token. Click → load into the input; Cmd/Ctrl+click →
 // append to the current expression.
@@ -85,6 +86,10 @@ export default function ExpressionPage() {
   const [resetKey, setResetKey] = useState(0)
 
   usePublishShortcuts('Expression', [
+    ['= / −', 'zoom in / out'],
+    ['0', 'reset framing'],
+    ['Scroll / two-finger', 'zoom the scope'],
+    ['Drag', 'pan the scope'],
     ['Click', 'load an example into the field'],
     ['⌘ / Ctrl + Click', 'append it to the current expression'],
     ['Alt + Click', 'clear the expression field'],
@@ -154,6 +159,16 @@ export default function ExpressionPage() {
 
   const reset = () => { setZoomX(1); setZoomY(1); setPanX(0); setPanY(0) }
 
+  // Zoom the scope, clamped to the slider range. Functional updates so the key
+  // handler below stays mounted once without going stale.
+  const zoomBy = (f) => {
+    setZoomX((z) => Math.max(0.1, Math.min(10, z * f)))
+    setZoomY((z) => Math.max(0.1, Math.min(10, z * f)))
+  }
+
+  // = / − zoom · 0 reset framing (two-finger zoom is on the scope canvas).
+  useViewportZoom({ zoom: zoomBy, reset })
+
   const exportPng = async () => {
     const d = dimsFor(aspect, Number(scale))
     const blob = d ? await scopeRef.current?.exportBlobAt(d.w, d.h) : await scopeRef.current?.exportBlob()
@@ -175,6 +190,7 @@ export default function ExpressionPage() {
           min={min} max={max} duration={duration}
           zoomX={zoomX} zoomY={zoomY} panX={panX} panY={panY}
           setPanX={setPanX} setPanY={setPanY}
+          onZoom={zoomBy}
           playing={playing} tempo={tempo} resetKey={resetKey}
           aspect={ratioFor(aspect)}
           vstyle={style}
