@@ -259,6 +259,10 @@
 .interfaces-page .gen-section { cursor: pointer; }
 .interfaces-page .gen-section.selected { outline: 1px dashed var(--fg, #e5dfcf); outline-offset: 2px; }
 .interfaces-page .gen-section.selected > .gen-remove { opacity: 1; }
+/* Layout tab: outline every section so the structure reads at a glance */
+.interfaces-page .layout-mode .gen-section { outline: 1px dashed var(--dim, #4a3e34); outline-offset: 2px; }
+/* Layout list hover → locate the section on the stage */
+.interfaces-page .gen-section.layout-hover { outline: 2px solid #facc15; outline-offset: 2px; }
 
 /* Cipher — encoded text block, themed. */
 .interfaces-page .cipher { color: var(--fg); line-height: 1.5; letter-spacing: 0.04em; word-break: break-all; padding: 2px 0; }
@@ -273,8 +277,3 @@
   will-change: filter, transform;
 }
 
-/* Knob modulation: an animating knob publishes its value to --knob (0..1),
-   which here breathes the section-label + status-bar tracking — the knob
-   visibly "drives" the UI. */
-[data-audio-stage] .section-label { letter-spacing: calc(0.2em + var(--knob, 0) * 0.18em); }
-[data-audio-stage] .statusbar { letter-spacing: calc(0.12em + var(--knob, 0) * 0.12em); }

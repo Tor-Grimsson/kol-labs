@@ -1,6 +1,6 @@
 import p5 from 'p5'
 import { pixelate } from '../pixel'
-import { isActive, beatCount, beat } from '../lib/audio.js'
+import { isActive, beat } from '../lib/audio.js'
 
 
 
@@ -44,9 +44,10 @@ export function matrix(opts            )     {
       p.noStroke()
 
       const t = p.millis() / 1000
-      // locked to the track: re-roll the field on each beat; else free-run on time
+      // step on the tempo clock (steady); the track only accents the flare, so
+      // adding audio doesn't run the field at the raw bass-onset rate.
       const live = isActive()
-      const bucket = live ? beatCount() : Math.floor(t * speed)
+      const bucket = Math.floor(t * speed)
       const hit = live ? beat() : 0 // on a beat, more cells light up
       const onThresh = 0.7 - hit * 0.25 // beat lowers the bar → field flares on the hit
 

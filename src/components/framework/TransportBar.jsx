@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import Icon from '../loaders/Icon.jsx'
 import Input from '../atoms/Input.jsx'
 
@@ -53,6 +54,28 @@ export default function TransportBar({
   tempoMax = 100,
   className = '',
 }) {
+  // Global Space → play / pause. The listener lives here so every page that
+  // renders a TransportBar gets the binding for free (one transport per page).
+  // Latest state + handlers are read through a ref so the listener subscribes
+  // once and never churns on the page's per-frame re-renders. Ignored while a
+  // form field is focused, so typing a value (incl. the Tempo box) isn't taken.
+  const live = useRef({ playing, onPlay, onPause })
+  live.current = { playing, onPlay, onPause }
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.code !== 'Space' && e.key !== ' ') return
+      if (e.metaKey || e.ctrlKey || e.altKey) return
+      const el = document.activeElement
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable)) return
+      e.preventDefault()
+      const s = live.current
+      if (s.playing) s.onPause?.()
+      else s.onPlay?.()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
   return (
     <div className={`flex items-center gap-2 ${className}`}>
       <div className="inline-flex rounded overflow-hidden bg-surface-secondary shrink-0">

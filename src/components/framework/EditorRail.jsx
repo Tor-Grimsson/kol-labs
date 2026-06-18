@@ -24,8 +24,15 @@ import { useState } from 'react'
  * `fixed` (out of flow), the page's stage `flex-1` fills the full width with no
  * page-side change; the sheet overlays the stage bottom. The "stage + ONE rail"
  * law holds — the rail just relocates, it's not a second pane.
+ *
+ * Three-zone layout: pass `header` and/or `footer` to pin them — header fixed at
+ * top, `children` become the single scrolling body, footer fixed at the bottom
+ * (edge-to-edge `border-t`). This is the canonical math/synth rail shape made
+ * structural, so pages stop hand-rolling it (and stop needing the negative-margin
+ * sticky-footer hack). Omit both and it's a single scroll of `children` exactly
+ * as before — fully backward compatible.
  */
-export default function EditorRail({ children }) {
+export default function EditorRail({ header, footer, children }) {
   // mobile-only: bottom sheet starts hidden, revealed by its handle. Inert at
   // md+ (content is always shown via md:flex regardless of this state).
   const [open, setOpen] = useState(false)
@@ -52,9 +59,16 @@ export default function EditorRail({ children }) {
         <span className="kol-helper-10 text-meta">{open ? 'Hide' : 'Controls'}</span>
       </button>
 
-      {/* content — scrolls within its bounded height; collapsed on mobile when closed */}
-      <div className={`${open ? 'flex' : 'hidden'} md:flex flex-1 min-h-0 flex-col gap-5 overflow-y-auto p-5`}>
-        {children}
+      {/* content region — collapsed on mobile when closed */}
+      <div className={`${open ? 'flex' : 'hidden'} md:flex flex-1 min-h-0 flex-col overflow-hidden`}>
+        {header != null && (
+          <div className="shrink-0 px-5 pt-5 flex flex-col gap-5">{header}</div>
+        )}
+        {/* the single scrolling body */}
+        <div className="flex-1 min-h-0 overflow-y-auto p-5 flex flex-col gap-5">{children}</div>
+        {footer != null && (
+          <div className="shrink-0 border-t border-fg-08 px-5 py-3">{footer}</div>
+        )}
       </div>
     </aside>
   )

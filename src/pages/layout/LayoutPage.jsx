@@ -4,6 +4,7 @@ import Button from '../../components/atoms/Button.jsx'
 import Divider from '../../components/atoms/Divider.jsx'
 import Input from '../../components/atoms/Input.jsx'
 import Slider from '../../components/atoms/Slider.jsx'
+import { roundIfNum } from '../../lib/exprParam.js'
 import Textarea from '../../components/atoms/Textarea.jsx'
 import Dropdown from '../../components/molecules/Dropdown.jsx'
 import LabeledControl from '../../components/molecules/LabeledControl.jsx'
@@ -197,7 +198,7 @@ export default function LayoutPage() {
 
         <Divider />
 
-        <Section label="Artboard">
+        <Section label="Aspect">
           <Dropdown size="sm" variant="subtle" className="w-full" options={RATIOS.map((r) => ({ value: r.id, label: r.label }))} value={ratioId} onChange={setRatioId} />
         </Section>
 
@@ -217,7 +218,7 @@ export default function LayoutPage() {
         <Section label="Grid">
           {mode === 'conformed' && (
             <>
-              <Slider label="Columns" min={2} max={6} step={1} value={columns} onChange={(v) => setColumns(Math.round(v))} className="w-full" />
+              <Slider label="Columns" min={2} max={6} step={1} value={columns} onChange={(v) => setColumns(roundIfNum(v))} className="w-full" />
               <Slider label="Gutter" min={0.01} max={0.05} step={0.002} value={gutter} onChange={setGutter} className="w-full" />
             </>
           )}

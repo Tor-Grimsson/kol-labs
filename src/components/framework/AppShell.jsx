@@ -3,6 +3,8 @@ import { Outlet, useLocation } from 'react-router-dom'
 import SideNav from './SideNav.jsx'
 import Icon from '../loaders/Icon.jsx'
 import { ModalProvider } from '../molecules/Modal.jsx'
+import ShortcutsOverlay from './ShortcutsOverlay.jsx'
+import { PageShortcutsProvider } from './pageShortcuts.jsx'
 
 export default function AppShell({ navTree = [], getActivePage }) {
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -19,6 +21,7 @@ export default function AppShell({ navTree = [], getActivePage }) {
 
   return (
     <ModalProvider>
+     <PageShortcutsProvider>
       <div className="kol-brand-layout" data-drawer-open={drawerOpen ? 'true' : undefined}>
         <button
           type="button"
@@ -40,7 +43,9 @@ export default function AppShell({ navTree = [], getActivePage }) {
         <div className="min-w-0">
           <Outlet />
         </div>
+        <ShortcutsOverlay />
       </div>
+     </PageShortcutsProvider>
     </ModalProvider>
   )
 }

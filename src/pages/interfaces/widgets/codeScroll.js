@@ -9,6 +9,7 @@
 
 
 import { poolFor } from '../lib/charsets.js'
+import { tempoScale } from '../lib/clock.js'
 
 export function codeScroll(opts                )       {
   const rows = opts.rows ?? 4
@@ -41,8 +42,10 @@ export function codeScroll(opts                )       {
   }
 
   paint()
-  const id = setInterval(paint, interval)
-  ;(el                                           )._cleanup = () => clearInterval(id)
+  let id
+  const reschedule = () => { id = setTimeout(() => { paint(); reschedule() }, interval / Math.max(0.05, tempoScale())) }
+  reschedule()
+  ;(el                                           )._cleanup = () => clearTimeout(id)
   ;(el                                           )._setPlaying = (p) => { playing = p }
   opts.host.appendChild(el)
 }

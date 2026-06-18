@@ -1,14 +1,16 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import Button from '../../components/atoms/Button.jsx'
 import Divider from '../../components/atoms/Divider.jsx'
 import Section from '../../components/molecules/Section.jsx'
+import LabeledControl from '../../components/molecules/LabeledControl.jsx'
 import Slider from '../../components/atoms/Slider.jsx'
 import Input from '../../components/atoms/Input.jsx'
 import Dropdown from '../../components/molecules/Dropdown.jsx'
 import SegmentedToggle from '../../components/molecules/SegmentedToggle.jsx'
 import ButtonGroup from '../../components/molecules/ButtonGroup.jsx'
 import EditorRail from '../../components/framework/EditorRail.jsx'
+import { usePublishShortcuts } from '../../components/framework/pageShortcuts.jsx'
 import RailNav from '../../components/framework/RailNav.jsx'
 import TransportBar from '../../components/framework/TransportBar.jsx'
 import './synth.css'
@@ -23,7 +25,7 @@ import ScreenTile from './ScreenTile.jsx'
 import ParamControls from './ParamControls.jsx'
 import { downloadPng, recordWebm } from './lib/download.js'
 import { recordRegion, regionCaptureSupported } from './lib/capture.js'
-import { startClock, tempoMillis, setTempoScale } from './lib/clock.js'
+import { startClock, tempoMillis, setTempoScale, resetClock } from './lib/clock.js'
 import { stop as stopAudio, recStream, isActive as audioActive, isFile as audioIsFile, seek as audioSeek, play as audioPlay, pause as audioPause, duration as audioDuration } from './lib/audio.js'
 import AudioControls from './AudioControls.jsx'
 import CollapsibleSection from './CollapsibleSection.jsx'
@@ -36,6 +38,17 @@ const SECTION_LABELS = { widgets: 'Widget', label: 'Label', statusbar: 'Status b
  * The mode switcher lives in the sidebar (NAV_TREE children), not the rail. */
 const VIEW_PATHS = { generate: '/interfaces', player: '/interfaces/player', gallery: '/interfaces/gallery', library: '/interfaces/library' }
 const VIEWS = ['player', 'gallery', 'library']
+
+// Per-view interaction hints, surfaced in the global `s` shortcuts overlay.
+const PAGE_HINTS = {
+  generate: [
+    ['click', 'select + edit a section'],
+    ['double-click', 'section info'],
+    ['×', 'remove a section'],
+    ['reroll', 'reset the composition'],
+  ],
+  player: [['← / →', 'step screens']],
+}
 const ALL = [...WIDGETS, ...CHROME]
 const SAVED_KEY = 'kol-interfaces:gen'
 const readSaved = () => { try { return JSON.parse(localStorage.getItem(SAVED_KEY) || '[]') } catch { return [] } }
@@ -93,10 +106,16 @@ function PlayerStage({ def, playing, stopNonce, encodeMode }) {
   )
 }
 
-function GenerateStage({ spec, playing, onRemove, onSelect, onInfo, selSec, encodeMode, stageHostRef }) {
-  const hostRef = useMount((node) => renderComposition(spec, node, { editable: true }), [spec], playing, encodeMode)
+function GenerateStage({ spec, playing, onRemove, onSelect, onInfo, selSec, encodeMode, stageHostRef, layoutMode, hoverSec, onRendered }) {
+  const hostRef = useMount((node) => renderComposition(spec, node, { editable: true, onRendered }), [spec], playing, encodeMode)
   // surface the host node so the Output tab can target its .screen for capture
   useEffect(() => { if (stageHostRef) stageHostRef.current = hostRef.current })
+  // outline every section while the Layout tab is open
+  useEffect(() => { hostRef.current?.classList.toggle('layout-mode', !!layoutMode) }, [layoutMode, spec])
+  // highlight the section currently hovered in the Layout list
+  useEffect(() => {
+    hostRef.current?.querySelectorAll('.gen-section').forEach((el) => el.classList.toggle('layout-hover', Number(el.dataset.sec) === hoverSec))
+  }, [hoverSec, spec])
   // selection is a class toggle (not a rebuild) so changing it never re-mounts
   // the p5 instances; re-runs after each rebuild too (spec in deps).
   useEffect(() => {
@@ -189,8 +208,13 @@ function SectionInfo({ sec, onClose }) {
 
 export default function InterfacesPage() {
   const navigate = useNavigate()
-  const mode = useParams()['*'] || ''
-  const view = VIEWS.includes(mode) ? mode : 'generate'
+  const modeParts = (useParams()['*'] || '').split('/').filter(Boolean)
+  const view = VIEWS.includes(modeParts[0]) ? modeParts[0] : 'generate'
+  // Library can be filtered to one widget group: /interfaces/library/<group>.
+  const libGroup = view === 'library' && GROUPS.some((g) => g.key === modeParts[1]) ? modeParts[1] : null
+  // CATALOG indices in the active group (all of them when unfiltered).
+  const libFiltered = libGroup ? CATALOG.flatMap((v, i) => (v.widget.group === libGroup ? [i] : [])) : CATALOG.map((_, i) => i)
+  usePublishShortcuts('Interfaces', PAGE_HINTS[view] || [])
   // restore the autosaved working draft once per mount (reload-safe recall)
   const draftRef = useRef(undefined)
   if (draftRef.current === undefined) draftRef.current = readDraft()
@@ -209,16 +233,22 @@ export default function InterfacesPage() {
   const [themeSel, setThemeSel] = useState(draft.themeSel ?? 'random')
   const [genView, setGenView] = useState(draft.genView ?? 'current')
   const [saved, setSaved] = useState(readSaved)
-  const [removed, setRemoved] = useState(() => new Set(draft.removed ?? []))
+  const [removed, setRemoved] = useState(() => new Set(draft.removed ?? [])) // hidden (eye toggle)
+  const [deleted, setDeleted] = useState(() => new Set(draft.deleted ?? [])) // deleted (×) — gone from the list
+  const [renderedIds, setRenderedIds] = useState(null) // ids the composition actually rendered (post height-trim)
   const [showChrome, setShowChrome] = useState(draft.showChrome ?? true)
   const [added, setAdded] = useState(draft.added ?? [])
   const [edits, setEdits] = useState(draft.edits ?? {}) // { [sectionId]: partial section override }
+  const [order, setOrder] = useState(draft.order ?? []) // Layout-tab body reorder (array of section ids)
+  const [dragOver, setDragOver] = useState(null) // Layout drop-target index (yellow insertion line)
+  const [hoverSec, setHoverSec] = useState(null) // Layout: list-hovered section id (highlights it on stage)
   const [selSec, setSelSec] = useState(draft.selSec ?? null) // selected section id (generate)
   const [addPick, setAddPick] = useState(draft.addPick ?? 'eqBars')
-  const [genTab, setGenTab] = useState('edit') // generate rail tab: edit | design | mix
+  const [genTab, setGenTab] = useState('design') // generate rail tab: design | layout | edit
+  const [bottomTab, setBottomTab] = useState('transport') // pinned bottom panel: transport | output
   const [infoSec, setInfoSec] = useState(null) // section id whose info overlay is open
   // global controls (persist across rerolls)
-  const [tempo, setTempo] = useState(draft.tempo ?? 50) // 0–100; 50 = realtime
+  const [tempo, setTempo] = useState(draft.tempo ?? 120) // BPM; 120 = realtime baseline
   const [genFont, setGenFont] = useState(draft.genFont ?? 'mono')
   const [encodeMode, setEncodeMode] = useState(draft.encodeMode ?? 'off') // global text-encode scheme
   setLiveEncode(encodeMode) // keep interval-driven painters (hex strip / dual numbers) in sync
@@ -236,9 +266,13 @@ export default function InterfacesPage() {
   const capStopRef = useRef(null)
   const recTickRef = useRef(null)
   const stageHostRef = useRef(null) // the GenerateStage host node (holds the .screen crop target)
+  const dragFrom = useRef(null) // Layout drag source index
 
   const def = SCREENS[idx]
-  const widget = selKey ? widgetFor(selKey) : null
+  const selWidget = selKey ? widgetFor(selKey) : null
+  // In a category, only show a detail for a widget that belongs to it — landing
+  // on a category otherwise shows that category's grid.
+  const widget = selWidget && (!libGroup || selWidget.group === libGroup) ? selWidget : null
   const focusVariant = CATALOG[libIdx]
   const lockTheme = themeSel !== 'random'
   const spec = useMemo(
@@ -248,16 +282,45 @@ export default function InterfacesPage() {
   // what actually renders: generated sections (minus removed / hidden bars) +
   // manually added blocks, each with its per-section edit override applied.
   const applyEdit = (s) => (edits[s.id] ? { ...s, ...edits[s.id] } : s)
-  const visibleSpec = useMemo(() => ({
-    ...spec,
-    layout, uiFont: genFont,
-    sections: [
-      ...spec.sections.filter((s) => !removed.has(s.id) && (showChrome || (s.kind !== 'statusbar' && s.kind !== 'transport'))),
-      ...added,
-    ].map(applyEdit),
+  // every section (generated + added), edited + ordered — the Layout list source
+  // (keeps hidden ones so they can be toggled back on).
+  const allSections = useMemo(() => {
+    const secs = [...spec.sections, ...added].filter((s) => !deleted.has(s.id)).map(applyEdit)
+    if (order.length) {
+      const at = new Map(order.map((id, i) => [id, i]))
+      secs.sort((a, b) => (at.get(a.id) ?? 1e9) - (at.get(b.id) ?? 1e9))
+    }
+    return secs
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [spec, removed, showChrome, added, edits, layout, genFont])
+  }, [spec, added, edits, order, deleted])
+  // what renders: drop hidden (removed) + chrome when showChrome is off
+  const visibleSpec = useMemo(() => ({
+    ...spec, layout, uiFont: genFont,
+    // eye-hidden sections stay in place as invisible spacers (keep their slot) so
+    // hiding never frees space for the trim to backfill. showChrome-off chrome is dropped outright.
+    sections: allSections
+      .filter((s) => showChrome || (s.kind !== 'statusbar' && s.kind !== 'transport'))
+      .map((s) => (removed.has(s.id) ? { ...s, hidden: true } : s)),
+  }), [spec, allSections, removed, showChrome, layout, genFont])
   const selectedSection = useMemo(() => visibleSpec.sections.find((s) => s.id === selSec) || null, [visibleSpec, selSec])
+  // Layout tab lists ALL sections incl. hidden. Status bar now flows as a normal
+  // body item; only transport stays pinned (footer in renderComposition).
+  // the Layout list mirrors what actually renders (post height-trim) + anything hidden
+  const listSections = renderedIds ? allSections.filter((s) => renderedIds.has(s.id) || removed.has(s.id)) : allSections
+  const bodySections = listSections.filter((s) => s.kind !== 'transport')
+  const dropRow = (to) => {
+    const from = dragFrom.current; dragFrom.current = null
+    if (from == null || from === to) return
+    const ids = bodySections.map((s) => s.id)
+    const [moved] = ids.splice(from, 1); ids.splice(to, 0, moved)
+    setOrder(ids)
+  }
+  const layoutFooters = listSections.filter((s) => s.kind === 'transport')
+  const toggleHidden = (id) => setRemoved((r) => { const n = new Set(r); n.has(id) ? n.delete(id) : n.add(id); return n })
+  // the composition reports which sections survived its height-trim
+  const handleRendered = useCallback((ids) => {
+    setRenderedIds((prev) => (prev && prev.size === ids.length && ids.every((id) => prev.has(id)) ? prev : new Set(ids)))
+  }, [])
 
   const go = (d) => setIdx((i) => (i + d + SCREENS.length) % SCREENS.length)
   const doStop = () => { setPlaying(false); setStopNonce((n) => n + 1) }
@@ -266,10 +329,21 @@ export default function InterfacesPage() {
   // library: pager over CATALOG variants; in detail view it also reloads the shown widget
   const openVariant = (i) => { setLibIdx(i); const v = CATALOG[i]; selectWidget(v.widget.key, v.opts) }
   const goLib = (d) => {
-    const n = (libIdx + d + CATALOG.length) % CATALOG.length
+    const cur = libFiltered.indexOf(libIdx)
+    const base = cur < 0 ? 0 : cur
+    const n = libFiltered[(base + d + libFiltered.length) % libFiltered.length]
     setLibIdx(n)
     if (widget) { const v = CATALOG[n]; selectWidget(v.widget.key, v.opts) }
   }
+  // If the active library group no longer contains the focused variant, jump to
+  // its first (mirrors penrose's category filter).
+  useEffect(() => {
+    if (view !== 'library' || !libGroup) return
+    // landing on a category shows its grid, not a stale (possibly cross-group) detail
+    setSelKey(null)
+    if (!libFiltered.includes(libIdx)) setLibIdx(libFiltered[0] ?? 0)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [libGroup])
   // generate: pager over saved compositions (saved grid)
   const goSaved = (d) => { if (saved.length) setSavedIdx((i) => (i + d + saved.length) % saved.length) }
   const reroll = () => setGenSeed(Math.floor(Math.random() * 1e9))
@@ -278,9 +352,9 @@ export default function InterfacesPage() {
   // Design: aspect/theme/chrome/font/encode/layout. Mix: tempo. (Playback +
   // audio are momentary I/O, left as-is.)
   const resetAll = () => {
-    setRemoved(new Set()); setAdded([]); setEdits({}); setSelSec(null); setAddPick('eqBars')
+    setRemoved(new Set()); setDeleted(new Set()); setAdded([]); setEdits({}); setOrder([]); setSelSec(null); setAddPick('eqBars')
     setShowChrome(true); setAspectKey('9:16'); setThemeSel('random'); setGenFont('mono'); setEncodeMode('off'); setLayout(DEFAULT_LAYOUT)
-    setTempo(50)
+    setTempo(120)
   }
   const saveComposition = () => {
     setSaved((s) => {
@@ -292,8 +366,8 @@ export default function InterfacesPage() {
   const loadComposition = (e) => { setGenSeed(e.seed); setAspectKey(e.aspectKey); setThemeSel(e.theme); setGenView('current') }
   const deleteComposition = (ts) => setSaved((s) => { const next = s.filter((e) => e.ts !== ts); writeSaved(next); return next })
   const removeSection = (id) => {
-    setAdded((a) => a.filter((s) => s.id !== id))
-    setRemoved((r) => new Set(r).add(id))
+    setAdded((a) => a.filter((s) => s.id !== id)) // added block → drop it
+    setDeleted((d) => new Set(d).add(id))          // generated → delete (gone from the list; eye = hide instead)
     setSelSec((s) => (s === id ? null : s))
   }
   // per-section edits: merge a partial override keyed by section id
@@ -311,13 +385,27 @@ export default function InterfacesPage() {
     sec.id = addIdRef.current++
     setAdded((a) => [...a, sec])
   }
+  // Browse → element detail: drop the element (with its tweaked params) into the
+  // Generate composition, then jump there with it selected.
+  const addToGenerate = (key, withOpts) => {
+    const sec = sectionForKey(key, Math.floor(Math.random() * 1e9))
+    if (!sec) return
+    if (withOpts) {
+      if (sec.kind === 'widgets') sec.widgets = sec.widgets.map((wd) => ({ ...wd, opts: { ...withOpts } }))
+      else Object.assign(sec, withOpts) // chrome: carry the variant's fields (rows, cols, …)
+    }
+    sec.id = addIdRef.current++
+    setAdded((a) => [...a, sec])
+    navigate(VIEW_PATHS.generate)
+    setGenView('current'); setGenTab('edit'); setSelSec(sec.id)
+  }
 
   // a fresh reroll / aspect / theme starts with all sections back — but skip the
   // first run so a restored draft's edits/added/removed survive mount.
   const skipResetRef = useRef(true)
   useEffect(() => {
     if (skipResetRef.current) { skipResetRef.current = false; return }
-    setRemoved(new Set()); setAdded([]); setEdits({}); setSelSec(null)
+    setRemoved(new Set()); setDeleted(new Set()); setAdded([]); setEdits({}); setOrder([]); setSelSec(null)
   }, [genSeed, aspectKey, themeSel])
 
   // autosave the live working draft so an accidental reload restores it exactly
@@ -326,14 +414,14 @@ export default function InterfacesPage() {
     const out = {
       idx, libIdx, playing, selKey, opts,
       genSeed, aspectKey, themeSel, genView, showChrome,
-      removed: [...removed], added, edits, selSec, addPick,
+      removed: [...removed], deleted: [...deleted], added, edits, order, selSec, addPick,
       tempo, genFont, encodeMode, layout,
     }
     try { localStorage.setItem(DRAFT_KEY, JSON.stringify(out)) } catch { /* */ }
-  }, [idx, libIdx, playing, selKey, opts, genSeed, aspectKey, themeSel, genView, showChrome, removed, added, edits, selSec, addPick, tempo, genFont, encodeMode, layout])
+  }, [idx, libIdx, playing, selKey, opts, genSeed, aspectKey, themeSel, genView, showChrome, removed, added, edits, order, selSec, addPick, tempo, genFont, encodeMode, layout, deleted])
 
-  // tempo slider → shared clock scale (50 = realtime, 0 = frozen, 100 = 2×)
-  useEffect(() => { setTempoScale(tempo / 50) }, [tempo])
+  // tempo (BPM) → shared clock scale (120 = realtime, 0 = frozen, 240 = 2×)
+  useEffect(() => { setTempoScale(tempo / 120) }, [tempo])
 
   // release the mic when leaving interfaces
   useEffect(() => () => stopAudio(), [])
@@ -345,7 +433,6 @@ export default function InterfacesPage() {
       if (view !== 'player') return
       if (e.key === 'ArrowLeft') { go(-1); e.preventDefault() }
       else if (e.key === 'ArrowRight') { go(1); e.preventDefault() }
-      else if (e.code === 'Space') { setPlaying((p) => !p); e.preventDefault() }
       else if (e.key === 's' || e.key === 'S') { doStop() }
     }
     document.addEventListener('keydown', onKey)
@@ -422,7 +509,7 @@ export default function InterfacesPage() {
       <div className="flex-1 min-w-0 h-dvh bg-surface-secondary">
         {view === 'generate' && genView === 'current' && (
           <div data-audio-stage className="relative h-full flex items-center justify-center">
-            <GenerateStage spec={visibleSpec} playing={playing} onRemove={removeSection} onSelect={setSelSec} onInfo={setInfoSec} selSec={selSec} encodeMode={encodeMode} stageHostRef={stageHostRef} />
+            <GenerateStage spec={visibleSpec} playing={playing} onRemove={removeSection} onSelect={setSelSec} onInfo={setInfoSec} selSec={selSec} encodeMode={encodeMode} stageHostRef={stageHostRef} layoutMode={genTab === 'layout'} hoverSec={hoverSec} onRendered={handleRendered} />
             {infoSec != null && <SectionInfo sec={visibleSpec.sections.find((s) => s.id === infoSec)} onClose={() => setInfoSec(null)} />}
           </div>
         )}
@@ -454,7 +541,7 @@ export default function InterfacesPage() {
 
         {view === 'library' && !widget && (
           <div className="h-full overflow-y-auto p-6 flex flex-col gap-6">
-            {GROUPS.map((g) => {
+            {(libGroup ? GROUPS.filter((g) => g.key === libGroup) : GROUPS).map((g) => {
               const items = CATALOG.filter((v) => v.widget.group === g.key)
               if (!items.length) return null
               return (
@@ -495,7 +582,7 @@ export default function InterfacesPage() {
             />
             {genView === 'current' ? (
               <>
-                <SegmentedToggle value={genTab} onChange={setGenTab} options={[{ value: 'edit', label: 'Edit' }, { value: 'design', label: 'Design' }, { value: 'output', label: 'Output' }]} />
+                <SegmentedToggle value={genTab} onChange={setGenTab} options={[{ value: 'design', label: 'Design' }, { value: 'layout', label: 'Layout' }, { value: 'edit', label: 'Edit' }]} />
 
                 {genTab === 'edit' && (
                   <>
@@ -521,10 +608,10 @@ export default function InterfacesPage() {
                           </Section>
                         )}
                         {selectedSection.kind === 'statusbar' && (
-                          <Section label="Text"><Input value={selectedSection.right ?? ''} onChange={(e) => editField(selSec, 'right', e.target.value)} /></Section>
+                          <LabeledControl label="Text"><Input value={selectedSection.right ?? ''} onChange={(e) => editField(selSec, 'right', e.target.value)} /></LabeledControl>
                         )}
                         {selectedSection.kind === 'transport' && (
-                          <Section label="Text"><Input value={selectedSection.label ?? ''} onChange={(e) => editField(selSec, 'label', e.target.value)} /></Section>
+                          <LabeledControl label="Text"><Input value={selectedSection.label ?? ''} onChange={(e) => editField(selSec, 'label', e.target.value)} /></LabeledControl>
                         )}
                         {selectedSection.kind === 'strip' && (
                           <Section label="Hex strip">
@@ -533,7 +620,10 @@ export default function InterfacesPage() {
                           </Section>
                         )}
                         {selectedSection.kind === 'dual' && (
-                          <Section label="Dual numbers"><Slider label="rows" min={3} max={10} step={1} value={selectedSection.rows} onChange={(v) => editField(selSec, 'rows', v)} /></Section>
+                          <Section label="Dual numbers">
+                            <Slider label="rows" min={3} max={10} step={1} value={selectedSection.rows} onChange={(v) => editField(selSec, 'rows', v)} />
+                            <Slider label="columns" min={1} max={4} step={1} value={selectedSection.cols ?? 2} onChange={(v) => editField(selSec, 'cols', v)} />
+                          </Section>
                         )}
                         {selectedSection.kind === 'readouts' && (
                           <CollapsibleSection label={`Readouts (${selectedSection.items.length})`} defaultOpen>
@@ -545,112 +635,154 @@ export default function InterfacesPage() {
                             ))}
                           </CollapsibleSection>
                         )}
-                        <div>
-                          <div className="kol-helper-10 text-meta mb-1">Font</div>
+                        <LabeledControl label="Font">
                           <Dropdown size="sm" variant="subtle" className="w-full" value={selectedSection.font || 'inherit'}
                             onChange={(v) => editField(selSec, 'font', v === 'inherit' ? undefined : v)}
                             options={[{ value: 'inherit', label: 'Inherit (UI)' }, ...FONTS.map((f) => ({ value: f.key, label: f.label }))]} />
-                        </div>
+                        </LabeledControl>
                         <Button variant="secondary" size="sm" className="w-full" onClick={() => removeSection(selSec)}>Remove element</Button>
                         <Divider />
                       </>
                     )}
                     <ButtonGroup orientation="vertical" className="w-full">
                       <Button variant="primary" size="sm" iconLeft="cycle" onClick={reroll}>Reroll</Button>
-                      <Button variant="secondary" size="sm" onClick={resetAll}>Reset to default</Button>
+                      <Button variant="primary" size="sm" onClick={resetAll}>Reset to default</Button>
                     </ButtonGroup>
                     <Section label="Add block">
                       <Dropdown size="sm" variant="subtle" className="w-full" value={addPick} onChange={setAddPick} options={ALL.map((w) => ({ value: w.key, label: w.label }))} />
-                      <Button variant="secondary" size="sm" className="w-full" onClick={() => addBlock(addPick)}>Add to composition</Button>
+                      <Button variant="primary" size="sm" className="w-full" onClick={() => addBlock(addPick)}>Add to composition</Button>
                     </Section>
                     <Button variant="primary" size="sm" className="w-full" onClick={saveComposition}>Save composition</Button>
                     <div className="kol-helper-10 text-body">seed {spec.seed} · {spec.theme} · {spec.columns} col</div>
-                    <p className="kol-mono-10 text-meta">Click a section to select + edit · double-click for info · × removes · reroll resets.</p>
                   </>
                 )}
 
                 {genTab === 'design' && (
                   <>
-                    <Section label="Output">
-                      <div>
-                        <div className="kol-helper-10 text-meta mb-1">Aspect</div>
-                        <Dropdown size="sm" variant="subtle" className="w-full" value={aspectKey} onChange={setAspectKey} options={ASPECTS.map((a) => ({ value: a.key, label: a.label }))} />
-                      </div>
-                      <div>
-                        <div className="kol-helper-10 text-meta mb-1">Theme</div>
-                        <Dropdown size="sm" variant="subtle" className="w-full" value={themeSel} onChange={setThemeSel}
-                          options={[{ value: 'random', label: 'Random' }, ...THEMES.map((t) => ({ value: t, label: t }))]} />
-                      </div>
-                      <div>
-                        <div className="kol-helper-10 text-meta mb-1">Status bars (top + bottom)</div>
-                        <SegmentedToggle value={showChrome ? 'on' : 'off'} onChange={(v) => setShowChrome(v === 'on')} options={[{ value: 'on', label: 'On' }, { value: 'off', label: 'Off' }]} />
-                      </div>
-                    </Section>
-                    <Section label="Layout">
-                      <div>
-                        <div className="kol-helper-10 text-meta mb-1">UI font</div>
-                        <Dropdown size="sm" variant="subtle" className="w-full" value={genFont} onChange={setGenFont} options={FONTS.map((f) => ({ value: f.key, label: f.label }))} />
-                      </div>
-                      <div>
-                        <div className="kol-helper-10 text-meta mb-1">Encode</div>
-                        <Dropdown size="sm" variant="subtle" className="w-full" value={encodeMode} onChange={setEncodeMode} options={[{ value: 'off', label: 'Off' }, ...CIPHER_MODES.map((m) => ({ value: m, label: m }))]} />
-                      </div>
-                      <Slider label="Gap" min={0} max={32} step={1} value={layout.gap} onChange={(v) => setLay('gap', v)} />
-                      <Slider label="Scale" min={0.5} max={1.5} step={0.05} value={layout.scale} onChange={(v) => setLay('scale', v)} />
-                      <Slider label="Pad top" min={0} max={48} step={1} value={layout.padT} onChange={(v) => setLay('padT', v)} />
-                      <Slider label="Pad right" min={0} max={48} step={1} value={layout.padR} onChange={(v) => setLay('padR', v)} />
-                      <Slider label="Pad bottom" min={0} max={48} step={1} value={layout.padB} onChange={(v) => setLay('padB', v)} />
-                      <Slider label="Pad left" min={0} max={48} step={1} value={layout.padL} onChange={(v) => setLay('padL', v)} />
-                    </Section>
+                    <LabeledControl label="Aspect">
+                      <Dropdown size="sm" variant="subtle" className="w-full" value={aspectKey} onChange={setAspectKey} options={ASPECTS.map((a) => ({ value: a.key, label: a.label }))} />
+                    </LabeledControl>
+                    <LabeledControl label="Theme">
+                      <Dropdown size="sm" variant="subtle" className="w-full" value={themeSel} onChange={setThemeSel}
+                        options={[{ value: 'random', label: 'Random' }, ...THEMES.map((t) => ({ value: t, label: t }))]} />
+                    </LabeledControl>
+                    <LabeledControl label="Status bars (top + bottom)">
+                      <SegmentedToggle value={showChrome ? 'on' : 'off'} onChange={(v) => setShowChrome(v === 'on')} options={[{ value: 'on', label: 'On' }, { value: 'off', label: 'Off' }]} />
+                    </LabeledControl>
+                    <Divider />
+                    <LabeledControl label="UI font">
+                      <Dropdown size="sm" variant="subtle" className="w-full" value={genFont} onChange={setGenFont} options={FONTS.map((f) => ({ value: f.key, label: f.label }))} />
+                    </LabeledControl>
+                    <LabeledControl label="Encode">
+                      <Dropdown size="sm" variant="subtle" className="w-full" value={encodeMode} onChange={setEncodeMode} options={[{ value: 'off', label: 'Off' }, ...CIPHER_MODES.map((m) => ({ value: m, label: m }))]} />
+                    </LabeledControl>
+                    <Slider label="Gap" min={0} max={32} step={1} value={layout.gap} onChange={(v) => setLay('gap', v)} />
+                    <Slider label="Scale" min={0.5} max={1.5} step={0.05} value={layout.scale} onChange={(v) => setLay('scale', v)} />
+                    <Slider label="Pad top" min={0} max={48} step={1} value={layout.padT} onChange={(v) => setLay('padT', v)} />
+                    <Slider label="Pad right" min={0} max={48} step={1} value={layout.padR} onChange={(v) => setLay('padR', v)} />
+                    <Slider label="Pad bottom" min={0} max={48} step={1} value={layout.padB} onChange={(v) => setLay('padB', v)} />
+                    <Slider label="Pad left" min={0} max={48} step={1} value={layout.padL} onChange={(v) => setLay('padL', v)} />
                   </>
                 )}
 
-                {genTab === 'output' && (
-                  <Section label="Record composition">
-                    <div className="flex gap-1.5">
-                      {[5, 10, 20, 30, 60].map((s) => (
-                        <button key={s} type="button" onClick={() => setRecLen(s)}
-                          className={`flex-1 rounded kol-helper-10 py-1 border transition-colors ${recLen === s ? 'bg-surface-secondary text-emphasis border-fg-48' : 'text-meta border-fg-08 hover:text-emphasis hover:border-fg-24'}`}>
-                          {s}s
-                        </button>
-                      ))}
+                {genTab === 'layout' && (
+                  <>
+                    <p className="kol-mono-10 text-body">Drag to reorder how elements flow into the columns · eye to show/hide · double-click to edit · hover to locate · transport stays pinned.</p>
+                    <div className="flex flex-col gap-1">
+                      {bodySections.map((s, i) => {
+                        const hidden = removed.has(s.id)
+                        return (
+                          <div
+                            key={s.id}
+                            draggable
+                            onDragStart={() => { dragFrom.current = i }}
+                            onDragOver={(e) => { e.preventDefault(); setDragOver(i) }}
+                            onDrop={() => { dropRow(i); setDragOver(null) }}
+                            onDragEnd={() => setDragOver(null)}
+                            onMouseEnter={() => setHoverSec(s.id)} onMouseLeave={() => setHoverSec(null)}
+                            onDoubleClick={() => { setSelSec(s.id); setGenTab('edit') }}
+                            className={`flex items-center gap-2 px-2 py-1.5 rounded bg-fg-04 cursor-grab kol-helper-12 border-t-2 ${dragOver === i ? 'border-yellow-400' : 'border-transparent'} ${hidden ? 'text-meta opacity-50' : 'text-body hover:text-emphasis'}`}
+                          >
+                            <span className="text-meta select-none">⠿</span>
+                            <span className="truncate">{SECTION_LABELS[s.kind] || s.kind}</span>
+                            <span className="ml-auto kol-helper-10 text-meta">{i + 1}</span>
+                            <Button variant="ghost" size="sm" quiet iconOnly={hidden ? 'eye-off' : 'eye-on'} iconSize={14} aria-label={hidden ? 'Show' : 'Hide'} onClick={(e) => { e.stopPropagation(); toggleHidden(s.id) }} />
+                            <Button variant="ghost" size="sm" quiet iconOnly="cross" iconSize={12} aria-label="Delete" onClick={(e) => { e.stopPropagation(); removeSection(s.id) }} />
+                          </div>
+                        )
+                      })}
+                      {layoutFooters.map((f) => {
+                        const hidden = removed.has(f.id)
+                        return (
+                          <div
+                            key={f.id}
+                            onMouseEnter={() => setHoverSec(f.id)} onMouseLeave={() => setHoverSec(null)}
+                            onDoubleClick={() => { setSelSec(f.id); setGenTab('edit') }}
+                            className={`flex items-center gap-2 px-2 py-1.5 rounded border-t-2 border-transparent kol-helper-12 cursor-default text-meta ${hidden ? 'opacity-50' : ''}`}
+                          >
+                            <span className="select-none">·</span>
+                            <span className="truncate">{SECTION_LABELS[f.kind] || f.kind}</span>
+                            <span className="ml-auto kol-helper-10">pinned</span>
+                            <Button variant="ghost" size="sm" quiet iconOnly={hidden ? 'eye-off' : 'eye-on'} iconSize={14} aria-label={hidden ? 'Show' : 'Hide'} onClick={(e) => { e.stopPropagation(); toggleHidden(f.id) }} />
+                            <Button variant="ghost" size="sm" quiet iconOnly="cross" iconSize={12} aria-label="Delete" onClick={(e) => { e.stopPropagation(); removeSection(f.id) }} />
+                          </div>
+                        )
+                      })}
                     </div>
-                    <Slider label="Length (s)" min={1} max={120} step={1} value={recLen} onChange={setRecLen} />
-                    {audioActive() && audioIsFile() && audioDuration() > 0 && (
-                      <button type="button" onClick={() => setRecLen(Math.ceil(audioDuration()))} className="kol-helper-10 text-meta hover:text-emphasis text-left">
-                        audio track is {Math.ceil(audioDuration())}s · use track length
-                      </button>
-                    )}
-                    {capturing && (
-                      <div className="kol-mono-12 text-emphasis flex items-center gap-2">
-                        <span className="inline-block w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                        Recording · {Math.floor(recElapsed)} / {recLen}s
-                      </div>
-                    )}
-                    {regionCaptureSupported() ? (
-                      <Button variant={capturing ? 'accent' : 'primary'} size="sm" className="w-full" iconLeft="circle" onClick={capturing ? stopCapture : startCapture}>
-                        {capturing ? 'Stop recording' : 'Record composition'}
-                      </Button>
-                    ) : (
-                      <div className="kol-mono-10 text-meta">Composition recording needs Chrome or Edge (Region Capture).</div>
-                    )}
-                    <p className="kol-mono-10 text-body">
-                      Captures the live composition — canvas + UI{audioActive() ? ' + audio' : ''} — as a webm at screen resolution. You'll be asked to share this tab; pick this tab to start.
-                    </p>
-                  </Section>
+                  </>
                 )}
 
-                {/* Mix pinned to the rail bottom — transport + audio stay relevant across Edit/Design */}
-                <div className="mt-auto sticky bottom-0 -mx-5 -mb-5 px-5 pt-3 pb-5 bg-surface-primary border-t border-fg-08 flex flex-col gap-3">
-                  <TransportBar
-                    playing={playing}
-                    onPlay={() => setPlaying(true)}
-                    onPause={() => setPlaying(false)}
-                    onStop={() => setPlaying(false)}
-                    tempo={tempo}
-                    onTempo={setTempo}
-                  />
-                  <AudioControls />
+                {/* Output + Transport, tabbed, pinned to the rail bottom */}
+                <div className="mt-auto sticky bottom-0 -mx-5 -mb-5 px-5 pt-3 pb-5 bg-surface-primary border-t border-fg-08 flex flex-col gap-3 max-h-[60vh] overflow-y-auto">
+                  <SegmentedToggle value={bottomTab} onChange={setBottomTab} options={[{ value: 'transport', label: 'Transport' }, { value: 'output', label: 'Output' }]} />
+
+                  {bottomTab === 'transport' && (
+                    <>
+                      <TransportBar
+                        playing={playing}
+                        onPlay={() => setPlaying(true)}
+                        onPause={() => setPlaying(false)}
+                        onStop={() => setPlaying(false)}
+                        onRewind={() => resetClock()}
+                        tempo={tempo}
+                        onTempo={setTempo}
+                        tempoMax={300}
+                      />
+                      <AudioControls />
+                    </>
+                  )}
+
+                  {bottomTab === 'output' && (
+                    <>
+                      <div className="flex gap-1.5">
+                        {[5, 10, 20, 30, 60].map((s) => (
+                          <button key={s} type="button" onClick={() => setRecLen(s)}
+                            className={`flex-1 rounded kol-helper-10 py-1 border transition-colors ${recLen === s ? 'bg-surface-secondary text-emphasis border-fg-48' : 'text-meta border-fg-08 hover:text-emphasis hover:border-fg-24'}`}>
+                            {s}s
+                          </button>
+                        ))}
+                      </div>
+                      <Slider label="Length (s)" min={1} max={120} step={1} value={recLen} onChange={setRecLen} />
+                      {audioActive() && audioIsFile() && audioDuration() > 0 && (
+                        <button type="button" onClick={() => setRecLen(Math.ceil(audioDuration()))} className="kol-helper-10 text-meta hover:text-emphasis text-left">
+                          audio track is {Math.ceil(audioDuration())}s · use track length
+                        </button>
+                      )}
+                      {capturing && (
+                        <div className="kol-mono-12 text-emphasis flex items-center gap-2">
+                          <span className="inline-block w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                          Recording · {Math.floor(recElapsed)} / {recLen}s
+                        </div>
+                      )}
+                      {regionCaptureSupported() ? (
+                        <Button variant={capturing ? 'accent' : 'primary'} size="sm" className="w-full" iconLeft="circle" onClick={capturing ? stopCapture : startCapture}>
+                          {capturing ? 'Stop recording' : 'Record composition'}
+                        </Button>
+                      ) : (
+                        <div className="kol-mono-10 text-meta">Composition recording needs Chrome or Edge (Region Capture).</div>
+                      )}
+                    </>
+                  )}
                 </div>
               </>
             ) : (
@@ -662,28 +794,29 @@ export default function InterfacesPage() {
         {view === 'player' && (
           <>
             <RailNav title={def.title} toggleLabel="screens" onToggle={() => navigate(VIEW_PATHS.gallery)} index={idx} total={SCREENS.length} onPrev={() => go(-1)} onNext={() => go(1)} />
-            <Section label="Transport">
-              <div className="w-full rounded bg-surface-secondary text-emphasis kol-mono-12 text-center py-1.5">Transport Controls</div>
-              <TransportBar
-                playing={playing}
-                onPlay={() => setPlaying(true)}
-                onPause={() => setPlaying(false)}
-                onStop={doStop}
-                tempo={tempo}
-                onTempo={setTempo}
-              />
-            </Section>
-            <AudioControls />
-            <div>
-              <div className="kol-helper-10 text-meta mb-1">Encode</div>
+            <LabeledControl label="Encode">
               <Dropdown size="sm" variant="subtle" className="w-full" value={encodeMode} onChange={setEncodeMode} options={[{ value: 'off', label: 'Off' }, ...CIPHER_MODES.map((m) => ({ value: m, label: m }))]} />
-            </div>
+            </LabeledControl>
             <div className="kol-helper-10 text-body flex flex-col gap-1">
               <div>SPACE · PLAY/PAUSE</div>
               <div>←/→ · SCREEN</div>
               <div>S · STOP</div>
             </div>
             <div className="kol-mono-10 text-body">{def.subtitle}</div>
+            {/* transport + audio pinned to the rail bottom (matches Generate) */}
+            <div className="mt-auto sticky bottom-0 -mx-5 -mb-5 px-5 pt-3 pb-5 bg-surface-primary border-t border-fg-08 flex flex-col gap-3">
+              <TransportBar
+                playing={playing}
+                onPlay={() => setPlaying(true)}
+                onPause={() => setPlaying(false)}
+                onStop={doStop}
+                onRewind={() => { resetClock(); setStopNonce((n) => n + 1) }}
+                tempo={tempo}
+                onTempo={setTempo}
+                tempoMax={300}
+              />
+              <AudioControls />
+            </div>
           </>
         )}
 
@@ -698,15 +831,16 @@ export default function InterfacesPage() {
         {view === 'library' && !widget && (
           <>
             {browseToggle}
-            <RailNav title="Elements" toggleLabel="single" onToggle={() => openVariant(libIdx)} index={libIdx} total={CATALOG.length} onPrev={() => goLib(-1)} onNext={() => goLib(1)} />
-            <div className="kol-mono-10 text-body">{CATALOG.length} variants · {ALL.length} elements across {GROUPS.length} groups · click one to tweak + download.</div>
+            <RailNav title={libGroup ? GROUPS.find((g) => g.key === libGroup)?.label : 'Elements'} toggleLabel="single" onToggle={() => openVariant(libIdx)} index={Math.max(0, libFiltered.indexOf(libIdx))} total={libFiltered.length} onPrev={() => goLib(-1)} onNext={() => goLib(1)} />
+            <div className="kol-mono-10 text-body">{libFiltered.length} variants{libGroup ? ` · ${GROUPS.find((g) => g.key === libGroup)?.label}` : ` · ${ALL.length} elements across ${GROUPS.length} groups`} · click one to tweak + download.</div>
           </>
         )}
 
         {view === 'library' && widget && (
           <>
             {browseToggle}
-            <RailNav title={widget.label} toggleLabel="elements" onToggle={() => setSelKey(null)} index={libIdx} total={CATALOG.length} onPrev={() => goLib(-1)} onNext={() => goLib(1)} />
+            <RailNav title={widget.label} toggleLabel="elements" onToggle={() => setSelKey(null)} index={Math.max(0, libFiltered.indexOf(libIdx))} total={libFiltered.length} onPrev={() => goLib(-1)} onNext={() => goLib(1)} />
+            <Button variant="primary" size="sm" className="w-full" iconLeft="plus" onClick={() => addToGenerate(selKey, opts)}>Add to Generate</Button>
             {['eqBars', 'hBars', 'vu'].includes(selKey) && <AudioControls getCanvas={() => canvasRef.current} />}
             {widget.params.length > 0 && (
               <Section label="Parameters">

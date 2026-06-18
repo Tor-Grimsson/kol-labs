@@ -1,0 +1,111 @@
+import Dropdown from '../../components/molecules/Dropdown.jsx'
+import Slider from '../../components/atoms/Slider.jsx'
+import { roundIfNum } from '../../lib/exprParam.js'
+import Button from '../../components/atoms/Button.jsx'
+import ToggleSwitch from '../../components/atoms/ToggleSwitch.jsx'
+import Section from '../../components/molecules/Section.jsx'
+import LabeledControl from '../../components/molecules/LabeledControl.jsx'
+import ColorField from '../../components/color/ColorField.jsx'
+import RuleRow from './RuleRow.jsx'
+import { SHAPE_OPTIONS } from '../../loops/pattern/shapes.js'
+import { newRule, randomRule } from '../../loops/pattern/rules.js'
+
+const SWEEP_AXES = [
+  { value: 'none', label: 'None' },
+  { value: 'diag', label: 'Diagonal' },
+  { value: 'col', label: 'Columns' },
+  { value: 'row', label: 'Rows' },
+  { value: 'radial', label: 'Radial' },
+]
+
+// The Pattern loop's Edit controls, split across two rail tabs so it isn't one
+// giant scroll:
+//   tab="pattern"   — what the pattern IS: shape · grid · colour · rules
+//   tab="animation" — how it MOVES: camera (zoom/flow/angle/spin) + the per-cell
+//                     sweep (axis/cycles/waves · pulse/fade/swing/colour-mix)
+// `onChange(key, value)` patches one param on the loop's params object.
+export default function PatternControls({ values, onChange, tab = 'pattern' }) {
+  const v = values
+  const colorCtl = (label, key) => (
+    <LabeledControl inline label={label}>
+      <ColorField value={v[key]} onChange={(c) => onChange(key, c)} />
+    </LabeledControl>
+  )
+
+  if (tab === 'animation') {
+    return (
+      <>
+        <Section label="Camera">
+          <Slider label="Zoom" min={0.3} max={3} step={0.05} value={v.camZoom} onChange={(x) => onChange('camZoom', x)} variant="default" />
+          <Slider label="Flow" min={0} max={4} step={1} value={v.camFlow} onChange={(x) => onChange('camFlow', roundIfNum(x))} variant="default" />
+          <Slider label="Angle" min={0} max={360} step={1} value={v.camAngle} onChange={(x) => onChange('camAngle', roundIfNum(x))} variant="default" />
+          <Slider label="Spin" min={0} max={3} step={1} value={v.spin} onChange={(x) => onChange('spin', roundIfNum(x))} variant="default" />
+        </Section>
+
+        <Section label="Sweep">
+          <LabeledControl inline label="Axis">
+            <Dropdown variant="subtle" size="sm" className="w-full" options={SWEEP_AXES} value={v.animAxis ?? 'none'} onChange={(val) => onChange('animAxis', val)} />
+          </LabeledControl>
+          <Slider label="Cycles" min={1} max={4} step={1} value={v.animCycles ?? 1} onChange={(x) => onChange('animCycles', roundIfNum(x))} variant="default" />
+          <Slider label="Waves" min={0} max={8} step={0.5} value={v.animWaves ?? 2} onChange={(x) => onChange('animWaves', x)} variant="default" />
+          <Slider label="Pulse" min={0} max={1} step={0.05} value={v.pulse ?? 0} onChange={(x) => onChange('pulse', x)} variant="default" />
+          <Slider label="Fade" min={0} max={1} step={0.05} value={v.fade ?? 0} onChange={(x) => onChange('fade', x)} variant="default" />
+          <Slider label="Swing" min={0} max={180} step={5} value={v.swing ?? 0} onChange={(x) => onChange('swing', roundIfNum(x))} variant="default" />
+          <Slider label="Colour mix" min={0} max={1} step={0.05} value={v.colorMix ?? 0} onChange={(x) => onChange('colorMix', x)} variant="default" />
+          {colorCtl('Colour 2', 'color2')}
+        </Section>
+      </>
+    )
+  }
+
+  // tab === 'pattern' — structure
+  const rules = v.rules || []
+  const setRules = (r) => onChange('rules', r)
+  const addRule = () => setRules([...rules, newRule()])
+  const updateRule = (i, u) => setRules(rules.map((r, k) => (k === i ? u : r)))
+  const removeRule = (i) => setRules(rules.filter((_, k) => k !== i))
+  const rerollRule = (i) => setRules(rules.map((r, k) => (k === i ? { ...randomRule(), id: r.id } : r)))
+  const randomizeRules = () => setRules(Array.from({ length: 1 + Math.floor(Math.random() * 3) }, () => randomRule()))
+
+  return (
+    <>
+      <Section label="Shape">
+        <Dropdown variant="subtle" size="sm" className="w-full" options={SHAPE_OPTIONS} value={v.shape} onChange={(val) => onChange('shape', val)} />
+        {v.shape === 'custom' && (
+          <textarea
+            className="w-full h-20 mt-1 p-2 rounded bg-surface-secondary border border-fg-08 kol-mono-12 text-body"
+            value={v.customSvg}
+            onChange={(e) => onChange('customSvg', e.target.value)}
+            placeholder='<svg viewBox="0 0 24 24"><path d="…"/></svg>'
+          />
+        )}
+      </Section>
+
+      <Section label="Grid">
+        <Slider label="Columns" min={1} max={32} step={1} value={v.cols} onChange={(x) => onChange('cols', roundIfNum(x))} variant="default" />
+        <Slider label="Rows" min={1} max={32} step={1} value={v.rows} onChange={(x) => onChange('rows', roundIfNum(x))} variant="default" />
+        <Slider label="Cell size" min={40} max={280} step={1} value={v.cell} onChange={(x) => onChange('cell', roundIfNum(x))} variant="default" />
+        <Slider label="Gap" min={-40} max={80} step={1} value={v.gap} onChange={(x) => onChange('gap', roundIfNum(x))} variant="default" />
+        <ToggleSwitch variant="plain" label="Stretch" checked={v.stretch} onChange={(c) => onChange('stretch', c)} />
+        <ToggleSwitch variant="plain" label="Grid lines" checked={!!v.showGrid} onChange={(c) => onChange('showGrid', c)} />
+      </Section>
+
+      <Section label="Colour">
+        {colorCtl('Shape', 'color')}
+        {colorCtl('Background', 'bg')}
+      </Section>
+
+      <Section label={`Rules · ${rules.length}`}>
+        <div className="flex flex-col gap-2">
+          {rules.map((rule, i) => (
+            <RuleRow key={rule.id} rule={rule} onChange={(u) => updateRule(i, u)} onRemove={() => removeRule(i)} onReroll={() => rerollRule(i)} />
+          ))}
+          <div className="grid grid-cols-2 gap-2">
+            <Button variant="primary" size="sm" onClick={addRule}>Add rule</Button>
+            <Button variant="primary" size="sm" onClick={randomizeRules}>Randomize</Button>
+          </div>
+        </div>
+      </Section>
+    </>
+  )
+}

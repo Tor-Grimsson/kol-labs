@@ -76,7 +76,7 @@ const genReadouts = (rng) => {
   return { kind: 'readouts', items }
 }
 const genStrip = (rng) => ({ kind: 'strip', groups: 1 + ((rng() * 2) | 0), per: 8 + ((rng() * 8) | 0) })
-const genDual = (rng) => ({ kind: 'dual', rows: 4 + ((rng() * 4) | 0) })
+const genDual = (rng) => ({ kind: 'dual', rows: 4 + ((rng() * 4) | 0), cols: 2 })
 const genTransport = (rng) => ({ kind: 'transport', label: `${pick(rng, NOUNS)} · ${pick(rng, UNITS)}`, active: '▶' })
 const genWidgets = (rng) => {
   const widgets = []
@@ -101,7 +101,8 @@ function widgetH(key, opts) {
     case 'cipher': return ((opts.fontSize || 11) + 4) * 3
     case 'hBars': return (opts.rows || 5) * 8 + 4
     case 'vu': return 12
-    default: return 40
+    case 'bitmap': case 'hero': return opts.h || 72
+    default: return 72
   }
 }
 function heightOf(sec) {
@@ -140,7 +141,7 @@ export function generate(seed, { aspect = 9 / 16, theme = null, lockTheme = fals
 
   // fill by height budget per column (≈92% to leave a little breathing room)
   const perColBudget = Math.max(140, dims.h - 44)
-  const target = columns * perColBudget * 1.15 // over-generate; render trims to fit
+  const target = columns * perColBudget // fill ~to the frame; no reserve, so hiding one never backfills (trim is just a safety net)
   let sumH = 0
   let guard = 0
   while (sumH < target && guard++ < 60) {
@@ -156,7 +157,7 @@ export function generate(seed, { aspect = 9 / 16, theme = null, lockTheme = fals
 
 /* spec → live DOM. Returns p5 instances; DOM widgets hang _cleanup themselves.
  * editable: wrap each section so the UI can hover-remove it (× carries sec.id). */
-export function renderComposition(spec, node, { editable = false } = {}) {
+export function renderComposition(spec, node, { editable = false, onRendered } = {}) {
   const instances = []
   const screen = el('div', `screen theme-${spec.theme}`)
   screen.style.width = `${spec.dims.w}px`
@@ -189,7 +190,7 @@ export function renderComposition(spec, node, { editable = false } = {}) {
     else if (sec.kind === 'label') label(host, sec.left, sec.right)
     else if (sec.kind === 'readouts') readouts(host, sec.items)
     else if (sec.kind === 'strip') numericStrip(host, sec.groups, sec.per)
-    else if (sec.kind === 'dual') dualNum(host, sec.rows)
+    else if (sec.kind === 'dual') dualNum(host, sec.rows, sec.cols)
     else if (sec.kind === 'transport') transport(host, sec.label, sec.active)
     else if (sec.kind === 'widgets') {
       if (sec.widgets.length > 1) {
@@ -203,6 +204,7 @@ export function renderComposition(spec, node, { editable = false } = {}) {
   const place = (parent, sec) => {
     const start = instances.length
     const wrap = el('div', 'gen-section')
+    if (sec.hidden) wrap.style.visibility = 'hidden' // eye-hidden: invisible spacer that keeps its slot (no backfill)
     if (sec.font) wrap.style.fontFamily = fontStack(sec.font) // per-element face override
     parent.appendChild(wrap)
     fill(wrap, sec)
@@ -217,11 +219,11 @@ export function renderComposition(spec, node, { editable = false } = {}) {
     return wrap
   }
 
-  const header = spec.sections.find((s) => s.kind === 'statusbar')
+  // status bar is no longer pinned to the top — it flows as a normal body
+  // section (reorderable in the Layout tab). Only transport pins to the bottom.
   const footers = spec.sections.filter((s) => s.kind === 'transport')
-  const body = spec.sections.filter((s) => s !== header && !footers.includes(s))
+  const body = spec.sections.filter((s) => !footers.includes(s))
 
-  if (header) place(content, header)
   const row = el('div', 'row'); row.style.alignItems = 'flex-start'; content.appendChild(row)
   const cols = []
   for (let c = 0; c < spec.columns; c++) {
@@ -255,6 +257,12 @@ export function renderComposition(spec, node, { editable = false } = {}) {
       w.querySelectorAll('*').forEach((n) => n._cleanup?.())
       if (w._instances) for (const p of w._instances) { p.remove?.(); const i = instances.indexOf(p); if (i >= 0) instances.splice(i, 1) }
       w.remove()
+    }
+    // report which sections survived the trim so the Layout list mirrors what's shown
+    if (onRendered) {
+      const ids = []
+      screen.querySelectorAll('.gen-section').forEach((el) => { if (el.dataset.sec != null) ids.push(Number(el.dataset.sec)) })
+      onRendered(ids)
     }
   }
   const ro = new ResizeObserver(trim)

@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { resolveParams, hasExpr } from '../../../../lib/exprParam.js'
 
 /**
  * Chromatic-aberration distortion engine.
@@ -81,8 +82,8 @@ const TRAIL_SCALE = 0.5 // trail RT runs at half canvas res — softer + cheaper
 
 export default class DistortionEngine {
   constructor(canvas) {
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: false })
-    this.renderer.setClearColor(0x000000, 1)
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: true })
+    this.renderer.setClearColor(0x000000, 0) // transparent → the stage's bg-surface-secondary shows through
 
     this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1)
     this.scene = new THREE.Scene()
@@ -92,10 +93,18 @@ export default class DistortionEngine {
     this.eased = new THREE.Vector2(0.5, 0.5)
     this.active = 0
     this.params = { strength: 0.25, radius: 0.18, decay: 0.94, rgbShift: 0.03 }
+    this._raw = { ...this.params }   // as authored (may hold expression strings)
+    this._exprActive = false
     this.size = new THREE.Vector2(1, 1)
     this.imageAspect = 1
     this.texture = null
     this._raf = null
+    this.paused = false
+    this.timeScale = 1
+    // No motion of its own (cursor-driven) — but an expression param needs a
+    // clock to animate against, so the engine keeps a playhead.
+    this.time = 0
+    this.last = performance.now()
 
     const rtOpts = {
       minFilter: THREE.LinearFilter,
@@ -163,7 +172,14 @@ export default class DistortionEngine {
   }
 
   setParams(p) {
-    Object.assign(this.params, p)
+    Object.assign(this._raw, p)
+    this._exprActive = hasExpr(this._raw)
+    this._apply()
+  }
+
+  // Resolve expression params at the current playhead and push to uniforms.
+  _apply() {
+    this.params = resolveParams(this._raw, this.time)
     this.trailMat.uniforms.uRadius.value = this.params.radius
     this.trailMat.uniforms.uDecay.value = this.params.decay
     this.displayMat.uniforms.uStrength.value = this.params.strength
@@ -175,6 +191,11 @@ export default class DistortionEngine {
     this.target.set(u, v)
     this.active = 1
   }
+
+  // Transport hooks: freeze the animation, scale its rate, clear the trail.
+  setPaused(p) { this.paused = !!p }
+  setTimeScale(s) { this.timeScale = Math.max(0.05, s) }
+  clearTrail() { this._clearTargets() }
 
   resize(w, h) {
     if (w < 1 || h < 1) return
@@ -217,7 +238,15 @@ export default class DistortionEngine {
   }
 
   _frame() {
-    this.eased.lerp(this.target, 0.12) // cursor lag
+    if (this.paused) return
+    // Advance the playhead and re-resolve expression params (if any).
+    const now = performance.now()
+    const dt = Math.min(0.05, (now - this.last) / 1000)
+    this.last = now
+    this.time += dt * this.timeScale
+    if (this._exprActive) this._apply()
+
+    this.eased.lerp(this.target, 0.12 * this.timeScale) // cursor lag
 
     // Trail feedback pass (rtA = previous, render into rtB, then swap).
     this.quad.material = this.trailMat

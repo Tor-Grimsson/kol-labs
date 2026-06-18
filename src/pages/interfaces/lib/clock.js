@@ -26,4 +26,12 @@ export function startClock() {
 
 export function tempoMillis() { return virtual }
 
+/** Rewind the virtual clock to 0 (no time-jump). Drives the transport's rewind
+ *  button — every clock-driven widget restarts from the start of its cycle. */
+export function resetClock() { virtual = 0; last = performance.now() }
+
 export function setTempoScale(s) { scale = Math.max(0, s) }
+
+/** Current tempo scale (0 = frozen, 1 = realtime, 2 = 2×) — lets the
+ *  setInterval-driven DOM widgets pace their repaint with the same slider. */
+export function tempoScale() { return scale }

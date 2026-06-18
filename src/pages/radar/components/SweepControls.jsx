@@ -35,7 +35,7 @@ export default function SweepControls({ isVideo, animating, onAnimate, speed, on
         return (
           <div key={i} className="flex flex-col gap-2 p-2 rounded bg-fg-04">
             <div className="flex items-center gap-2">
-              <ToggleSwitch label={shapeLabel(sw.shape)} checked={sw.enabled} onChange={() => onUpdate(i, 'enabled', !sw.enabled)} />
+              <ToggleSwitch variant="plain" label={shapeLabel(sw.shape)} checked={sw.enabled} onChange={() => onUpdate(i, 'enabled', !sw.enabled)} />
               <Button variant="ghost" size="sm" quiet iconOnly="cross" iconSize={12} className="ml-auto" aria-label="Remove sweep" onClick={() => onRemove(i)} />
             </div>
             {sw.enabled && (

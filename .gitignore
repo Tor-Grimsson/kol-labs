@@ -13,3 +13,5 @@ docs/
 .claude/
 .playwright-mcp/
 LLM_RULES.md
+_tmp/
+labs.md

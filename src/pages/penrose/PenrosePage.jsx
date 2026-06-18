@@ -1,14 +1,19 @@
-import { useEffect, useReducer, useRef, useState } from 'react'
+import { Fragment, useEffect, useMemo, useReducer, useRef, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
 import Button from '../../components/atoms/Button.jsx'
 import Divider from '../../components/atoms/Divider.jsx'
 import Input from '../../components/atoms/Input.jsx'
 import Slider from '../../components/atoms/Slider.jsx'
-import ToggleCheckbox from '../../components/atoms/ToggleCheckbox.jsx'
+import { roundIfNum } from '../../lib/exprParam.js'
+import ToggleSwitch from '../../components/atoms/ToggleSwitch.jsx'
 import Dropdown from '../../components/molecules/Dropdown.jsx'
 import LabeledControl from '../../components/molecules/LabeledControl.jsx'
 import Section from '../../components/molecules/Section.jsx'
+import ColorField from '../../components/color/ColorField.jsx'
 import EditorRail, { RailHeader } from '../../components/framework/EditorRail.jsx'
-import Pager from '../../components/framework/Pager.jsx'
+import RailNav from '../../components/framework/RailNav.jsx'
+import TransportBar from '../../components/framework/TransportBar.jsx'
+import SegmentedToggle from '../../components/molecules/SegmentedToggle.jsx'
 import './main.css'
 import { mulberry32 } from './prng'
 import { rasterizeGlyph, computeSDF } from './sdf'
@@ -17,7 +22,12 @@ import { makeSDF, setLoopClock } from './prototypes/common'
 import { Camera } from './camera'
 import { CLOCK, SquishyClock } from './clock'
 import { defaultValues, fmt } from './knobs'
-import { FRAMES, FONTS, THEMES, frameFor, themeFor, setPalette } from './settings'
+import { FRAMES, FONTS, frameFor, setPalette } from './settings'
+import { DEFAULT_THEME, resolveTheme } from '../../lib/themes.js'
+import { randomSeed } from '../../lib/rng.js'
+import SettingsPanel from '../../components/framework/SettingsPanel.jsx'
+import { usePublishShortcuts } from '../../components/framework/pageShortcuts.jsx'
+import { CATEGORY_ORDER, categoryOf, categoryLabel } from './prototypes/categories.js'
 
 const LOGICAL = 640
 const MASK_RES = LOGICAL
@@ -26,7 +36,29 @@ const dpr = Math.min(window.devicePixelRatio || 1, 3)
 const WEIGHTS = [100, 200, 300, 400, 500, 600, 700, 800, 900]
 const DEFAULT_SEED = 42
 
+// Penrose key bindings — published to the global `s` shortcuts overlay.
+const PENROSE_SHORTCUTS = [
+  ['drag', 'pan'],
+  ['wheel', 'zoom'],
+  ['⇧ drag', 'rotate XY'],
+  ['⌥ drag', 'rotate Z'],
+  ['← / →', 'step prototype'],
+  ['G', 'toggle browse'],
+  ['R', 'reset prototype'],
+  ['C', 'reset camera'],
+  ['space', 'play / pause'],
+]
+
 const pad = (n) => String(n).padStart(2, '0')
+
+// Shared themes give grid as a solid hex; penrose draws the grid overlay as a
+// translucent fill, so convert #rrggbb → rgba(r,g,b,a). Passes non-hex through.
+const hexToRGBA = (hex, a) => {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex || '')
+  if (!m) return hex
+  const n = parseInt(m[1], 16)
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`
+}
 
 // Baked once before first render. Rebakes mutate sdfData in place so the
 // shared `sdf` closure sees fresh values; bumping sdfVersion remounts the
@@ -69,10 +101,17 @@ const initProto = (i, canvas, ctx, W, H, label, seedBase, clock) => {
   }
 }
 
-// ---- Initial routing ----
+// ---- Routing ----
+// View (full/browse) and the category filter both live in the URL:
+//   /penrose · /penrose/<cat>                full, all / one category
+//   /penrose/browse · /penrose/browse/<cat>  browse, all / one category
+// The #protoId hash deep-links which specimen the full view opens on.
+const pathFor = (view, cat) => {
+  const seg = cat && cat !== 'all' ? `/${cat}` : ''
+  return view === 'grid' ? `/penrose/browse${seg}` : `/penrose${seg}`
+}
 const initialHash = window.location.hash.replace('#', '')
-const INITIAL_VIEW = initialHash && initialHash !== 'grid' ? 'single' : 'grid'
-const initialFound = INITIAL_VIEW === 'single' ? PROTOTYPES.findIndex((p) => p.id === initialHash) : -1
+const initialFound = PROTOTYPES.findIndex((p) => p.id === initialHash)
 const INITIAL_IDX = initialFound >= 0 ? initialFound : 0
 
 function KnobsPanel({ proto, onTweak }) {
@@ -96,14 +135,14 @@ function KnobsPanel({ proto, onTweak }) {
                 max={p.max}
                 step={p.step ?? (p.type === 'int' ? 1 : 0.01)}
                 value={values[p.key]}
-                onChange={(v) => set(p.key, p.type === 'int' ? Math.round(v) : v)}
+                onChange={(v) => set(p.key, p.type === 'int' ? roundIfNum(v) : v)}
                 formatValue={(v) => fmt(v, p.type === 'int')}
                 className="w-full"
               />
             )
           }
           if (p.type === 'boolean') {
-            return <ToggleCheckbox key={p.key} label={label} checked={!!values[p.key]} onChange={(v) => set(p.key, v)} />
+            return <ToggleSwitch key={p.key} variant="plain" label={label} checked={!!values[p.key]} onChange={(v) => set(p.key, v)} />
           }
           if (p.type === 'select') {
             return (
@@ -122,7 +161,7 @@ function KnobsPanel({ proto, onTweak }) {
           if (p.type === 'color') {
             return (
               <LabeledControl key={p.key} inline label={label}>
-                <input type="color" value={values[p.key]} onChange={(e) => set(p.key, e.target.value)} />
+                <ColorField value={values[p.key]} onChange={(v) => set(p.key, v)} />
               </LabeledControl>
             )
           }
@@ -141,7 +180,7 @@ const TILE_WARMUP_MS = 2000
 // Grid with lazy init via IntersectionObserver: fire init the first time a
 // tile scrolls into view. Tiles never uninit while the grid is mounted; the
 // parent remounts the whole grid (key bump) on rebake/reset/re-seed.
-function Grid({ onSelect, seedBase }) {
+function Grid({ groups, onSelect, seedBase }) {
   const gridRef = useRef(null)
   const clocksRef = useRef(new Map()) // i → { clk, warmup }
 
@@ -189,40 +228,87 @@ function Grid({ onSelect, seedBase }) {
 
   return (
     <div className="grid" ref={gridRef}>
-      {PROTOTYPES.map((proto, i) => (
-        <div
-          className="tile"
-          data-i={i}
-          key={proto.id}
-          onClick={() => onSelect(i)}
-          onMouseEnter={() => hover(i, true)}
-          onMouseLeave={() => hover(i, false)}
-          title={proto.summary}
-        >
-          <canvas width={TILE * dpr} height={TILE * dpr} style={{ width: `${TILE}px`, height: `${TILE}px` }} />
-          <div className="tile-label"><span className="n">{pad(i + 1)}</span><span className="nm">{proto.name}</span></div>
-        </div>
+      {groups.map((g) => (
+        <Fragment key={g.key}>
+          <div
+            style={{ gridColumn: '1 / -1' }}
+            className="flex items-baseline gap-2 pt-6 pb-1 border-t border-fg-08 first:pt-0 first:border-0"
+          >
+            <span className="kol-helper-12 uppercase tracking-widest text-emphasis">{g.label}</span>
+            <span className="kol-helper-10 text-meta">{g.items.length}</span>
+          </div>
+          {g.items.map(({ proto, i }) => (
+            <div
+              className="tile"
+              data-i={i}
+              key={proto.id}
+              onClick={() => onSelect(i)}
+              onMouseEnter={() => hover(i, true)}
+              onMouseLeave={() => hover(i, false)}
+              title={proto.summary}
+            >
+              <canvas width={TILE * dpr} height={TILE * dpr} style={{ width: `${TILE}px`, height: `${TILE}px` }} />
+              <div className="tile-label"><span className="n">{pad(i + 1)}</span><span className="nm">{proto.name}</span></div>
+            </div>
+          ))}
+        </Fragment>
       ))}
     </div>
   )
 }
 
 function App() {
-  const [view, setView] = useState(INITIAL_VIEW)
+  const navigate = useNavigate()
+  // View + category are both route-derived. parts[0]==='browse' → grid; the
+  // category is the segment after it (or the first segment in full view).
+  const parts = (useParams()['*'] || '').split('/').filter(Boolean)
+  const view = parts[0] === 'browse' ? 'grid' : 'single'
+  const rawCat = parts[0] === 'browse' ? parts[1] : parts[0]
+  const selectedCat = rawCat && CATEGORY_ORDER.includes(rawCat) ? rawCat : 'all'
+  const setCategory = (cat) => navigate(pathFor(view, cat))
+  usePublishShortcuts('Penrose', PENROSE_SHORTCUTS)
   const [idx, setIdx] = useState(INITIAL_IDX)
   const [letter, setLetter] = useState('A')
   const [weight, setWeight] = useState('700')
   const [font, setFont] = useState(FONTS[0].id)
   const [paused, setPaused] = useState(CLOCK.isPaused())
   const [speed, setSpeed] = useState(CLOCK.speed)
+  const [bottomTab, setBottomTab] = useState('transport') // Transport | Output footer tabs
   const [camState, setCamState] = useState(null)
   const [sdfVersion, setSdfVersion] = useState(0)
   const [resetNonce, setResetNonce] = useState(0)
   // Artboard settings (global — apply across single + gallery)
   const [frameRatio, setFrameRatio] = useState('1:1')
-  const [theme, setTheme] = useState('ink')
+  const [themeId, setThemeId] = useState(DEFAULT_THEME)
+  const [invert, setInvert] = useState(false)
   const [showGrid, setShowGrid] = useState(true)
   const [seedBase, setSeedBase] = useState(DEFAULT_SEED)
+  const [bodyTab, setBodyTab] = useState('settings') // Settings | Info rail tabs
+
+  // Category filter (derived from prototype ids) scopes both the browse grid and
+  // the full-view prev/next stepping.
+  const filtered = useMemo(
+    () => PROTOTYPES.map((_, i) => i).filter((i) => selectedCat === 'all' || categoryOf(PROTOTYPES[i].id) === selectedCat),
+    [selectedCat],
+  )
+  const catOptions = useMemo(() => {
+    const opts = [{ value: 'all', label: `All · ${PROTOTYPES.length}` }]
+    for (const key of CATEGORY_ORDER) {
+      const n = PROTOTYPES.filter((p) => categoryOf(p.id) === key).length
+      if (n) opts.push({ value: key, label: `${categoryLabel(key)} · ${n}` })
+    }
+    return opts
+  }, [])
+  const groups = useMemo(() => {
+    const keys = selectedCat === 'all' ? CATEGORY_ORDER : [selectedCat]
+    return keys
+      .map((key) => ({
+        key,
+        label: categoryLabel(key),
+        items: PROTOTYPES.map((proto, i) => ({ proto, i })).filter(({ proto }) => categoryOf(proto.id) === key),
+      }))
+      .filter((g) => g.items.length)
+  }, [selectedCat])
 
   const canvasRef = useRef(null)
   const cameraRef = useRef(null)
@@ -259,25 +345,58 @@ function App() {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     const cleanup = initProto(idx, canvas, ctx, LOGICAL, LOGICAL, 'init', seedBase)
     return () => { if (cleanup) cleanup() }
-  }, [view, idx, sdfVersion, resetNonce, seedBase, theme])
+  }, [view, idx, sdfVersion, resetNonce, seedBase, themeId, invert])
 
   // Hash routing (write-only, like the imperative shell)
   useEffect(() => {
     window.location.hash = view === 'grid' ? '#grid' : `#${PROTOTYPES[idx].id}`
   }, [view, idx])
 
+  // Category change: if the current specimen isn't in the new set, jump to its first.
+  useEffect(() => {
+    if (!filtered.includes(idx)) setIdx(filtered[0] ?? 0)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCat])
+
   const go = (d) => {
-    setIdx((i) => (i + d + PROTOTYPES.length) % PROTOTYPES.length)
-    setView('single')
+    const cur = filtered.indexOf(idx)
+    const base = cur < 0 ? 0 : cur
+    setIdx(filtered[(base + d + filtered.length) % filtered.length])
+    navigate(pathFor('single', selectedCat))
   }
   const reset = () => setResetNonce((n) => n + 1)
   const togglePause = () => { CLOCK.toggle(); setPaused(CLOCK.isPaused()) }
   const setClockSpeed = (v) => { CLOCK.setSpeed(v); setSpeed(v) }
   const camReset = () => cameraRef.current?.reset()
   const camZoom = (f) => cameraRef.current?.zoomAtCenter(f)
-  const toggleView = () => setView((v) => (v === 'grid' ? 'single' : 'grid'))
+  const toggleView = () => navigate(pathFor(view === 'grid' ? 'single' : 'grid', selectedCat))
   // New generation: re-seed every prototype's RNG in lockstep.
-  const randomise = () => setSeedBase(Math.floor(Math.random() * 1e9))
+  const randomise = () => setSeedBase(randomSeed())
+
+  // Settings IO — JSON-safe snapshot of every authored control. paramStore is
+  // the per-prototype params object (plain numbers/strings/bools), so it rides
+  // along in the export and restores each specimen's knob state.
+  const getSettings = () => ({
+    themeId, invert, letter, weight, font,
+    frameRatio, showGrid, seedBase, speed,
+    paramStore,
+  })
+  const applySettings = (s) => {
+    if (!s || typeof s !== 'object') return
+    if (s.themeId != null) setThemeId(s.themeId)
+    if (typeof s.invert === 'boolean') setInvert(s.invert)
+    if (s.letter != null) setLetter(s.letter)
+    if (s.weight != null) setWeight(String(s.weight))
+    if (s.font != null) setFont(s.font)
+    if (s.frameRatio != null) setFrameRatio(s.frameRatio)
+    if (typeof s.showGrid === 'boolean') setShowGrid(s.showGrid)
+    if (s.speed != null) setClockSpeed(s.speed)
+    if (s.paramStore && typeof s.paramStore === 'object') {
+      for (const id in s.paramStore) paramStore[id] = { ...paramStore[id], ...s.paramStore[id] }
+    }
+    if (s.seedBase != null) setSeedBase(s.seedBase) // last → forces a redraw of restored params
+    else setResetNonce((n) => n + 1)
+  }
   const downloadPng = () => {
     if (view !== 'single') return
     const a = document.createElement('a')
@@ -294,12 +413,11 @@ function App() {
       else if (e.key === 'r' || e.key === 'R') reset()
       else if (e.key === 'c' || e.key === 'C') camReset()
       else if (e.key === 'g' || e.key === 'G') toggleView()
-      else if (e.key === 'Escape') setView('grid')
-      else if (e.key === ' ') { e.preventDefault(); togglePause() }
+      else if (e.key === 'Escape') navigate(pathFor('grid', selectedCat))
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [])
+  }, [view, selectedCat])
 
   const proto = PROTOTYPES[idx]
   const single = view === 'single'
@@ -310,17 +428,24 @@ function App() {
   const wrapStyle = aspect >= 1
     ? { aspectRatio: `${fr.w} / ${fr.h}`, width: `min(86vw, ${Math.round(LOGICAL * aspect)}px)` }
     : { aspectRatio: `${fr.w} / ${fr.h}`, height: `min(86vh, ${Math.round(LOGICAL / aspect)}px)` }
-  const th = themeFor(theme)
+  // Resolve the shared theme (+ invert) and map it into penrose's PALETTE
+  // semantics. The shared theme has no dim/warm; derive them from accent so the
+  // prototype helpers that read PALETTE.dim/.warm keep working. grid carries an
+  // alpha here (penrose draws it as a translucent overlay), so re-tint resolved
+  // grid with a fixed 0.07 opacity rather than using gridOpacity directly.
+  const t = resolveTheme(themeId, invert)
+  const gridRGBA = hexToRGBA(t.grid, 0.07)
+  const vars = { bg: t.bg, fg: t.fg, accent: t.accent, grid: gridRGBA, dim: t.accent, warm: t.accent }
   // Push the active theme into the live palette BEFORE child init effects fire,
   // so prototype clear()/outline pick up the themed background (idempotent).
-  setPalette(th.vars)
+  setPalette(vars)
   const themeVars = {
-    '--bg': th.vars.bg,
-    '--fg': th.vars.fg,
-    '--dim': th.vars.dim,
-    '--accent': th.vars.accent,
-    '--warm': th.vars.warm,
-    '--grid': th.vars.grid,
+    '--bg': vars.bg,
+    '--fg': vars.fg,
+    '--dim': vars.dim,
+    '--accent': vars.accent,
+    '--warm': vars.warm,
+    '--grid': vars.grid,
   }
 
   return (
@@ -358,133 +483,159 @@ function App() {
 
         {view === 'grid' && (
           <Grid
-            key={`${sdfVersion}:${resetNonce}:${seedBase}:${theme}`}
+            key={`${sdfVersion}:${resetNonce}:${seedBase}:${themeId}:${invert}:${selectedCat}`}
+            groups={groups}
             seedBase={seedBase}
-            onSelect={(i) => { setIdx(i); setView('single') }}
+            onSelect={(i) => { setIdx(i); navigate(pathFor('single', selectedCat)) }}
           />
         )}
       </div>
       </div>
 
       {/* Chrome: KOL-tokened right rail, outside the lofi CSS scope */}
-      <EditorRail>
-        <RailHeader>Penrose</RailHeader>
+      <EditorRail
+        header={<RailHeader>Penrose</RailHeader>}
+        footer={
+          /* Transport · Output tabbed footer (matches interfaces) */
+          <div className="flex flex-col gap-3">
+            <SegmentedToggle
+              value={bottomTab}
+              onChange={setBottomTab}
+              options={[{ value: 'transport', label: 'Transport' }, { value: 'output', label: 'Output' }]}
+            />
+            {bottomTab === 'transport' && (
+              /* Tempo = animation speed (120 = realtime); stop/rewind cue to the start */
+              <TransportBar
+                playing={!paused}
+                onPlay={() => { CLOCK.resume(); setPaused(false) }}
+                onPause={() => { CLOCK.pause(); setPaused(true) }}
+                onStop={() => { CLOCK.reset(); CLOCK.pause(); setPaused(true); reset() }}
+                onRewind={() => { CLOCK.reset(); reset() }}
+                tempo={Math.round(speed * 120)}
+                onTempo={(v) => setClockSpeed(v / 120)}
+                tempoMax={300}
+              />
+            )}
+            {bottomTab === 'output' && (
+              <Button variant="primary" size="sm" className="w-full" onClick={downloadPng} disabled={!single}>↓ PNG</Button>
+            )}
+          </div>
+        }
+      >
+        {/* nav + position — pager scopes to the active category */}
+        <RailNav
+          toggleLabel={view === 'grid' ? 'Full' : 'Browse'}
+          onToggle={toggleView}
+          index={Math.max(0, filtered.indexOf(idx))}
+          total={filtered.length}
+          onPrev={() => go(-1)}
+          onNext={() => go(1)}
+        />
 
-        {/* nav + position — the counter lives with the pager, not pinned to the top */}
-        <div className="flex flex-col gap-2">
-          <Button variant="primary" size="sm" className="w-full" onClick={toggleView}>
-            {view === 'grid' ? 'Single' : 'Gallery'}
-          </Button>
-          <Pager index={idx} total={PROTOTYPES.length} onPrev={() => go(-1)} onNext={() => go(1)} />
-        </div>
+        <LabeledControl label="Category">
+          <Dropdown
+            size="sm"
+            variant="subtle"
+            className="w-full"
+            options={catOptions}
+            value={selectedCat}
+            onChange={setCategory}
+          />
+        </LabeledControl>
 
         <Divider />
 
-        <Section label="Glyph">
-          <LabeledControl inline label="Letter">
-            <Input
-              size="sm"
-              width="100%"
-              maxLength={8}
-              value={letter}
-              placeholder="A"
-              onChange={(e) => setLetter(e.target.value.slice(0, 8))}
-            />
-          </LabeledControl>
-          <LabeledControl inline label="Weight">
-            <Dropdown
-              size="sm"
-              variant="subtle"
-              className="w-full"
-              options={WEIGHTS.map((w) => ({ value: String(w), label: String(w) }))}
-              value={weight}
-              onChange={(v) => setWeight(v)}
-            />
-          </LabeledControl>
-          <LabeledControl inline label="Font">
-            <Dropdown
-              size="sm"
-              variant="subtle"
-              className="w-full"
-              options={FONTS.map((f) => ({ value: f.id, label: f.label }))}
-              value={font}
-              onChange={(v) => setFont(v)}
-            />
-          </LabeledControl>
-        </Section>
+        <SegmentedToggle
+          value={bodyTab}
+          onChange={setBodyTab}
+          options={[{ value: 'settings', label: 'Settings' }, { value: 'info', label: 'Info' }]}
+        />
 
-        <Section label="Artboard">
-          <LabeledControl inline label="Frame">
-            <Dropdown
-              size="sm"
-              variant="subtle"
-              className="w-full"
-              options={FRAMES.map((f) => ({ value: f.id, label: f.label }))}
-              value={frameRatio}
-              onChange={(v) => setFrameRatio(v)}
-            />
-          </LabeledControl>
-          <LabeledControl inline label="Theme">
-            <Dropdown
-              size="sm"
-              variant="subtle"
-              className="w-full"
-              options={THEMES.map((t) => ({ value: t.id, label: t.label }))}
-              value={theme}
-              onChange={(v) => setTheme(v)}
-            />
-          </LabeledControl>
-          <ToggleCheckbox label="Grid overlay" checked={showGrid} onChange={setShowGrid} />
-          <div className="flex items-center gap-2">
-            <Button variant="primary" size="sm" className="flex-1" onClick={randomise}>↻ Randomise</Button>
-            <span className="kol-helper-10 text-meta tabular-nums">gen {seedBase}</span>
-          </div>
-        </Section>
-
-        <Section label="Time">
-          <Button variant="primary" size="sm" className="w-full" onClick={togglePause}>
-            {paused ? '▶ Play' : '⏸ Pause'}
-          </Button>
-          <Slider
-            label="Speed"
-            min={0}
-            max={3}
-            step={0.05}
-            value={speed}
-            onChange={setClockSpeed}
-            formatValue={(v) => `${v.toFixed(2)}×`}
-            className="w-full"
-          />
-        </Section>
-
-        {/* per-prototype controls — single view only */}
-        {single && (
+        {bodyTab === 'settings' && (
           <>
-            <Divider />
-            <KnobsPanel key={proto.id} proto={proto} onTweak={() => setResetNonce((n) => n + 1)} />
-            <div className="flex flex-wrap gap-1">
-              <Button variant="primary" size="sm" onClick={reset}>Reset</Button>
-              <Button variant="primary" size="sm" onClick={camReset}>Cam reset</Button>
-              <Button variant="primary" size="sm" onClick={downloadPng}>↓ PNG</Button>
-            </div>
+            <Section label="Glyph">
+              <LabeledControl inline label="Letter">
+                <Input
+                  size="sm"
+                  width="100%"
+                  maxLength={8}
+                  value={letter}
+                  placeholder="A"
+                  onChange={(e) => setLetter(e.target.value.slice(0, 8))}
+                />
+              </LabeledControl>
+              <LabeledControl inline label="Weight">
+                <Dropdown
+                  size="sm"
+                  variant="subtle"
+                  className="w-full"
+                  options={WEIGHTS.map((w) => ({ value: String(w), label: String(w) }))}
+                  value={weight}
+                  onChange={(v) => setWeight(v)}
+                />
+              </LabeledControl>
+              <LabeledControl inline label="Font">
+                <Dropdown
+                  size="sm"
+                  variant="subtle"
+                  className="w-full"
+                  options={FONTS.map((f) => ({ value: f.id, label: f.label }))}
+                  value={font}
+                  onChange={(v) => setFont(v)}
+                />
+              </LabeledControl>
+            </Section>
 
-            <Divider />
+            <Section label="Aspect">
+              <Dropdown
+                size="sm"
+                variant="subtle"
+                className="w-full"
+                options={FRAMES.map((f) => ({ value: f.id, label: f.label }))}
+                value={frameRatio}
+                onChange={(v) => setFrameRatio(v)}
+              />
+              <ToggleSwitch variant="plain" label="Grid overlay" checked={showGrid} onChange={setShowGrid} />
+            </Section>
 
+            <SettingsPanel
+              page="penrose"
+              theme={themeId}
+              onTheme={setThemeId}
+              invert={invert}
+              onInvert={setInvert}
+              onRandomize={randomise}
+              seed={seedBase}
+              onSeed={setSeedBase}
+              getSettings={getSettings}
+              applySettings={applySettings}
+            />
+
+            {/* per-prototype controls — full (single) view only */}
+            {single && (
+              <>
+                <Divider />
+                <KnobsPanel key={proto.id} proto={proto} onTweak={() => setResetNonce((n) => n + 1)} />
+                <div className="flex flex-wrap gap-1">
+                  <Button variant="primary" size="sm" onClick={reset}>Reset</Button>
+                  <Button variant="primary" size="sm" onClick={camReset}>Cam reset</Button>
+                </div>
+              </>
+            )}
+          </>
+        )}
+
+        {bodyTab === 'info' && (
+          single ? (
             <div className="flex flex-col gap-1">
               <div className="kol-mono-14 text-emphasis">{proto.name}</div>
               <div className="kol-mono-12 text-body">ref: {proto.repo}</div>
               <div className="kol-mono-12 text-body">{proto.summary}</div>
               <div className="kol-mono-12 text-body">→ {proto.helps}</div>
             </div>
-
-            <Divider />
-
-            <div className="kol-mono-10 text-body flex flex-col gap-1">
-              <div>drag = pan · wheel = zoom</div>
-              <div>shift+drag = rotate XY · alt+drag = rotate Z</div>
-              <div>← / → step · G gallery · R reset · C cam · space pause</div>
-            </div>
-          </>
+          ) : (
+            <div className="kol-mono-12 text-meta">Open a specimen in Full to see its reference and notes.</div>
+          )
         )}
       </EditorRail>
     </div>

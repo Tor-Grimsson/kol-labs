@@ -206,7 +206,7 @@ export default function VideoPage() {
                 <div className="flex items-center gap-3">
                   <div className="flex items-center gap-1">
                     <Button variant="ghost" size="sm" iconOnly="skip-back" onClick={() => seek(inPoint)} aria-label="To start" title="To start (↑)" />
-                    <Button variant="ghost" size="sm" iconOnly={playing ? 'play-pause' : 'play'} onClick={togglePlay} aria-label={playing ? 'Pause' : 'Play'} title="Play / pause (space)" />
+                    <Button variant="ghost" size="sm" iconOnly={playing ? 'pause' : 'play'} onClick={togglePlay} aria-label={playing ? 'Pause' : 'Play'} title="Play / pause (space)" />
                     <Button variant="ghost" size="sm" iconOnly="skip-forward" onClick={() => seek(outPoint)} aria-label="To end" title="To end (↓)" />
                     <Button variant="ghost" size="sm" iconOnly="repeat" selected={loop} onClick={() => setLoop((l) => !l)} aria-label="Loop" title="Loop" />
                   </div>

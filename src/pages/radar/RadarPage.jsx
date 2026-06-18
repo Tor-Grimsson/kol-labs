@@ -7,6 +7,11 @@ import DitherPage from './pages/DitherPage'
 // page's bundle stays lean.
 const DistortPage = lazy(() => import('./pages/DistortPage'))
 const AsciiPage = lazy(() => import('./pages/AsciiPage'))
+// Synth family — WebGL temporal/feedback effects (shared SynthEngine base).
+const TrailsPage = lazy(() => import('./pages/TrailsPage'))
+const SlitscanPage = lazy(() => import('./pages/SlitscanPage'))
+const ScanPage = lazy(() => import('./pages/ScanPage'))
+const DiscoPage = lazy(() => import('./pages/DiscoPage'))
 
 // Descendant routes under the shell's /radar/* mount (was a standalone
 // BrowserRouter app in kol-labs).
@@ -31,6 +36,10 @@ export default function RadarPage() {
             </Suspense>
           }
         />
+        <Route path="trails" element={<Suspense fallback={<div className="min-h-dvh bg-surface-primary" />}><TrailsPage /></Suspense>} />
+        <Route path="slitscan" element={<Suspense fallback={<div className="min-h-dvh bg-surface-primary" />}><SlitscanPage /></Suspense>} />
+        <Route path="scan" element={<Suspense fallback={<div className="min-h-dvh bg-surface-primary" />}><ScanPage /></Suspense>} />
+        <Route path="disco" element={<Suspense fallback={<div className="min-h-dvh bg-surface-primary" />}><DiscoPage /></Suspense>} />
       </Routes>
     </ImageProvider>
   )

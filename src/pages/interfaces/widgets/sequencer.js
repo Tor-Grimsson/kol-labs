@@ -1,6 +1,6 @@
 import p5 from 'p5'
 import { pixelate } from '../pixel'
-import { isActive, beatCount, beat } from '../lib/audio.js'
+import { isActive, beat } from '../lib/audio.js'
 
 
 
@@ -59,10 +59,11 @@ export function sequencer(opts         )     {
       p.background(bg)
       p.noStroke()
 
-      // locked to the track: advance one step per detected beat; else free-run bpm
+      // step on the tempo clock at the widget bpm (steady); the track only
+      // accents the playhead, so adding audio doesn't run it at the onset rate.
       const live = isActive()
       const beatsPerSec = (bpm / 60) * 2 // 8ths
-      const step = live ? (beatCount() % cols) : (Math.floor((p.millis() / 1000) * beatsPerSec) % cols)
+      const step = Math.floor((p.millis() / 1000) * beatsPerSec) % cols
       const hit = live ? beat() : 0 // brighten the playhead on the downbeat
 
       for (let r = 0; r < rows; r++) {

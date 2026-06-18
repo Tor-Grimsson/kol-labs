@@ -1,6 +1,7 @@
 
 import { hero, sequencer, eqBars, knob, tape, matrix, vu, helix, reel, hBars, sevenSeg, bitmap, codeScroll, creature3d } from './widgets'
 import { liveEncode } from './widgets/cipher.js'
+import { tempoScale } from './lib/clock.js'
 
 
 
@@ -39,8 +40,10 @@ function numericStrip(host             , groups        , perGroup        ) {
     strip.textContent = liveEncode(rows.join('  '))
   }
   paint()
-  const id = setInterval(paint, 140)
-  ;(strip                                           )._cleanup = () => clearInterval(id)
+  let id
+  const reschedule = () => { id = setTimeout(() => { paint(); reschedule() }, 140 / Math.max(0.05, tempoScale())) }
+  reschedule()
+  ;(strip                                           )._cleanup = () => clearTimeout(id)
   ;(strip                                           )._setPlaying = (p) => { playing = p }
   host.appendChild(strip)
 }
@@ -942,30 +945,41 @@ function coreFrame(
   host.appendChild(frame)
 }
 
-function dualNum(host             , rows        )       {
+function dualNum(host             , rows        , cols = 2)       {
+  const n = Math.max(1, cols)
   const box = el('div', 'dualnum')
-  const colA = el('div', 'col'); const colB = el('div', 'col')
+  box.style.width = '100%' // span the slot — so a single column fills the full width
+  box.style.gridTemplateColumns = `repeat(${n}, 1fr)` // CSS defaults to 2; honour the cols param
+  const columns = []
+  for (let c = 0; c < n; c++) columns.push(el('div', 'col'))
   let playing = true // gated by the mount's play-state (transport / tile hover)
-  const genRow = () => {
+  const genRow = (groups) => {
     const parts           = []
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < groups; i++) {
       parts.push(String(((Math.random() * 10000) | 0)).padStart(4, '0'))
     }
     return parts.join('.')
   }
   const paint = () => {
     if (!playing) return
-    const a           = []; const b           = []
-    for (let i = 0; i < rows; i++) { a.push(genRow()); b.push(genRow()) }
-    colA.textContent = liveEncode(a.join('\n'))
-    colB.textContent = liveEncode(b.join('\n'))
+    for (const col of columns) {
+      // responsive: fill the column width with as many 4-digit groups as fit
+      // (a group ≈ 5 mono chars at 11px ≈ 34px) — so 1 column spans the whole block
+      const groups = Math.max(2, Math.floor((col.clientWidth || 120) / 34))
+      const lines           = []
+      for (let i = 0; i < rows; i++) lines.push(genRow(groups))
+      col.textContent = liveEncode(lines.join('\n'))
+    }
   }
   paint()
-  const id = setInterval(paint, 260)
-  ;(box                                           )._cleanup = () => clearInterval(id)
+  let id
+  const reschedule = () => { id = setTimeout(() => { paint(); reschedule() }, 260 / Math.max(0.05, tempoScale())) }
+  reschedule()
+  ;(box                                           )._cleanup = () => clearTimeout(id)
   ;(box                                           )._setPlaying = (p) => { playing = p }
-  box.appendChild(colA); box.appendChild(colB)
+  for (const col of columns) box.appendChild(col)
   host.appendChild(box)
+  requestAnimationFrame(paint) // re-measure once laid out so it fills the slot immediately
 }
 
 const makeCoreScreen = (

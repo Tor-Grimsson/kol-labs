@@ -2,13 +2,18 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import Button from '../../components/atoms/Button.jsx'
 import Divider from '../../components/atoms/Divider.jsx'
 import Slider from '../../components/atoms/Slider.jsx'
+import { roundIfNum } from '../../lib/exprParam.js'
 import Dropdown from '../../components/molecules/Dropdown.jsx'
 import LabeledControl from '../../components/molecules/LabeledControl.jsx'
 import Section from '../../components/molecules/Section.jsx'
 import EditorRail, { RailHeader } from '../../components/framework/EditorRail.jsx'
+import RailNav from '../../components/framework/RailNav.jsx'
+import TransportBar from '../../components/framework/TransportBar.jsx'
+import SettingsPanel from '../../components/framework/SettingsPanel.jsx'
 import { SHAPES, DRIVERS, PALETTES, BG_STYLES, shiftHue } from './data/palettes.js'
 import { mulberry32 } from './engine/prng.js'
 import GradientEngine from './engine/GradientEngine.js'
+import { resolveTheme, DEFAULT_THEME } from '../../lib/themes.js'
 
 const VARIATIONS = 9
 
@@ -43,6 +48,8 @@ export default function GradientPage() {
   const [view, setView] = useState('grid')
   const [idx, setIdx] = useState(0)
   const [seedBase, setSeedBase] = useState(7)
+  const [themeId, setThemeId] = useState(DEFAULT_THEME)
+  const [invert, setInvert] = useState(false)
 
   const [shape, setShape] = useState('auto')
   const [paletteId, setPaletteId] = useState('auto')
@@ -52,7 +59,7 @@ export default function GradientPage() {
   const [glow, setGlow] = useState(0.6)
   const [grain, setGrain] = useState(0.06)
   const [speed, setSpeed] = useState(1)
-  const [paused, setPaused] = useState(false)
+  const [paused, setPaused] = useState(true)
   const [bg, setBg] = useState(0.85)
   const [bgStyle, setBgStyle] = useState(0)
 
@@ -82,6 +89,7 @@ export default function GradientPage() {
     }
   }, [])
 
+  useEffect(() => { engineRef.current?.setBackground(resolveTheme(themeId, invert).bg) }, [themeId, invert])
   useEffect(() => { engineRef.current?.update({ specs }) }, [specs])
   useEffect(() => { engineRef.current?.update({ mode: view, idx }) }, [view, idx])
   useEffect(() => { engineRef.current?.update({ globals }) }, [globals])
@@ -93,6 +101,23 @@ export default function GradientPage() {
   const toggleView = () => setView((v) => (v === 'grid' ? 'single' : 'grid'))
   const randomize = () => setSeedBase(Math.floor(Math.random() * 1_000_000))
 
+  const getSettings = () => ({ themeId, invert, seedBase, shape, paletteId, hueShift, driver, distortMult, glow, grain, speed, bg, bgStyle })
+  const applySettings = (s) => {
+    if (s.themeId != null) setThemeId(s.themeId)
+    if (s.invert != null) setInvert(s.invert)
+    if (s.seedBase != null) setSeedBase(s.seedBase)
+    if (s.shape != null) setShape(s.shape)
+    if (s.paletteId != null) setPaletteId(s.paletteId)
+    if (s.hueShift != null) setHueShift(s.hueShift)
+    if (s.driver != null) setDriver(s.driver)
+    if (s.distortMult != null) setDistortMult(s.distortMult)
+    if (s.glow != null) setGlow(s.glow)
+    if (s.grain != null) setGrain(s.grain)
+    if (s.speed != null) setSpeed(s.speed)
+    if (s.bg != null) setBg(s.bg)
+    if (s.bgStyle != null) setBgStyle(s.bgStyle)
+  }
+
   useEffect(() => {
     const onKey = (e) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) return
@@ -101,7 +126,6 @@ export default function GradientPage() {
       else if (e.key === 'g' || e.key === 'G') toggleView()
       else if (e.key === 'r' || e.key === 'R') randomize()
       else if (e.key === 'c' || e.key === 'C') engineRef.current?.resetCamera()
-      else if (e.key === ' ') { e.preventDefault(); setPaused((p) => !p) }
       else if (e.key === 'Escape') setView('grid')
     }
     document.addEventListener('keydown', onKey)
@@ -140,86 +164,119 @@ export default function GradientPage() {
 
       <EditorRail>
         <RailHeader>3D Scene</RailHeader>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="primary" size="sm" onClick={toggleView}>{view === 'grid' ? 'Single' : 'Grid'}</Button>
-          <Button variant="primary" size="sm" onClick={() => go(-1)}>← prev</Button>
-          <Button variant="primary" size="sm" onClick={() => go(1)}>next →</Button>
-          <Button variant="primary" size="sm" onClick={randomize}>Randomize</Button>
-          <Button variant="primary" size="sm" onClick={() => engineRef.current?.resetCamera()}>Cam reset</Button>
+
+        {/* Scrolls: ONLY the controls. Header (above) + transport (below) stay put. */}
+        <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-5">
+          <div className="flex flex-col gap-2">
+            <RailNav
+              toggleLabel={view === 'grid' ? 'Single' : 'Grid'}
+              onToggle={toggleView}
+              index={idx}
+              total={VARIATIONS}
+              onPrev={() => go(-1)}
+              onNext={() => go(1)}
+            />
+            <Button variant="primary" size="sm" className="w-full" onClick={() => engineRef.current?.resetCamera()}>Cam reset</Button>
+          </div>
+
+          <Divider />
+
+          <SettingsPanel
+            page="gradient"
+            theme={themeId}
+            onTheme={setThemeId}
+            invert={invert}
+            onInvert={setInvert}
+            onRandomize={randomize}
+            seed={seedBase}
+            onSeed={setSeedBase}
+            getSettings={getSettings}
+            applySettings={applySettings}
+          />
+
+          <Divider />
+
+          <Section label="Shape">
+            <Dropdown
+              size="sm"
+              variant="subtle"
+              className="w-full"
+              options={[{ value: 'auto', label: 'by seed' }, ...SHAPES.map((s) => ({ value: s, label: s }))]}
+              value={shape}
+              onChange={setShape}
+            />
+          </Section>
+
+          <Section label="Palette">
+            <Dropdown
+              size="sm"
+              variant="subtle"
+              className="w-full"
+              options={[{ value: 'auto', label: 'by seed' }, ...PALETTES.map((p) => ({ value: p.id, label: p.label }))]}
+              value={paletteId}
+              onChange={setPaletteId}
+            />
+            <Slider label="Hue Shift" min={-180} max={180} step={5} value={hueShift} onChange={(v) => setHueShift(roundIfNum(v))} className="w-full" />
+          </Section>
+
+          <Section label="Background">
+            <LabeledControl inline label="style">
+              <Dropdown
+                size="sm"
+                variant="subtle"
+                className="w-full"
+                options={BG_STYLES.map((s) => ({ value: String(s.id), label: s.label }))}
+                value={String(bgStyle)}
+                onChange={(v) => setBgStyle(Number(v))}
+              />
+            </LabeledControl>
+            <Slider label="Intensity" min={0} max={1} step={0.05} value={bg} onChange={setBg} className="w-full" />
+          </Section>
+
+          <Section label="Surface">
+            <LabeledControl inline label="gradient">
+              <Dropdown
+                size="sm"
+                variant="subtle"
+                className="w-full"
+                options={[{ value: 'auto', label: 'by seed' }, ...DRIVERS.map((d) => ({ value: String(d.id), label: d.label }))]}
+                value={driver}
+                onChange={setDriver}
+              />
+            </LabeledControl>
+            <Slider label="Distortion" min={0} max={2} step={0.05} value={distortMult} onChange={setDistortMult} className="w-full" />
+            <Slider label="Glow" min={0} max={1.5} step={0.05} value={glow} onChange={setGlow} className="w-full" />
+            <Slider label="Grain" min={0} max={0.3} step={0.01} value={grain} onChange={setGrain} className="w-full" />
+          </Section>
+
+          <Divider />
+
+          <Button variant="primary" size="sm" className="w-full" iconLeft="download" onClick={exportPng}>Export PNG</Button>
+
+          <div className="kol-helper-10 text-body flex flex-col gap-1">
+            <div>← / →</div>
+            <div>G grid</div>
+            <div>R randomize</div>
+            <div>space pause</div>
+            <div>drag = orbit</div>
+            <div>wheel = zoom</div>
+            <div>C = reset cam</div>
+          </div>
         </div>
 
-        <Divider />
-
-        <Section label="Shape">
-          <Dropdown
-            size="sm"
-            variant="subtle"
-            className="w-full"
-            options={[{ value: 'auto', label: 'by seed' }, ...SHAPES.map((s) => ({ value: s, label: s }))]}
-            value={shape}
-            onChange={setShape}
+        {/* Fixed: transport pinned at the rail bottom (like interfaces). Tempo
+            is the motion speed — 120 = realtime (the app-wide convention). */}
+        <div className="border-t border-fg-08 pt-3">
+          <TransportBar
+            playing={!paused}
+            onPlay={() => setPaused(false)}
+            onPause={() => setPaused(true)}
+            onStop={() => { setPaused(true); engineRef.current?.resetTime() }}
+            onRewind={() => engineRef.current?.resetTime()}
+            tempo={Math.round(speed * 120)}
+            onTempo={(v) => setSpeed(v / 120)}
+            tempoMax={300}
           />
-        </Section>
-
-        <Section label="Palette">
-          <Dropdown
-            size="sm"
-            variant="subtle"
-            className="w-full"
-            options={[{ value: 'auto', label: 'by seed' }, ...PALETTES.map((p) => ({ value: p.id, label: p.label }))]}
-            value={paletteId}
-            onChange={setPaletteId}
-          />
-          <Slider label="Hue Shift" min={-180} max={180} step={5} value={hueShift} onChange={(v) => setHueShift(Math.round(v))} className="w-full" />
-        </Section>
-
-        <Section label="Background">
-          <LabeledControl inline label="style">
-            <Dropdown
-              size="sm"
-              variant="subtle"
-              className="w-full"
-              options={BG_STYLES.map((s) => ({ value: String(s.id), label: s.label }))}
-              value={String(bgStyle)}
-              onChange={(v) => setBgStyle(Number(v))}
-            />
-          </LabeledControl>
-          <Slider label="Intensity" min={0} max={1} step={0.05} value={bg} onChange={setBg} className="w-full" />
-        </Section>
-
-        <Section label="Surface">
-          <LabeledControl inline label="gradient">
-            <Dropdown
-              size="sm"
-              variant="subtle"
-              className="w-full"
-              options={[{ value: 'auto', label: 'by seed' }, ...DRIVERS.map((d) => ({ value: String(d.id), label: d.label }))]}
-              value={driver}
-              onChange={setDriver}
-            />
-          </LabeledControl>
-          <Slider label="Distortion" min={0} max={2} step={0.05} value={distortMult} onChange={setDistortMult} className="w-full" />
-          <Slider label="Glow" min={0} max={1.5} step={0.05} value={glow} onChange={setGlow} className="w-full" />
-          <Slider label="Grain" min={0} max={0.3} step={0.01} value={grain} onChange={setGrain} className="w-full" />
-        </Section>
-
-        <Section label="Motion">
-          <Slider label="Speed" min={0} max={2} step={0.05} value={speed} onChange={setSpeed} className="w-full" />
-          <Button variant="primary" size="sm" onClick={() => setPaused((p) => !p)}>{paused ? 'Play' : 'Pause'}</Button>
-        </Section>
-
-        <Divider />
-
-        <Button variant="primary" size="sm" className="w-full" iconLeft="download" onClick={exportPng}>Export PNG</Button>
-
-        <div className="kol-helper-10 text-body flex flex-col gap-1">
-          <div>← / →</div>
-          <div>G grid</div>
-          <div>R randomize</div>
-          <div>space pause</div>
-          <div>drag = orbit</div>
-          <div>wheel = zoom</div>
-          <div>C = reset cam</div>
         </div>
       </EditorRail>
     </div>

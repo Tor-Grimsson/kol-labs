@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { gradientVertex, gradientFragment, bgVertex, bgFragment } from './shaders.js'
+import { resolveParams, resolveRate } from '../../../lib/exprParam.js'
 
 /* GradientEngine — one renderer, one WebGL context. Grid mode renders every
  * variation into its own scissored viewport (the three.js multi-scene
@@ -175,20 +176,23 @@ export default class GradientEngine {
     const now = performance.now()
     const dt = (now - this.last) / 1000
     this.last = now
-    if (!this.globals.paused) this.time += dt * this.globals.speed
+    // Resolve any expression-valued globals at the current playhead (speed first
+    // — it drives the accumulator, so it must never be NaN).
+    if (!this.globals.paused) this.time += dt * resolveRate(this.globals.speed, this.time)
+    const g = resolveParams(this.globals, this.time)
     this.controls.update()
     if (!this.w || !this.h || this.tiles.length === 0) return
 
     for (const tile of this.tiles) {
       const u = tile.material.uniforms
       u.uTime.value = this.time
-      u.uGlow.value = this.globals.glow
-      u.uGrain.value = this.globals.grain
+      u.uGlow.value = g.glow
+      u.uGrain.value = g.grain
       const b = tile.bgMaterial.uniforms
       b.uTime.value = this.time
-      b.uIntensity.value = this.globals.bg
-      b.uStyle.value = this.globals.bgStyle
-      tile.glow.material.opacity = 0.18 + this.globals.glow * 0.3
+      b.uIntensity.value = g.bg
+      b.uStyle.value = g.bgStyle
+      tile.glow.material.opacity = 0.18 + g.glow * 0.3
       const wave = tile.spec.shape === 'wave'
       tile.mesh.rotation.y = tile.spec.phase + this.time * tile.spec.rotSpeed * (wave ? 0.3 : 1)
     }
@@ -219,10 +223,19 @@ export default class GradientEngine {
     this.renderer.setScissorTest(false)
   }
 
+  setBackground(hex) {
+    this.renderer.setClearColor(new THREE.Color(hex), 1)
+    this.bgBase.set(hex)
+  }
+
   resetCamera() {
     this.camera.position.set(0, 0.15, 4.2)
     this.controls.target.set(0, 0, 0)
     this.controls.update()
+  }
+
+  resetTime() {
+    this.time = 0
   }
 
   exportBlob() {

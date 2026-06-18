@@ -11,21 +11,13 @@
  */
 import {
   hero, sequencer, eqBars, knob, tape, matrix, vu,
-  helix, reel, hBars, sevenSeg, bitmap, codeScroll, creature3d, cipher, fourier,
+  helix, reel, hBars, sevenSeg, bitmap, codeScroll, creature3d, cipher,
 } from './index.js'
 import { CIPHER_MODES } from './cipher.js'
 import { CHARSET_KEYS } from '../lib/charsets.js'
 import { statusbar, label as labelEl, readouts, numericStrip, transport, dualNum } from '../screens.js'
 
-export const GROUPS = [
-  { key: 'displays', label: 'Displays' },
-  { key: 'meters', label: 'Meters' },
-  { key: 'controls', label: 'Controls' },
-  { key: 'grids', label: 'Grids' },
-  { key: 'readouts', label: 'Readouts' },
-  { key: 'dimensional', label: '3D' },
-  { key: 'chrome', label: 'Chrome' },
-]
+export { GROUPS } from './groups.js'
 
 const R = (key, min, max, step, label) => ({ key, min, max, step, label: label || key })
 const SEL = (key, options, label) => ({ key, type: 'select', options, label: label || key })
@@ -43,9 +35,6 @@ export const WIDGETS = [
   { key: 'bitmap', label: 'Bitmap', group: 'displays', factory: bitmap,
     defaults: { w: 72, h: 72, arms: 6, rings: 4, speed: 0.2, style: 'radial', seed: 0 },
     params: [R('arms', 2, 12, 1), R('rings', 2, 8, 1), R('speed', 0.05, 1, 0.05), SEL('style', ['radial', 'spiral', 'eye']), R('seed', 0, 9, 1)] },
-  { key: 'fourier', label: 'Fourier', group: 'displays', factory: fourier,
-    defaults: { w: 240, h: 96, harmonics: 5, wave: 'square', speed: 0.6 },
-    params: [R('harmonics', 1, 12, 1), SEL('wave', ['square', 'sawtooth', 'triangle']), R('speed', 0.1, 1.5, 0.05)] },
 
   // meters
   { key: 'eqBars', label: 'EQ Bars', group: 'meters', factory: eqBars,
@@ -60,8 +49,8 @@ export const WIDGETS = [
 
   // controls (square: circular, must keep 1:1 — render at a fixed small size)
   { key: 'knob', label: 'Knob', group: 'controls', factory: knob, square: true,
-    defaults: { size: 30, seed: 0, speed: 0.12, animate: true, value: 0.5, modulate: true },
-    params: [R('size', 16, 64, 2), BOOL('animate', 'animate'), R('speed', 0.02, 1, 0.02), R('value', 0, 1, 0.01, 'position'), BOOL('modulate', 'modulate UI'), R('seed', 0, 6, 0.1)] },
+    defaults: { size: 30, count: 1, seed: 0, speed: 0.12, animate: true, value: 0.5, modulate: true },
+    params: [R('size', 16, 64, 2), R('count', 1, 6, 1), BOOL('animate', 'animate'), R('speed', 0.02, 1, 0.02), R('value', 0, 1, 0.01, 'position'), BOOL('modulate', 'modulate UI'), R('seed', 0, 6, 0.1)] },
   { key: 'reel', label: 'Reel', group: 'controls', factory: reel, square: true,
     defaults: { size: 56, speed: 0.7, spokes: 6 },
     params: [R('size', 24, 96, 2), R('speed', 0.1, 2, 0.05), R('spokes', 3, 10, 1)] },
@@ -103,7 +92,7 @@ export const CHROME = [
   { key: 'readouts', label: 'Readout Block', group: 'chrome', themed: true, factory: (o) => readouts(o.host, o.items), defaults: { items: [['FRQ', '440.00 HZ'], ['Q', '0.71'], ['CUT', '0.42'], ['GAIN', '0.84'], ['LFO', '0.18'], ['RATE', '2.7 HZ']] }, params: [] },
   { key: 'hexStrip', label: 'Hex Strip', group: 'chrome', themed: true, factory: (o) => numericStrip(o.host, o.groups, o.per), defaults: { groups: 1, per: 12 }, params: [{ key: 'groups', min: 1, max: 3, step: 1 }, { key: 'per', min: 4, max: 16, step: 1 }] },
   { key: 'transport', label: 'Transport', group: 'chrome', themed: true, factory: (o) => transport(o.host, o.label, o.active), defaults: { label: 'STEREO · 24BIT · 48K', active: '▶' }, params: [] },
-  { key: 'dualNum', label: 'Dual Numbers', group: 'chrome', themed: true, factory: (o) => dualNum(o.host, o.rows), defaults: { rows: 6 }, params: [{ key: 'rows', min: 3, max: 10, step: 1 }] },
+  { key: 'dualNum', label: 'Dual Numbers', group: 'chrome', themed: true, factory: (o) => dualNum(o.host, o.rows, o.cols), defaults: { rows: 6, cols: 2 }, params: [{ key: 'rows', min: 3, max: 10, step: 1 }, { key: 'cols', min: 1, max: 4, step: 1 }] },
 ]
 
 /* Everything in the inventory — animated widgets + chrome. */

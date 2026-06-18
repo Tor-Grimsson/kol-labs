@@ -2,7 +2,10 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { renderDither, MODE_OPTIONS, SHAPE_OPTIONS, DEFAULT_PARAMS } from '../effects/ditherEngine'
 import { makeSweep } from '../effects/sweeps'
 import { CANVAS_FX_DEFS, getDefaultCanvasFxParams, applyCanvasFx } from '../hooks/useCanvasFx'
-import { ASPECT_SPECS, DEFAULT_ASPECT, SCALE_OPTIONS, DEFAULT_SCALE, FIT_OPTIONS, dimsFor } from '../data/exportSpecs'
+import { ASPECT_SPECS, SOURCE_DEFAULT as DEFAULT_ASPECT, DEFAULT_SCALE, dimsFor } from '../../_shared/exportSpecs.js'
+import ExportPanel from '../../_shared/ExportPanel.jsx'
+import SegmentedToggle from '../../../components/molecules/SegmentedToggle.jsx'
+import ButtonGroup from '../../../components/molecules/ButtonGroup.jsx'
 import { fitSourceToFrame } from '../utils/fitFrame'
 import Button from '../../../components/atoms/Button.jsx'
 import Divider from '../../../components/atoms/Divider.jsx'
@@ -11,6 +14,7 @@ import ToggleSwitch from '../../../components/atoms/ToggleSwitch.jsx'
 import Dropdown from '../../../components/molecules/Dropdown.jsx'
 import Section from '../../../components/molecules/Section.jsx'
 import EditorRail, { RailHeader } from '../../../components/framework/EditorRail.jsx'
+import TransportBar from '../../../components/framework/TransportBar.jsx'
 import ColorPicker from '../components/ColorPicker'
 import SweepControls from '../components/SweepControls'
 import VideoTransport from '../components/VideoTransport'
@@ -28,12 +32,14 @@ export default function DitherPage() {
   const [sweeps, setSweeps] = useState([])
   const [animating, setAnimating] = useState(false)
   const [motionSpeed, setMotionSpeed] = useState(1)
+  const [playing, setPlaying] = useState(true)
   const timeRef = useRef(0)
   const recorderRef = useRef(null)
   const chunksRef = useRef([])
   const [exporting, setExporting] = useState(false)
   const [exportAspect, setExportAspect] = useState(DEFAULT_ASPECT)
   const [exportScale, setExportScale] = useState(DEFAULT_SCALE)
+  const [tab, setTab] = useState('effect') // Effect | Motion | Output rail tabs
   const [exportFit, setExportFit] = useState('cover')
 
   // Draw raw image to canvas
@@ -80,8 +86,9 @@ export default function DitherPage() {
     const loop = (now) => {
       if (!alive) return
       const ts = now ?? performance.now()
-      timeRef.current += (ts - last) / 1000
+      const d = (ts - last) / 1000
       last = ts
+      if (playing) timeRef.current += d // transport pause freezes the motion clock
       draw()
       handle = (isVideo && sourceImage.requestVideoFrameCallback)
         ? sourceImage.requestVideoFrameCallback(loop)
@@ -94,7 +101,14 @@ export default function DitherPage() {
       if (isVideo && sourceImage.cancelVideoFrameCallback) sourceImage.cancelVideoFrameCallback(handle)
       else cancelAnimationFrame(handle)
     }
-  }, [params, sweeps, motionSpeed, animated, fxChain, effectApplied, sourceImage, isVideo, drawRawImage])
+  }, [params, sweeps, motionSpeed, animated, fxChain, effectApplied, sourceImage, isVideo, drawRawImage, playing])
+
+  // Transport play/pause also drives the source video.
+  useEffect(() => {
+    if (isVideo && sourceImage) {
+      if (playing) { const pr = sourceImage.play(); if (pr && pr.catch) pr.catch(() => {}) } else sourceImage.pause()
+    }
+  }, [playing, isVideo, sourceImage])
 
   const updateParam = (key, value) => {
     setParams(prev => ({ ...prev, [key]: value }))
@@ -252,6 +266,15 @@ export default function DitherPage() {
 
         {isVideo && sourceImage && <VideoTransport video={sourceImage} />}
 
+        <SegmentedToggle
+          value={tab}
+          onChange={setTab}
+          options={[{ value: 'effect', label: 'Effect' }, { value: 'motion', label: 'Motion' }, { value: 'output', label: 'Output' }]}
+        />
+
+        {/* Scrolls: the active tab's controls. Transport (below) stays pinned. */}
+        <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-5">
+        {tab === 'effect' && (<>
         <Section label="Mode">
           <Dropdown size="sm" options={MODE_OPTIONS} value={params.mode} onChange={(v) => updateParam('mode', v)} variant="subtle" className="w-full" />
         </Section>
@@ -298,7 +321,7 @@ export default function DitherPage() {
           return (
             <div key={i} className="flex flex-col gap-2 p-2 rounded bg-fg-04">
               <div className="flex items-center gap-2">
-                <ToggleSwitch label={def.label} checked={fx.enabled} onChange={() => toggleFx(i)} />
+                <ToggleSwitch variant="plain" label={def.label} checked={fx.enabled} onChange={() => toggleFx(i)} />
                 <Button variant="ghost" size="sm" quiet iconOnly="cross" iconSize={12} className="ml-auto" aria-label="Remove effect" onClick={() => removeFx(i)} />
               </div>
               {fx.enabled && Object.entries(def.params).map(([key, spec]) => (
@@ -327,8 +350,9 @@ export default function DitherPage() {
         />
         </Section>
 
-        <Divider />
+        </>)}
 
+        {tab === 'motion' && (
         <SweepControls
           isVideo={isVideo}
           animating={animating}
@@ -340,18 +364,18 @@ export default function DitherPage() {
           onRemove={removeSweep}
           onUpdate={updateSweep}
         />
+        )}
 
-        <Divider />
-
-        <Section label="Output">
-          <Dropdown size="sm" options={ASPECT_SPECS} value={exportAspect} onChange={setExportAspect} variant="subtle" className="w-full" />
-          {exportAspect !== 'source' && (
-            <>
-              <Dropdown size="sm" options={SCALE_OPTIONS} value={exportScale} onChange={setExportScale} variant="subtle" className="w-full" />
-              <Dropdown size="sm" options={FIT_OPTIONS} value={exportFit} onChange={setExportFit} variant="subtle" className="w-full" />
-            </>
-          )}
-        </Section>
+        {tab === 'output' && (<>
+        <ExportPanel
+          aspect={exportAspect}
+          onAspect={setExportAspect}
+          aspects={ASPECT_SPECS}
+          scale={exportScale}
+          onScale={setExportScale}
+          fit={exportFit}
+          onFit={setExportFit}
+        />
 
         <Divider />
 
@@ -368,13 +392,14 @@ export default function DitherPage() {
           </Button>
         )}
 
-        <Button variant="primary" size="sm" onClick={() => fileInputRef.current?.click()} iconLeft="upload" className="w-full">
-          Upload Image
-        </Button>
-
-        <Button variant="primary" size="sm" onClick={() => videoInputRef.current?.click()} iconLeft="video" className="w-full">
-          Upload Video
-        </Button>
+        <ButtonGroup orientation="vertical" className="w-full">
+          <Button variant="primary" size="sm" onClick={() => fileInputRef.current?.click()} iconLeft="upload" className="w-full">
+            Upload Image
+          </Button>
+          <Button variant="primary" size="sm" onClick={() => videoInputRef.current?.click()} iconLeft="video" className="w-full">
+            Upload Video
+          </Button>
+        </ButtonGroup>
 
         {sourceImage && (
           <Button variant="primary" size="sm" onClick={handleDownload} iconLeft="download" className="w-full">
@@ -387,6 +412,22 @@ export default function DitherPage() {
             {exporting ? 'Stop Export' : 'Export Video'}
           </Button>
         )}
+        </>)}
+        </div>
+
+        {/* Fixed: transport — play/pause the motion + video, Tempo = motion speed. */}
+        <div className="border-t border-fg-08 pt-3">
+          <TransportBar
+            playing={playing}
+            onPlay={() => setPlaying(true)}
+            onPause={() => setPlaying(false)}
+            onStop={() => { setPlaying(false); timeRef.current = 0 }}
+            onRewind={() => { timeRef.current = 0 }}
+            tempo={Math.round(motionSpeed * 120)}
+            onTempo={(v) => setMotionSpeed(v / 120)}
+            tempoMax={300}
+          />
+        </div>
       </EditorRail>
 
       <input ref={fileInputRef} type="file" accept="image/*,.svg" onChange={handleFileUpload} className="hidden" />

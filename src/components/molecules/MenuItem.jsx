@@ -94,7 +94,7 @@ export function MenuDropdownItem({ onClick, disabled, prefix, iconLeft, shortcut
       onClick={onClick}
       disabled={disabled}
       role="menuitem"
-      className="w-full kol-helper-12 px-3 h-8 inline-flex items-center gap-2 text-body hover:text-emphasis disabled:opacity-40 disabled:cursor-not-allowed text-left"
+      className="w-full kol-helper-12 px-3 h-8 shrink-0 inline-flex items-center gap-2 text-body hover:text-emphasis disabled:opacity-40 disabled:cursor-not-allowed text-left"
     >
       {prefix && <span className="shrink-0 inline-flex items-center">{prefix}</span>}
       {iconLeft && <span className="shrink-0 w-4 inline-flex items-center justify-center">{iconLeft}</span>}
