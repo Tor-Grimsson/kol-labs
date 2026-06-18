@@ -363,7 +363,7 @@ export default function ParametricTypeLab() {
   return (
     <div className="flex h-dvh">
       <main className="flex-1 min-w-0 overflow-hidden">
-        <div className="h-full w-full flex flex-col gap-4 p-6 bg-surface-tertiary text-fg-96">
+        <div className="h-full w-full flex flex-col gap-4 p-6 bg-surface-secondary text-fg-96">
           {/* Big specimen */}
           <div className="shrink-0 flex items-center justify-center" style={{ height: '40%' }}>
             <Glyph

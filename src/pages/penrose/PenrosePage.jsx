@@ -13,9 +13,9 @@ import './main.css'
 import { mulberry32 } from './prng'
 import { rasterizeGlyph, computeSDF } from './sdf'
 import { PROTOTYPES } from './prototypes'
-import { makeSDF } from './prototypes/common'
+import { makeSDF, setLoopClock } from './prototypes/common'
 import { Camera } from './camera'
-import { CLOCK } from './clock'
+import { CLOCK, SquishyClock } from './clock'
 import { defaultValues, fmt } from './knobs'
 import { FRAMES, FONTS, THEMES, frameFor, themeFor, setPalette } from './settings'
 
@@ -49,16 +49,23 @@ const getParams = (protoId, declared) => {
 
 // seedBase shifts every prototype's RNG seed in lockstep — one global
 // "generation" control (randomise) re-rolls all 115 specimens at once.
-const initProto = (i, canvas, ctx, W, H, label, seedBase) => {
+const initProto = (i, canvas, ctx, W, H, label, seedBase, clock) => {
   const proto = PROTOTYPES[i]
   const values = getParams(proto.id, defaultValues(proto.params))
   const seed = seedBase + i
   const rng = mulberry32(seed)
+  // Bind this proto's wrapLoop to the given clock — a per-tile clock in the
+  // grid, the global CLOCK for the single view. Captured synchronously inside
+  // proto.init, then reset so nothing leaks to the next call.
+  const useClock = clock || CLOCK
+  setLoopClock(useClock)
   try {
-    return proto.init({ canvas, ctx, sdf, W, H, rng, seed, params: values, clock: CLOCK }) ?? null
+    return proto.init({ canvas, ctx, sdf, W, H, rng, seed, params: values, clock: useClock }) ?? null
   } catch (err) {
     console.error(`[${proto.id}] ${label} threw:`, err)
     return null
+  } finally {
+    setLoopClock(CLOCK)
   }
 }
 
@@ -126,16 +133,23 @@ function KnobsPanel({ proto, onTweak }) {
   )
 }
 
+// Grid tiles don't autoplay forever: each gets its own clock that runs a short
+// warm-up (so accumulative specimens develop a representative frame), then
+// freezes. Hovering a tile resumes its clock; leaving freezes it again.
+const TILE_WARMUP_MS = 2000
+
 // Grid with lazy init via IntersectionObserver: fire init the first time a
 // tile scrolls into view. Tiles never uninit while the grid is mounted; the
 // parent remounts the whole grid (key bump) on rebake/reset/re-seed.
 function Grid({ onSelect, seedBase }) {
   const gridRef = useRef(null)
+  const clocksRef = useRef(new Map()) // i → { clk, warmup }
 
   useEffect(() => {
     const tiles = Array.from(gridRef.current.querySelectorAll('.tile'))
     const cleanups = []
     const inited = new Set()
+    const clocks = clocksRef.current
     const io = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
@@ -146,8 +160,12 @@ function Grid({ onSelect, seedBase }) {
           const tc = entry.target.querySelector('canvas')
           const tctx = tc.getContext('2d')
           tctx.scale(dpr, dpr)
-          const cleanup = initProto(i, tc, tctx, TILE, TILE, 'tile init', seedBase)
+          // per-tile clock: runs the warm-up, then freezes (hover resumes it)
+          const clk = new SquishyClock()
+          const cleanup = initProto(i, tc, tctx, TILE, TILE, 'tile init', seedBase, clk)
           if (cleanup) cleanups.push(cleanup)
+          const warmup = setTimeout(() => clk.pause(), TILE_WARMUP_MS)
+          clocks.set(i, { clk, warmup })
         }
       },
       { rootMargin: '200px 0px' },
@@ -156,13 +174,31 @@ function Grid({ onSelect, seedBase }) {
     return () => {
       io.disconnect()
       for (const c of cleanups) { try { c() } catch (e) { console.error(e) } }
+      for (const { warmup } of clocks.values()) clearTimeout(warmup)
+      clocks.clear()
     }
   }, [seedBase])
+
+  // hover-to-play: cancel the warm-up freeze + run while hovered, freeze on leave
+  const hover = (i, on) => {
+    const e = clocksRef.current.get(i)
+    if (!e) return
+    if (on) { clearTimeout(e.warmup); e.clk.setSpeed(CLOCK.speed); e.clk.resume() }
+    else e.clk.pause()
+  }
 
   return (
     <div className="grid" ref={gridRef}>
       {PROTOTYPES.map((proto, i) => (
-        <div className="tile" data-i={i} key={proto.id} onClick={() => onSelect(i)} title={proto.summary}>
+        <div
+          className="tile"
+          data-i={i}
+          key={proto.id}
+          onClick={() => onSelect(i)}
+          onMouseEnter={() => hover(i, true)}
+          onMouseLeave={() => hover(i, false)}
+          title={proto.summary}
+        >
           <canvas width={TILE * dpr} height={TILE * dpr} style={{ width: `${TILE}px`, height: `${TILE}px` }} />
           <div className="tile-label"><span className="n">{pad(i + 1)}</span><span className="nm">{proto.name}</span></div>
         </div>
@@ -290,7 +326,7 @@ function App() {
   return (
     <div className="flex min-h-dvh">
       {/* Stage: lofi scope — gallery content lives inside .penrose-page */}
-      <div className="penrose-page flex-1 min-w-0 bg-surface-primary" style={themeVars}>
+      <div className="penrose-page flex-1 min-w-0 bg-surface-secondary" style={themeVars}>
       <div id="app">
         <div className="single-row my-auto" style={single ? undefined : { display: 'none' }}>
           {/* canvas-wrap = the fixed artboard frame: it owns the background +

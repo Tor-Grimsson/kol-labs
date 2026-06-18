@@ -1,4 +1,4 @@
-import { SWEEP_SHAPE_OPTIONS, SWEEP_TARGET_OPTIONS } from '../effects/sweeps'
+import { SWEEP_SHAPE_OPTIONS, SWEEP_TARGET_OPTIONS, SWEEP_PRESETS } from '../effects/sweeps'
 import Button from '../../../components/atoms/Button.jsx'
 import Slider from '../../../components/atoms/Slider.jsx'
 import ToggleSwitch from '../../../components/atoms/ToggleSwitch.jsx'
@@ -17,8 +17,16 @@ export default function SweepControls({ isVideo, animating, onAnimate, speed, on
   return (
     <Section label="Motion">
       {!isVideo && (
-        <ToggleSwitch variant="plain" label="Animate" checked={animating} onChange={onAnimate} />
+        <>
+          <ToggleSwitch variant="plain" label="Animate" checked={animating} onChange={onAnimate} />
+          <div className="kol-mono-10 text-fg-32">Pick a preset to bring a still to life.</div>
+        </>
       )}
+      <div className="flex flex-wrap gap-1">
+        {SWEEP_PRESETS.map((p) => (
+          <Button key={p.name} variant="primary" size="sm" className="flex-1 min-w-[58px]" onClick={() => onAdd(p)}>{p.name}</Button>
+        ))}
+      </div>
       <Slider label="Speed" min={0} max={3} step={0.05} value={speed} onChange={onSpeed} variant="default" />
 
       {sweeps.map((sw, i) => {
@@ -48,7 +56,7 @@ export default function SweepControls({ isVideo, animating, onAnimate, speed, on
         )
       })}
 
-      <Button variant="primary" size="sm" iconLeft="plus" onClick={onAdd} className="w-full">Add Sweep</Button>
+      <Button variant="primary" size="sm" iconLeft="plus" onClick={() => onAdd()} className="w-full">Add custom sweep</Button>
     </Section>
   )
 }

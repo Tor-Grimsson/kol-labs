@@ -192,7 +192,7 @@ function MainPage() {
 
   return (
     <div className="h-dvh bg-surface-primary flex">
-      <div className="relative flex-1 min-w-0 overflow-hidden">
+      <div className="relative flex-1 min-w-0 overflow-hidden bg-surface-secondary">
         {showGrid && <GridOverlay zoom={zoom} pan={pan} gridSpacing={64} />}
         <div className="relative z-10 flex h-full w-full items-center justify-center">
           <PreviewPanel

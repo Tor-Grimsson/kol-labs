@@ -821,7 +821,7 @@ function RefinePage() {
 
   return (
     <div className="h-dvh bg-surface-primary flex">
-      <div className="relative flex-1 min-w-0 overflow-hidden">
+      <div className="relative flex-1 min-w-0 overflow-hidden bg-surface-secondary">
         {(() => {
           return (
             <>

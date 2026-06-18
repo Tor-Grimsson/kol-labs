@@ -3,7 +3,7 @@
 // `base` holds elapsed scaled ms up to `mark`; live time adds (real - mark) * speed.
 // Use CLOCK.nowSeconds() in prototype draw loops instead of performance.now().
 
-class SquishyClock {
+export class SquishyClock {
   base = 0
   mark = performance.now()
   paused = false

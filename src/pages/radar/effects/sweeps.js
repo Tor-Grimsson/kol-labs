@@ -21,9 +21,13 @@ export const SWEEP_TARGET_OPTIONS = [
   { value: 'reveal', label: 'Reveal' },
 ]
 
-/* A fresh sweep with sane defaults (brightness band drifting left→right). */
-export function makeSweep(shape = 'linear') {
-  return {
+const SWEEP_KEYS = ['shape', 'target', 'enabled', 'amount', 'speed', 'width', 'angle', 'centerX', 'centerY']
+
+/* A fresh sweep with sane defaults (brightness band drifting left→right).
+ * `overrides` lets presets tune any sweep field in one go (unknown keys like a
+ * preset `name` are ignored). */
+export function makeSweep(shape = 'linear', overrides = {}) {
+  const sw = {
     shape,
     target: 'brightness',
     enabled: true,
@@ -34,7 +38,20 @@ export function makeSweep(shape = 'linear') {
     centerX: 0.5,
     centerY: 0.5,
   }
+  for (const k of SWEEP_KEYS) if (overrides[k] !== undefined) sw[k] = overrides[k]
+  return sw
 }
+
+/* One-click motion presets — each drops in a tuned, clearly-visible sweep so a
+ * still animates instantly (no manual sweep-building). Surfaced in the Motion
+ * panel as named buttons. */
+export const SWEEP_PRESETS = [
+  { name: 'Scan', shape: 'linear', target: 'brightness', amount: 0.75, speed: 0.4, width: 0.3, angle: 0 },
+  { name: 'Pulse', shape: 'radial', target: 'brightness', amount: 0.85, speed: 0.35, width: 0.45 },
+  { name: 'Wave', shape: 'wave', target: 'brightness', amount: 0.6, speed: 0.5, width: 0.25, angle: 0 },
+  { name: 'Radar', shape: 'angular', target: 'brightness', amount: 0.8, speed: 0.25, width: 0.35 },
+  { name: 'Reveal', shape: 'linear', target: 'reveal', speed: 0.25, width: 0.4, angle: 0 },
+]
 
 const TAU = Math.PI * 2
 const wrap01 = (x) => x - Math.floor(x)

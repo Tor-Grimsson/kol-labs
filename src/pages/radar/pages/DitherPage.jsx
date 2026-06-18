@@ -2,7 +2,8 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { renderDither, MODE_OPTIONS, SHAPE_OPTIONS, DEFAULT_PARAMS } from '../effects/ditherEngine'
 import { makeSweep } from '../effects/sweeps'
 import { CANVAS_FX_DEFS, getDefaultCanvasFxParams, applyCanvasFx } from '../hooks/useCanvasFx'
-import { EXPORT_SPECS, DEFAULT_EXPORT_SPEC, maxWidthFor } from '../data/exportSpecs'
+import { ASPECT_SPECS, DEFAULT_ASPECT, SCALE_OPTIONS, DEFAULT_SCALE, FIT_OPTIONS, dimsFor } from '../data/exportSpecs'
+import { fitSourceToFrame } from '../utils/fitFrame'
 import Button from '../../../components/atoms/Button.jsx'
 import Divider from '../../../components/atoms/Divider.jsx'
 import Slider from '../../../components/atoms/Slider.jsx'
@@ -12,6 +13,7 @@ import Section from '../../../components/molecules/Section.jsx'
 import EditorRail, { RailHeader } from '../../../components/framework/EditorRail.jsx'
 import ColorPicker from '../components/ColorPicker'
 import SweepControls from '../components/SweepControls'
+import VideoTransport from '../components/VideoTransport'
 import { useImage } from '../state/ImageContext'
 
 export default function DitherPage() {
@@ -27,11 +29,12 @@ export default function DitherPage() {
   const [animating, setAnimating] = useState(false)
   const [motionSpeed, setMotionSpeed] = useState(1)
   const timeRef = useRef(0)
-  const [videoPlaying, setVideoPlaying] = useState(true)
   const recorderRef = useRef(null)
   const chunksRef = useRef([])
   const [exporting, setExporting] = useState(false)
-  const [exportSpec, setExportSpec] = useState(DEFAULT_EXPORT_SPEC)
+  const [exportAspect, setExportAspect] = useState(DEFAULT_ASPECT)
+  const [exportScale, setExportScale] = useState(DEFAULT_SCALE)
+  const [exportFit, setExportFit] = useState('cover')
 
   // Draw raw image to canvas
   const drawRawImage = useCallback(() => {
@@ -50,7 +53,6 @@ export default function DitherPage() {
   // When a source loads, drop back to the raw view
   useEffect(() => {
     setEffectApplied(false)
-    setVideoPlaying(isVideo)
     timeRef.current = 0
   }, [sourceImage, isVideo])
 
@@ -106,12 +108,6 @@ export default function DitherPage() {
 
   const handleRemoveEffect = () => setEffectApplied(false)
 
-  const toggleVideo = () => {
-    if (!isVideo || !sourceImage) return
-    if (sourceImage.paused) { void sourceImage.play(); setVideoPlaying(true) }
-    else { sourceImage.pause(); setVideoPlaying(false) }
-  }
-
   // Export the processed canvas to webm while the video plays (same
   // MediaRecorder pattern as the distort page).
   const toggleExport = () => {
@@ -157,19 +153,22 @@ export default function DitherPage() {
   // any size) rather than scaling the display canvas.
   const handleDownload = () => {
     if (!sourceImage) return
-    const maxWidth = maxWidthFor(exportSpec)
+    // 'source' → native res, source aspect; otherwise crop/fit into the target
+    // aspect frame and render the effect across it.
+    const dims = dimsFor(exportAspect, Number(exportScale))
+    const src = dims ? fitSourceToFrame(sourceImage, dims.w, dims.h, exportFit, params.bgColor) : sourceImage
     const out = document.createElement('canvas')
     if (effectApplied) {
-      renderDither(out, sourceImage, { ...params, sweeps, time: timeRef.current * motionSpeed, maxDisplay: maxWidth })
+      renderDither(out, src, { ...params, sweeps, time: timeRef.current * motionSpeed, maxDisplay: dims ? dims.w : Infinity })
       if (fxChain.length > 0) applyCanvasFx(out, fxChain)
+    } else if (dims) {
+      out.width = dims.w
+      out.height = dims.h
+      out.getContext('2d').drawImage(src, 0, 0)
     } else {
-      const aspect = sourceImage.width / sourceImage.height
-      let dw = sourceImage.width
-      let dh = sourceImage.height
-      if (dw > maxWidth) { dw = maxWidth; dh = Math.round(dw / aspect) }
-      out.width = dw
-      out.height = dh
-      out.getContext('2d').drawImage(sourceImage, 0, 0, dw, dh)
+      out.width = sourceImage.width
+      out.height = sourceImage.height
+      out.getContext('2d').drawImage(sourceImage, 0, 0)
     }
     const link = document.createElement('a')
     link.download = `kol-radar-${Date.now()}.png`
@@ -211,7 +210,7 @@ export default function DitherPage() {
   }
 
   // Sweeps (time-driven motion). Adding the first one auto-enables Animate.
-  const addSweep = () => { setSweeps(prev => [...prev, makeSweep()]); setAnimating(true) }
+  const addSweep = (preset) => { setSweeps(prev => [...prev, makeSweep(preset?.shape, preset)]); setAnimating(true) }
   const removeSweep = (index) => setSweeps(prev => prev.filter((_, i) => i !== index))
   const updateSweep = (index, key, value) => {
     setSweeps(prev => prev.map((sw, i) => i === index ? { ...sw, [key]: value } : sw))
@@ -250,6 +249,8 @@ export default function DitherPage() {
       {/* Controls panel */}
       <EditorRail>
         <RailHeader>kol-radar</RailHeader>
+
+        {isVideo && sourceImage && <VideoTransport video={sourceImage} />}
 
         <Section label="Mode">
           <Dropdown size="sm" options={MODE_OPTIONS} value={params.mode} onChange={(v) => updateParam('mode', v)} variant="subtle" className="w-full" />
@@ -343,7 +344,13 @@ export default function DitherPage() {
         <Divider />
 
         <Section label="Output">
-          <Dropdown size="sm" options={EXPORT_SPECS} value={exportSpec} onChange={setExportSpec} variant="subtle" className="w-full" />
+          <Dropdown size="sm" options={ASPECT_SPECS} value={exportAspect} onChange={setExportAspect} variant="subtle" className="w-full" />
+          {exportAspect !== 'source' && (
+            <>
+              <Dropdown size="sm" options={SCALE_OPTIONS} value={exportScale} onChange={setExportScale} variant="subtle" className="w-full" />
+              <Dropdown size="sm" options={FIT_OPTIONS} value={exportFit} onChange={setExportFit} variant="subtle" className="w-full" />
+            </>
+          )}
         </Section>
 
         <Divider />
@@ -368,12 +375,6 @@ export default function DitherPage() {
         <Button variant="primary" size="sm" onClick={() => videoInputRef.current?.click()} iconLeft="video" className="w-full">
           Upload Video
         </Button>
-
-        {isVideo && sourceImage && (
-          <Button variant="primary" size="sm" onClick={toggleVideo} iconLeft={videoPlaying ? 'pause' : 'play'} className="w-full">
-            {videoPlaying ? 'Pause Video' : 'Play Video'}
-          </Button>
-        )}
 
         {sourceImage && (
           <Button variant="primary" size="sm" onClick={handleDownload} iconLeft="download" className="w-full">

@@ -120,7 +120,7 @@ export default function GradientPage() {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `kol-gradient-${seeds[view === 'single' ? idx : 0]}.png`
+    a.download = `kol-3d-scene-${seeds[view === 'single' ? idx : 0]}.png`
     a.click()
     URL.revokeObjectURL(url)
   }
@@ -129,7 +129,7 @@ export default function GradientPage() {
 
   return (
     <div className="flex h-dvh">
-      <div ref={wrapRef} className="relative flex-1 min-w-0 overflow-hidden">
+      <div ref={wrapRef} className="relative flex-1 min-w-0 overflow-hidden bg-surface-secondary">
         <canvas ref={canvasRef} className={`block h-full w-full ${view === 'grid' ? 'cursor-pointer' : ''}`} onClick={onCanvasClick} />
         {view === 'single' && (
           <div className="absolute bottom-3 left-3 kol-helper-10 text-body pointer-events-none">
@@ -139,7 +139,7 @@ export default function GradientPage() {
       </div>
 
       <EditorRail>
-        <RailHeader>Gradient</RailHeader>
+        <RailHeader>3D Scene</RailHeader>
         <div className="flex flex-wrap gap-2">
           <Button variant="primary" size="sm" onClick={toggleView}>{view === 'grid' ? 'Single' : 'Grid'}</Button>
           <Button variant="primary" size="sm" onClick={() => go(-1)}>← prev</Button>

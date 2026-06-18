@@ -74,12 +74,21 @@ export function strokeOutline(
   }
 }
 
-// rAF wrapper. Respects CLOCK pause — when paused, the tick still fires but
-// `run()` is skipped, freezing whatever's on the canvas from the last frame.
+// Active clock for wrapLoop's pause-gate. Defaults to the global CLOCK; the
+// grid sets a per-tile clock around each proto.init (see setLoopClock) so a
+// tile can freeze/animate independently of the global Time control.
+let _loopClock = CLOCK
+export function setLoopClock(c) { _loopClock = c || CLOCK }
+
+// rAF wrapper. Respects the active clock's pause — when paused, the tick still
+// fires but `run()` is skipped, freezing whatever's on the canvas from the last
+// frame. The clock is captured at call time (proto.init runs synchronously), so
+// a proto's loop is bound to whichever clock was active when it inited.
 // Pass { ignorePause: true } to keep running even when paused.
 export function wrapLoop(run            , opts                            = {})             {
+  const clock = _loopClock
   let rafId = requestAnimationFrame(function tick() {
-    if (opts.ignorePause || !CLOCK.isPaused()) run()
+    if (opts.ignorePause || !clock.isPaused()) run()
     rafId = requestAnimationFrame(tick)
   })
   return () => cancelAnimationFrame(rafId)

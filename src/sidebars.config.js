@@ -33,7 +33,7 @@ export const NAV_TREE = [
     { to: '/layout', label: 'Conformed' },
     { to: '/layout/cutting', label: 'Cutting' },
   ] },
-  { id: 'gradient', label: 'Gradient', to: '/gradient', icon: 'ball' },
+  { id: '3d-scene', label: '3D Scene', to: '/3d-scene', icon: 'ball' },
   { id: 'para-type', label: 'Para Type', to: '/para-type', icon: 'aa' },
   { id: 'video', label: 'Video', to: '/video', icon: 'scissors' },
 ]

@@ -172,7 +172,7 @@ export default function VideoPage() {
     <div className="min-h-dvh bg-surface-primary text-emphasis flex">
       {/* ── stage ── */}
       <main
-        className="flex-1 p-6 flex flex-col gap-4 min-w-0"
+        className="flex-1 p-6 flex flex-col gap-4 min-w-0 bg-surface-secondary"
         onDragOver={(e) => e.preventDefault()}
         onDrop={(e) => { e.preventDefault(); onFile(e.dataTransfer.files[0]) }}
       >

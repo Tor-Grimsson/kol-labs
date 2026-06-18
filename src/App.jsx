@@ -27,7 +27,7 @@ export default function App() {
         <Route path="/poster" element={<Suspense fallback={null}><PosterPage /></Suspense>} />
         <Route path="/distress/*" element={<Suspense fallback={null}><DistressPage /></Suspense>} />
         <Route path="/layout/*" element={<Suspense fallback={null}><LayoutPage /></Suspense>} />
-        <Route path="/gradient" element={<Suspense fallback={null}><GradientPage /></Suspense>} />
+        <Route path="/3d-scene" element={<Suspense fallback={null}><GradientPage /></Suspense>} />
         <Route path="/para-type" element={<Suspense fallback={null}><ParaTypePage /></Suspense>} />
         <Route path="/video" element={<Suspense fallback={null}><VideoPage /></Suspense>} />
       </Route>
