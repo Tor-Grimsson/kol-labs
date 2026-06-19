@@ -4,6 +4,7 @@ import SourcePlaceholder from '../components/SourcePlaceholder.jsx'
 import LibrarySourceButton from '../components/LibrarySourceButton.jsx'
 import { LensScene } from './LensScene.js'
 import { SURFACE_BY_ID, GLASS_SHAPES } from './distorters.js'
+import { resolveDeep } from '../../../lib/exprParam.js'
 import LayersPanel from './LayersPanel.jsx'
 import Icon from '../../../components/loaders/Icon.jsx'
 import { ASPECT_SPECS, SOURCE_DEFAULT, DEFAULT_SCALE, ratioFor, dimsFor } from '../../_shared/exportSpecs.js'
@@ -138,17 +139,18 @@ export default function LensShell({ surface = 'glass', title = 'Glass', preset =
     setImgAspect(w / h)
   }, [sourceImage])
 
+  // Structural params (geometry rebuild on shape/size, texture/plane rebuild on
+  // img*, visibility, colour) → push on change. The cheap material/transform/post
+  // uniforms are resolved per frame below so they can be expression / audio bound.
   useEffect(() => {
     engineRef.current?.setParams({
-      shape, size, distance,
-      ior, thickness, roughness, dispersion, metalness, transmission, tint, tintDistance, envIntensity,
+      shape, size, tint, tintDistance,
       imgZoom, imgOffsetX, imgOffsetY, imgScale,
-      imageX, imageY, imageZ, glassX, glassY,
       glassVisible: glassVisible && !removedLayers.has('glass'),
       imageVisible: imageVisible && !removedLayers.has('image'),
-      fov, autoRotate, orbitSpeed, bgTransparent, flow,
+      fov, autoRotate, orbitSpeed, bgTransparent,
     })
-  }, [shape, size, distance, ior, thickness, roughness, dispersion, metalness, transmission, tint, tintDistance, envIntensity, imgZoom, imgOffsetX, imgOffsetY, imgScale, imageX, imageY, imageZ, glassX, glassY, glassVisible, imageVisible, removedLayers, fov, autoRotate, orbitSpeed, bgTransparent, flow])
+  }, [shape, size, tint, tintDistance, imgZoom, imgOffsetX, imgOffsetY, imgScale, glassVisible, imageVisible, removedLayers, fov, autoRotate, orbitSpeed, bgTransparent])
   useEffect(() => { engineRef.current?.setPlaying(playing) }, [playing])
   useEffect(() => { engineRef.current?.setCameraMotion({ on: camMotionOn, type: camMotionType, speed: camMotionSpeed }) }, [camMotionOn, camMotionType, camMotionSpeed])
   useEffect(() => { if (ready) engineRef.current?.setViewMode(viewMode) }, [ready, viewMode])
@@ -158,7 +160,34 @@ export default function LensShell({ surface = 'glass', title = 'Glass', preset =
     if (selLayer === 'scene' && mode === 'transform') setMode('texture')
     else if (selLayer !== 'scene' && mode === 'filter') setMode('transform')
   }, [selLayer, mode])
-  useEffect(() => { engineRef.current?.setParams({ filter: { aberration, grain, vignette, bloom } }) }, [aberration, grain, vignette, bloom])
+
+  // Per-frame resolve of the cheap material / transform / post-fx params (all
+  // plain uniform/position sets in LensScene.setParams — no geometry rebuild) so
+  // dispersion, ior, distance, bloom, … can be expression / audio bound.
+  const cfg = useRef({})
+  cfg.current = { distance, glassX, glassY, imageX, imageY, imageZ, ior, thickness, roughness, dispersion, metalness, transmission, envIntensity, flow, aberration, grain, vignette, bloom }
+  useEffect(() => {
+    if (!ready) return
+    let alive = true
+    let raf
+    const loop = () => {
+      if (!alive) return
+      const engine = engineRef.current
+      if (engine) {
+        const c = cfg.current
+        const t = engine.getTime?.() ?? 0
+        engine.setParams(resolveDeep({
+          distance: c.distance, glassX: c.glassX, glassY: c.glassY, imageX: c.imageX, imageY: c.imageY, imageZ: c.imageZ,
+          ior: c.ior, thickness: c.thickness, roughness: c.roughness, dispersion: c.dispersion, metalness: c.metalness,
+          transmission: c.transmission, envIntensity: c.envIntensity, flow: c.flow,
+          filter: { aberration: c.aberration, grain: c.grain, vignette: c.vignette, bloom: c.bloom },
+        }, t))
+      }
+      raf = requestAnimationFrame(loop)
+    }
+    raf = requestAnimationFrame(loop)
+    return () => { alive = false; cancelAnimationFrame(raf) }
+  }, [ready])
   // Background stack → composited backdrop (hidden layers dropped).
   useEffect(() => {
     engineRef.current?.setParams({ backgrounds: backgrounds.filter((b) => b.visible !== false) })

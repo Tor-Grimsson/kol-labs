@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import Input from './Input.jsx'
-import { isExpr, isValidExpr, evalExpr } from '../../lib/exprParam.js'
+import { isExpr, isValidExpr, evalExpr, referencesAudio } from '../../lib/exprParam.js'
 import { useLiveClock } from '../../lib/liveClock.jsx'
+import { isAudioEnabled, subscribeAudio } from '../../lib/audioSource.js'
 
 /**
  * Slider — range slider with label and an editable value readout.
@@ -45,6 +46,7 @@ import { useLiveClock } from '../../lib/liveClock.jsx'
  * @param {Function} props.formatValue - Optional formatter for displayed value
  * @param {boolean} props.noExpr - Disallow expression input (numbers only)
  * @param {number} props.liveValue - Engine's current resolved value (for the readout/thumb while expression-bound)
+ * @param {Function} props.liveGet - Stable () => number getter polled each frame to drive the thumb/readout from an external live source (e.g. a controller-mapped param). Ghosts the track like an expression.
  * @param {boolean} props.clamp - Hard-limit TYPED input to [min,max] too. Default false:
  *   the track (drag) is the soft range, but typing in the box accepts any number
  *   (push a param past the slider's max — e.g. a shape that overflows the frame).
@@ -66,6 +68,7 @@ const Slider = ({
   formatValue,
   noExpr = false,
   liveValue,
+  liveGet,
   clamp = false,
   raised = false // value box on a raised surface → use surface-primary so it reads as an input
 }) => {
@@ -77,17 +80,32 @@ const Slider = ({
   // thumb + readout track the motion. An explicit `liveValue` prop still wins.
   const getClock = useLiveClock()
   const [autoLive, setAutoLive] = useState(undefined)
+  // Track whether the mic is live so an audio-bound slider self-animates even on
+  // a page with no playhead clock (or while the transport is paused) — t is
+  // frozen then, but the audio bands keep moving.
+  const [audioActive, setAudioActive] = useState(isAudioEnabled())
+  useEffect(() => subscribeAudio(setAudioActive), [])
+  const audioBound = exprBound && !exprBad && referencesAudio(value)
   useEffect(() => {
-    if (!exprBound || exprBad || !getClock) { setAutoLive(undefined); return }
+    // Self-animate sources, in priority: an injected `liveGet` (controller-mapped
+    // value) wins; otherwise the expression evaluated against the page clock
+    // and/or the live audio bands.
+    const useGetter = typeof liveGet === 'function'
+    const canExpr = exprBound && !exprBad && (!!getClock || (audioActive && audioBound))
+    if (!useGetter && !canExpr) { setAutoLive(undefined); return }
     let raf
     const tick = () => {
       raf = requestAnimationFrame(tick)
-      const t = getClock()
-      if (typeof t === 'number') setAutoLive(evalExpr(value, t))
+      if (useGetter) { const v = liveGet(); setAutoLive(Number.isFinite(v) ? v : undefined) }
+      else {
+        const t = getClock ? getClock() : null
+        if (typeof t === 'number') setAutoLive(evalExpr(value, t))
+        else if (audioBound) setAutoLive(evalExpr(value, 0)) // audio-only: t is irrelevant
+      }
     }
     raf = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(raf)
-  }, [exprBound, exprBad, getClock, value])
+  }, [exprBound, exprBad, getClock, value, liveGet, audioActive, audioBound])
 
   const effLive = Number.isFinite(liveValue) ? liveValue : autoLive
   const hasLive  = Number.isFinite(effLive)
@@ -127,9 +145,9 @@ const Slider = ({
 
   // The native range input needs a finite number. While expression-bound, track
   // the live resolved value if present, else park at min (the ghosted track).
-  const rangeValue = exprBound
-    ? (hasLive ? Math.max(min, Math.min(max, effLive)) : min)
-    : value
+  const rangeValue = hasLive
+    ? Math.max(min, Math.min(max, effLive))
+    : (exprBound ? min : value)
 
   /* Editable readout — local string state lets the user type intermediate
    * values (e.g. "-" while entering a negative, or a half-typed expression)
@@ -174,7 +192,7 @@ const Slider = ({
 
   // While expression-bound and not editing, show the live resolved number in the
   // box (so it visibly animates); the expression itself is shown on focus.
-  const boxValue = (exprBound && hasLive && !editing) ? fmtNum(effLive) : draft
+  const boxValue = (hasLive && !editing) ? fmtNum(effLive) : draft
 
   return (
     <div className={`${variantClass} gap-3 shadow-none ${className}`}>
@@ -197,7 +215,7 @@ const Slider = ({
         value={rangeValue}
         onChange={handleChange}
         className="slider-black flex-1 w-full cursor-pointer"
-        style={exprBound ? { opacity: 0.4 } : undefined}
+        style={(exprBound || hasLive) ? { opacity: 0.4 } : undefined}
         title={exprBound ? `expression: ${value} — drag to override` : undefined}
       />
       <Input

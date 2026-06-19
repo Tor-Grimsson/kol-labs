@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useParams } from 'react-router-dom'
 import { usePublishReset, usePublishRetrigger } from '../../../components/framework/pageShortcuts.jsx'
 import PrimitiveEngine from './engine/PrimitiveEngine.js'
 import { PRIMITIVES, PRESETS } from './data/primitives.js'
@@ -36,8 +37,13 @@ const SHAPE_PARAM = { torus: 'tube', torusKnot: 'pq', icosahedron: 'detail', oct
 // a PNG (@Nx) or a seamless webm loop. Stage = framed canvas + scrubber; rail =
 // Scene/Style/Anim/Camera/View tabs + the shared transport.
 export default function PrimitiveScenePage() {
+  // /3d-scene/primitive/:primitiveId deep-links a primitive from the sidebar
+  // category; the in-rail picker still switches freely after that.
+  const { primitiveId } = useParams()
   // scene
-  const [primitive, setPrimitive] = useState('box')
+  const [primitive, setPrimitive] = useState(
+    primitiveId && PRIMITIVES.some((p) => p.id === primitiveId) ? primitiveId : 'box',
+  )
   const [arrangement, setArrangement] = useState('single')
   const [count, setCount] = useState(1)
   const [spread, setSpread] = useState(2.2)
@@ -147,6 +153,8 @@ export default function PrimitiveScenePage() {
 
   useEffect(() => { sizeCanvas() }, [aspect, sizeCanvas])
   useEffect(() => { engineRef.current?.update({ primitive }) }, [primitive])
+  // Follow sidebar nav between primitives.
+  useEffect(() => { if (primitiveId && PRIMITIVES.some((p) => p.id === primitiveId)) setPrimitive(primitiveId) }, [primitiveId])
   useEffect(() => { engineRef.current?.update({ params: { tube, p: pKnot, q: qKnot, detail } }) }, [tube, pKnot, qKnot, detail])
   useEffect(() => { engineRef.current?.update({ globals }) }, [globals])
   useEffect(() => { engineRef.current?.setBackground(resolveTheme(themeId, invert).bg) }, [themeId, invert])

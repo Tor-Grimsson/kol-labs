@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { GrayScott, RD_PRESETS, RD_PALETTES, RD_SEEDS } from './engine.js'
+import { resolveDeep } from '../../../lib/exprParam.js'
 import { VIEW_ASPECTS, defaultAspectFor, DEFAULT_SCALE, dimsFor } from '../../_shared/exportSpecs.js'
 import EditorRail, { RailHeader } from '../../../components/framework/EditorRail.jsx'
 import EditorFooter from '../../../components/framework/EditorFooter.jsx'
@@ -30,8 +31,9 @@ export default function ReactionPage() {
   const [footTab, setFootTab] = useState('transport')
 
   // refs read inside the loop so it needn't restart on every tweak
-  const cfg = useRef({ iters, palette, playing })
-  cfg.current = { iters, palette, playing }
+  const timeRef = useRef(0)
+  const cfg = useRef({})
+  cfg.current = { iters, palette, playing, feed, kill, du, dv, gain }
 
   useEffect(() => {
     const engine = new GrayScott(170)
@@ -42,11 +44,17 @@ export default function ReactionPage() {
     dctx.imageSmoothingEnabled = true
     let alive = true
     let raf
-    const loop = () => {
+    let last = performance.now()
+    const loop = (now) => {
       if (!alive) return
-      const { iters: it, palette: pal, playing: pl } = cfg.current
-      if (pl) engine.step(it)
-      engine.render(simRef.current, pal)
+      const c = cfg.current
+      const dt = (now - last) / 1000
+      last = now
+      if (c.playing) timeRef.current += dt
+      // Resolve chemistry each frame so expression/audio-bound params animate.
+      engine.setParams(resolveDeep({ feed: c.feed, kill: c.kill, du: c.du, dv: c.dv, gain: c.gain }, timeRef.current))
+      if (c.playing) engine.step(c.iters)
+      engine.render(simRef.current, c.palette)
       dctx.drawImage(simRef.current, 0, 0, DISPLAY, DISPLAY)
       raf = requestAnimationFrame(loop)
     }
@@ -54,7 +62,6 @@ export default function ReactionPage() {
     return () => { alive = false; cancelAnimationFrame(raf); engineRef.current = null }
   }, [])
 
-  useEffect(() => { engineRef.current?.setParams({ feed, kill, du, dv, gain }) }, [feed, kill, du, dv, gain])
   useEffect(() => { engineRef.current?.setParams({ seed }); engineRef.current?.reseed() }, [seed])
 
   const choosePreset = (id) => {

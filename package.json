@@ -17,6 +17,7 @@
     "embla-carousel-react": "^8.6.0",
     "flubber": "^0.4.2",
     "mathjs": "^15.2.0",
+    "opentype.js": "^2.0.0",
     "p5": "^1.11.13",
     "paper": "^0.12.18",
     "pixi-filters": "^6.1.5",

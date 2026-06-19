@@ -13,6 +13,8 @@ export const INSTANCE_DEFAULTS = {
   font: 'gullhamrar',
   fontSize: 120,
   fill: '#e8e4dc',
+  italic: false,
+  case: 'none',             // none | upper | lower | title (content-layer transform)
   letterSpacing: 0,
   align: 'center',
   multiply: 1,              // type multiplier — render N copies of the word in one instance
@@ -23,6 +25,10 @@ export const INSTANCE_DEFAULTS = {
   showPath: false,
   path: { type: 'line', ...PATH_DEFAULTS },
   motion: { mode: 'none', cycles: 1, phase: 0.5, amp: 0.3, axis: 'wght', field: 'x' },
+  // morph render mode — glyph-outline interpolation (the "morph monster"). off by
+  // default (autoplay-off discipline). Cut A = this instance's font + vf; Cut B =
+  // vf2 (same font, defaults to axis maxes) OR face2 (a different font, cross-face).
+  morph: { on: false, mode: 'morph', vf2: {}, face2: '', curve: 'flat', blend: 0.5, cp1: { x: 0.33, y: 0.33 }, cp2: { x: 0.66, y: 0.66 } },
 }
 
 // S — single-instance preset. `params` IS the one instance; a `bg` on it lifts to
@@ -86,6 +92,14 @@ export const PRESETS = [
   S('rot-dual',       'Variable',    'variable', { text: 'variable', font: 'rot', fontSize: 124, vf: { wdth: 100, wght: 400 }, motion: { mode: 'vfwave', axis: 'wdth', cycles: 2, phase: 0.4 } }, 'Width', 'morph', 'width'),
   S('rot-width-fast', 'Width ×2',    'variable', { text: 'STRETCH', font: 'rot', fontSize: 130, vf: { wdth: 64, wght: 600 }, motion: { mode: 'vfwave', axis: 'wdth', cycles: 2, phase: 0.5 } }, 'Width', 'morph', 'width'),
   S('rot-width-slow', 'Width slow',  'variable', { text: 'expand', font: 'rot', fontSize: 130, vf: { wdth: 100, wght: 500 }, motion: { mode: 'vfwave', axis: 'wdth', cycles: 1, phase: 0.3 } }, 'Width', 'morph', 'width'),
+
+  // ── Variable · Morph (glyph-outline interpolation) ──
+  S('morph-mtl',     'Made to last','variable', { text: 'Made to last', font: 'rot', fontSize: 150, vf: { wdth: 64, wght: 100 }, morph: { on: true, mode: 'morph', curve: 'linear', blend: 0.5, vf2: { wdth: 172, wght: 900 } } }, 'Morph', 'morph', 'width'),
+  S('morph-wave',    'Morph wave',  'variable', { text: 'MORPH', font: 'rot', fontSize: 200, vf: { wdth: 64, wght: 200 }, morph: { on: true, mode: 'morph', curve: 'sine', blend: 0.5, vf2: { wdth: 172, wght: 900 } } }, 'Morph', 'morph', 'weight'),
+  S('morph-ease',    'Heavy → light','variable',{ text: 'gradient', font: 'rot', fontSize: 150, vf: { wdth: 120, wght: 900 }, morph: { on: true, mode: 'morph', curve: 'ease', blend: 0.5, vf2: { wdth: 120, wght: 100 } } }, 'Morph', 'morph', 'weight'),
+  S('morph-random',  'Ransom note', 'variable', { text: 'CHAOS', font: 'rot', fontSize: 170, vf: { wdth: 100, wght: 500 }, morph: { on: true, mode: 'random', blend: 0.37 } }, 'Morph', 'morph', 'width'),
+  S('morph-fade',    'Fade A↔B',    'variable', { text: 'between', font: 'gullhamrar', fontSize: 150, vf: { wght: 300 }, morph: { on: true, mode: 'fade', blend: 0.5, vf2: { wght: 900 } } }, 'Morph', 'morph', 'weight'),
+  S('morph-cross',   'Cross-face',  'variable', { text: 'hybrid', font: 'rot', fontSize: 150, vf: { wdth: 100, wght: 600 }, morph: { on: true, mode: 'morph', blend: 0.5, face2: 'gullhamrar' } }, 'Morph', 'morph', 'weight'),
 
   // ── Variable · On path ──
   S('arc-weight',     'Morph on arc','variable', { text: 'morph', font: 'gullhamrar', fontSize: 120, path: { type: 'arc', amp: 0.3 }, motion: { mode: 'vfwave', axis: 'wght', cycles: 1, phase: 0.6 } }, 'On path', 'morph', 'arcs'),
@@ -184,6 +198,7 @@ export function mergeInstance(p = {}, i = 0) {
     motion: { ...INSTANCE_DEFAULTS.motion, ...(p.motion || {}) },
     offset: { ...INSTANCE_DEFAULTS.offset, ...(p.offset || {}) },
     opentype: { ...(p.opentype || {}) },
+    morph: { ...INSTANCE_DEFAULTS.morph, ...(p.morph || {}), vf2: { ...(p.morph?.vf2 || {}) } },
   }
   out.vf = normalizeVf(out.font, p.vf)
   return out

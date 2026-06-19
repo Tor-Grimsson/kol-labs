@@ -13,7 +13,7 @@ const TILE_H = 225
  * effect doesn't churn on the params object's changing identity. Optional
  * `onDelete` renders a corner badge (saved-composition grid, like GenTile).
  */
-export default function KineticTile({ params, label, keyId, playing, focused, onClick, onDelete }) {
+export default function KineticTile({ params, label, keyId, playing, focused, onClick, onOpen, onDelete }) {
   const wrapRef = useRef(null)
   const hostRef = useRef(null)
   const engRef = useRef(null)
@@ -60,7 +60,7 @@ export default function KineticTile({ params, label, keyId, playing, focused, on
       onMouseLeave={() => setHovered(false)}
       className="group relative flex flex-col gap-1"
     >
-      <button type="button" onClick={onClick} className="block text-left">
+      <button type="button" onClick={onClick} onDoubleClick={onOpen} title="Click to select · double-click to open" className="block text-left">
         <div
           className={`overflow-hidden rounded border transition-colors ${focused ? 'border-yellow-400 ring-2 ring-yellow-400' : 'border-fg-08 group-hover:border-fg-24'}`}
           style={{ width: TILE_W, height: TILE_H }}

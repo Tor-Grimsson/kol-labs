@@ -2,11 +2,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import KineticType from './engine/KineticType.js'
 import { PRESETS, presetById, presetParams, defaultInstance, mergeInstance, normalizeVf } from './data/presets.js'
+import patternLoop from '../../loops/pattern/patternLoop.js'
 import { SCENE_GROUPS, ELEMENT_GROUPS, sceneCat, elemCat } from './scenes/groups.js'
 import { loadFonts } from './lib/vfAxes.js'
 import { VIEW_ASPECTS, defaultAspectFor, DEFAULT_SCALE, ratioFor, dimsFor } from '../_shared/exportSpecs.js'
 import CustomPathEditor from './CustomPathEditor.jsx'
 import InstancePositioner from './InstancePositioner.jsx'
+import MorphOverlay from './MorphOverlay.jsx'
+import SelectionFrame from './SelectionFrame.jsx'
 import { DEFAULT_POINTS, PATH_OPTIONS } from './engine/paths.js'
 import DesignControls from './DesignControls.jsx'
 import LayoutControls from './LayoutControls.jsx'
@@ -89,6 +92,8 @@ export default function KineticPage() {
   const [invert, setInvert]       = useState(false)
   const [seed, setSeed]           = useState(1)
   const [clip]                    = useState(() => getAppSettings().clipToFrame !== false)
+  const [pattern, setPattern]     = useState(() => ({ on: false, ...patternLoop.defaults }))
+  const onPattern = (k, v) => setPattern((s) => ({ ...s, [k]: v }))
 
   // ── engine ──
   const [stage, setStage]   = useState({ w: 0, h: 0 })
@@ -102,9 +107,12 @@ export default function KineticPage() {
   const stageVisible = (view === 'generate' && genView === 'current') || view === 'player'
 
   // engine sees the working composition in Generate, the picked preset in Player.
+  // Glyph-mode pattern fill tiles the SELECTED instance — pass a reference so the
+  // engine reads its live text/font/axes/italic (no per-field copying).
+  const effPattern = useMemo(() => (pattern.on && pattern.shape === 'glyph') ? { ...pattern, glyphInstance: selId } : pattern, [pattern, selId])
   const engineParams = useMemo(
-    () => (view === 'player' ? { ...presetParams(PRESETS[idx]), clip } : { bg: frameBg, instances, clip }),
-    [view, idx, frameBg, instances, clip],
+    () => (view === 'player' ? { ...presetParams(PRESETS[idx]), clip } : { bg: frameBg, instances, clip, pattern: effPattern }),
+    [view, idx, frameBg, instances, clip, effPattern],
   )
   const paramsRef = useRef(engineParams)
   paramsRef.current = engineParams
@@ -157,6 +165,8 @@ export default function KineticPage() {
   }))
   const setInstVf     = (id, tag, v) => setInstances((arr) => arr.map((x) => x.id === id ? { ...x, vf: { ...x.vf, [tag]: v } } : x))
   const setInstOt     = (id, tag, v) => setInstances((arr) => arr.map((x) => x.id === id ? { ...x, opentype: { ...x.opentype, [tag]: v } } : x))
+  const setInstMorph  = (id, k, v)   => setInstances((arr) => arr.map((x) => x.id === id ? { ...x, morph: { ...x.morph, [k]: v } } : x))
+  const setInstMorphVf2 = (id, tag, v) => setInstances((arr) => arr.map((x) => x.id === id ? { ...x, morph: { ...x.morph, vf2: { ...x.morph?.vf2, [tag]: v } } } : x))
   const setInstPath   = (id, k, v)   => setInstances((arr) => arr.map((x) => x.id === id ? { ...x, path: { ...x.path, [k]: v } } : x))
   const setInstMotion = (id, k, v)   => setInstances((arr) => arr.map((x) => x.id === id ? { ...x, motion: { ...x.motion, [k]: v } } : x))
   const setInstText   = (id, text)   => setInstances((arr) => arr.map((x) => x.id === id ? { ...x, text } : x))
@@ -175,7 +185,7 @@ export default function KineticPage() {
       const idx = arr.findIndex((x) => x.id === id)
       if (idx < 0) return arr
       const s = arr[idx]
-      const clone = { ...s, id: nid, vf: { ...s.vf }, opentype: { ...s.opentype }, path: { ...s.path }, motion: { ...s.motion }, offset: { ...s.offset } }
+      const clone = { ...s, id: nid, vf: { ...s.vf }, opentype: { ...s.opentype }, path: { ...s.path }, motion: { ...s.motion }, offset: { ...s.offset }, morph: { ...s.morph, vf2: { ...(s.morph?.vf2 || {}) } } }
       const next = [...arr]; next.splice(idx + 1, 0, clone); return next
     })
     setSelId(nid)
@@ -273,7 +283,7 @@ export default function KineticPage() {
     } finally { setRecording(false) }
   }
 
-  const getSettings  = () => ({ presetId, frameBg, instances, themeId, invert, seed, tempo, aspect, scale })
+  const getSettings  = () => ({ presetId, frameBg, instances, themeId, invert, seed, tempo, aspect, scale, pattern })
   const applySettings = (s) => {
     if (s.presetId) setPresetId(s.presetId)
     if (s.frameBg  != null) setFrameBg(s.frameBg)
@@ -285,6 +295,7 @@ export default function KineticPage() {
     if (s.tempo    != null) setTempo(s.tempo)
     if (s.aspect   != null) setAspect(s.aspect)
     if (s.scale    != null) setScale(s.scale)
+    if (s.pattern) setPattern({ on: false, ...patternLoop.defaults, ...s.pattern })
   }
 
   // ── navigation ──
@@ -370,6 +381,26 @@ export default function KineticPage() {
                 onChange={(o) => setInst(selId, 'offset', o)}
               />
             )}
+            {view === 'generate' && selected && (
+              <SelectionFrame
+                engineRef={engineRef}
+                selId={selId}
+                stage={stage}
+                instance={selected}
+                onAlign={(v) => setInst(selId, 'align', v)}
+                onWeight={(v) => setInstVf(selId, 'wght', v)}
+                onItalic={(v) => setInst(selId, 'italic', v)}
+                onFill={(c) => setInst(selId, 'fill', c)}
+                onDelete={() => removeInstance(selId)}
+              />
+            )}
+            {view === 'generate' && selected?.morph?.on && (
+              <MorphOverlay
+                instance={selected}
+                stage={stage}
+                onBlend={(v) => setInstMorph(selId, 'blend', v)}
+              />
+            )}
             <Scrubber progressRef={progressRef} playerRef={engineRef} />
           </div>
         )}
@@ -388,7 +419,8 @@ export default function KineticPage() {
                       keyId={e.ts}
                       playing
                       focused={i === savedIdx}
-                      onClick={() => loadComposition(e)}
+                      onClick={() => setSavedIdx(i)}
+                      onOpen={() => loadComposition(e)}
                       onDelete={() => deleteComposition(e.ts)}
                     />
                   ))}
@@ -407,7 +439,7 @@ export default function KineticPage() {
                   <div className="kol-helper-10 uppercase tracking-widest text-meta mb-3">{g.label}</div>
                   <div className="flex flex-wrap gap-4">
                     {items.map((p) => (
-                      <KineticTile key={p.id} params={presetParams(p)} label={p.label} keyId={p.id} playing focused={p.id === def?.id} onClick={() => openInPlayer(PRESETS.indexOf(p))} />
+                      <KineticTile key={p.id} params={presetParams(p)} label={p.label} keyId={p.id} playing focused={p.id === def?.id} onClick={() => setIdx(PRESETS.indexOf(p))} onOpen={() => openInPlayer(PRESETS.indexOf(p))} />
                     ))}
                   </div>
                 </section>
@@ -426,7 +458,7 @@ export default function KineticPage() {
                   <div className="kol-helper-10 uppercase tracking-widest text-meta mb-3">{g.label}</div>
                   <div className="flex flex-wrap gap-4">
                     {items.map((p) => (
-                      <KineticTile key={p.id} params={presetParams(p)} label={p.label} keyId={p.id} playing focused={p.id === def?.id} onClick={() => openInEditor(p)} />
+                      <KineticTile key={p.id} params={presetParams(p)} label={p.label} keyId={p.id} playing focused={p.id === def?.id} onClick={() => setIdx(PRESETS.indexOf(p))} onOpen={() => openInEditor(p)} />
                     ))}
                   </div>
                 </section>
@@ -450,6 +482,7 @@ export default function KineticPage() {
                     frameBg={frameBg} onFrameBg={setFrameBg}
                     onAllFill={onAllFill}
                     instances={instances} onText={setInstText}
+                    pattern={pattern} onPattern={onPattern}
                   />
                   <Divider />
                   <ButtonGroup orientation="vertical" className="w-full">
@@ -488,6 +521,8 @@ export default function KineticPage() {
                     set={(k, v) => setInst(selId, k, v)}
                     setVf={(tag, v) => setInstVf(selId, tag, v)}
                     setOt={(tag, v) => setInstOt(selId, tag, v)}
+                    setMorph={(k, v) => setInstMorph(selId, k, v)}
+                    setMorphVf2={(tag, v) => setInstMorphVf2(selId, tag, v)}
                   />
                   <Divider />
                   <Section label="Add instance">

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { MeshGradientEngine, MG_PALETTES } from './engine.js'
+import { resolveDeep } from '../../../lib/exprParam.js'
 import { VIEW_ASPECTS, defaultAspectFor, DEFAULT_SCALE, ratioFor, dimsFor } from '../../_shared/exportSpecs.js'
 import EditorRail, { RailHeader } from '../../../components/framework/EditorRail.jsx'
 import EditorFooter from '../../../components/framework/EditorFooter.jsx'
@@ -27,6 +28,11 @@ export default function GradientFieldPage() {
   const [scale, setScale] = useState(DEFAULT_SCALE)
   const [footTab, setFootTab] = useState('transport')
 
+  // refs read inside the loop so it needn't restart on every tweak
+  const timeRef = useRef(0)
+  const cfg = useRef({})
+  cfg.current = { warp, grain, sheen, contrast, speed: tempo / 120, playing }
+
   // One engine + render loop for the page's life.
   useEffect(() => {
     const engine = new MeshGradientEngine()
@@ -39,6 +45,10 @@ export default function GradientFieldPage() {
       if (!alive) return
       const dt = (now - last) / 1000
       last = now
+      const c = cfg.current
+      if (c.playing) timeRef.current += dt * c.speed
+      // Resolve the numeric params each frame so expression/audio bindings animate.
+      engine.setParams(resolveDeep({ warp: c.warp, grain: c.grain, sheen: c.sheen, contrast: c.contrast, speed: c.speed }, timeRef.current))
       engine.frame(dt)
       raf = requestAnimationFrame(loop)
     }
@@ -54,7 +64,8 @@ export default function GradientFieldPage() {
     engineRef.current?.resize(w, h)
   }, [aspect])
 
-  useEffect(() => { engineRef.current?.setParams({ palette, warp, grain, sheen, contrast, duotone, speed: tempo / 120 }) }, [palette, warp, grain, sheen, contrast, duotone, tempo])
+  // palette/duotone are non-numeric → set on change (the loop handles the rest).
+  useEffect(() => { engineRef.current?.setParams({ palette, duotone }) }, [palette, duotone])
   useEffect(() => { engineRef.current?.setPlaying(playing) }, [playing])
 
   const exportPng = async () => {

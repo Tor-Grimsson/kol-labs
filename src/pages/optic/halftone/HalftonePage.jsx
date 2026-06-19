@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { renderHalftone, FIELD_OPTIONS, LAYOUT_OPTIONS, SHAPE_OPTIONS, PALETTES } from './engine.js'
+import { resolveDeep, treeReferencesAudio } from '../../../lib/exprParam.js'
+import { isAudioEnabled, subscribeAudio } from '../../../lib/audioSource.js'
 import { VIEW_ASPECTS, defaultAspectFor, DEFAULT_SCALE, ratioFor, dimsFor } from '../../_shared/exportSpecs.js'
 import EditorRail, { RailHeader } from '../../../components/framework/EditorRail.jsx'
 import EditorFooter from '../../../components/framework/EditorFooter.jsx'
@@ -31,6 +33,8 @@ export default function HalftonePage() {
   const [aspect, setAspect] = useState(() => defaultAspectFor('view'))
   const [scale, setScale] = useState(DEFAULT_SCALE)
   const [footTab, setFootTab] = useState('transport')
+  const [audioActive, setAudioActive] = useState(isAudioEnabled())
+  useEffect(() => subscribeAudio(setAudioActive), [])
 
   const bg = light ? '#f4f1ea' : '#06070b'
   const params = { field, layout, shape, density, dotScale, fieldScale, contrast, rotate, palette, bg, invert }
@@ -43,7 +47,11 @@ export default function HalftonePage() {
     const h = r >= 1 ? Math.round(BASE / r) : BASE
     cv.width = w
     cv.height = h
-    if (!playing) { renderHalftone(cv, params, timeRef.current); return }
+    // Resolve expression-bound params (incl. live audio bands) each frame.
+    const render = () => renderHalftone(cv, resolveDeep(params, timeRef.current), timeRef.current)
+    // Keep looping while paused only if an audio expression needs the live mic.
+    const audioLive = audioActive && treeReferencesAudio(params)
+    if (!playing && !audioLive) { render(); return }
     let alive = true
     let raf
     let last = performance.now()
@@ -51,20 +59,20 @@ export default function HalftonePage() {
       if (!alive) return
       const dt = (now - last) / 1000
       last = now
-      timeRef.current += dt * (tempo / 120)
-      renderHalftone(cv, params, timeRef.current)
+      if (playing) timeRef.current += dt * (tempo / 120) // paused+audio: hold t, bands still move
+      render()
       raf = requestAnimationFrame(loop)
     }
     raf = requestAnimationFrame(loop)
     return () => { alive = false; cancelAnimationFrame(raf) }
-  }, [field, layout, shape, density, dotScale, fieldScale, contrast, rotate, palette, bg, invert, playing, tempo, aspect]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [field, layout, shape, density, dotScale, fieldScale, contrast, rotate, palette, bg, invert, playing, tempo, aspect, audioActive]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const exportPng = () => {
     const dd = dimsFor(aspect, Number(scale)) || { w: canvasRef.current.width, h: canvasRef.current.height }
     const out = document.createElement('canvas')
     out.width = dd.w
     out.height = dd.h
-    renderHalftone(out, params, timeRef.current)
+    renderHalftone(out, resolveDeep(params, timeRef.current), timeRef.current)
     out.toBlob((blob) => {
       if (!blob) return
       const url = URL.createObjectURL(blob)

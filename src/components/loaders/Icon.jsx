@@ -10,34 +10,56 @@
  * @param {Object} props.style - Inline styles
  * @param {ReactNode} props.children - Optional: Direct SVG path content for custom icons
  */
+import { useEffect, useState } from 'react'
+
 /* Unified icon home. Canonical mirrored set (stroke + solid) + legacy loader set
  * + web's app-specific set (chess/dashboard/docs), all folded into this package so
- * a name always resolves across web + brand. `variant` picks stroke vs solid. */
-const strokeModules = import.meta.glob('./stroke/**/*.svg',  { eager: true, query: '?raw', import: 'default' })
-const solidModules  = import.meta.glob('./solid/**/*.svg',   { eager: true, query: '?raw', import: 'default' })
-const legacyModules = import.meta.glob('./svg/**/*.svg',     { eager: true, query: '?raw', import: 'default' })
-const kolLegacy     = import.meta.glob('./svg/00-kol/*.svg', { eager: true, query: '?raw', import: 'default' })
-const webModules    = import.meta.glob('./svg-web/**/*.svg', { eager: true, query: '?raw', import: 'default' })
+ * a name always resolves across web + brand. `variant` picks stroke vs solid.
+ *
+ * The ~2,259 raw SVG strings live in ./iconData.js and are pulled in via a single
+ * dynamic import — that keeps them out of the entry chunk (off the critical first-
+ * paint path) and streams them in their own async chunk. Once loaded the maps are
+ * cached at module scope, so resolution stays synchronous for every render after. */
+let ICONS = null            // { STROKE, SOLID, WEB, LEGACY } once the chunk resolves
+let loadPromise = null
+const subscribers = new Set()
 
-const byName = (mods) => {
-  const c = {}
-  for (const [path, svg] of Object.entries(mods)) {
-    c[(path.split('/').pop() || '').replace('.svg', '')] = svg
+const loadIcons = () => {
+  if (!loadPromise) {
+    loadPromise = import('./iconData.js').then((mod) => {
+      ICONS = mod
+      subscribers.forEach((fn) => fn())
+      return mod
+    })
   }
-  return c
+  return loadPromise
 }
-const STROKE = byName(strokeModules)
-const SOLID  = byName(solidModules)
-const WEB    = byName(webModules)
-const LEGACY = (() => { const c = byName(legacyModules); Object.assign(c, byName(kolLegacy)); return c })()
+
+// Start fetching the icon chunk the moment this module evaluates, in parallel with
+// the rest of boot — by first paint it's usually already in flight or resolved.
+loadIcons()
+
+const useIconsReady = () => {
+  const [ready, setReady] = useState(() => !!ICONS)
+  useEffect(() => {
+    if (ICONS) return undefined
+    const cb = () => setReady(true)
+    subscribers.add(cb)
+    loadIcons()
+    return () => subscribers.delete(cb)
+  }, [])
+  return ready
+}
 
 /* Canonical staging variant wins (kills drift); then the other variant, then the
  * legacy loader set, then web's app-specific icons. */
-const resolveIcon = (name, variant) =>
-  (variant === 'solid' ? SOLID : STROKE)[name]
-  ?? (variant === 'solid' ? STROKE : SOLID)[name]
-  ?? LEGACY[name]
-  ?? WEB[name]
+const resolveIcon = (name, variant) => {
+  if (!ICONS) return undefined
+  return (variant === 'solid' ? ICONS.SOLID : ICONS.STROKE)[name]
+    ?? (variant === 'solid' ? ICONS.STROKE : ICONS.SOLID)[name]
+    ?? ICONS.LEGACY[name]
+    ?? ICONS.WEB[name]
+}
 
 const normalizeSize = (value) => {
   if (typeof value === 'number') {
@@ -75,6 +97,8 @@ const Icon = ({
   style = {},
   children
 }) => {
+  const ready = useIconsReady()
+
   // If children are provided, render directly (for custom icons)
   if (children) {
     return (
@@ -95,6 +119,20 @@ const Icon = ({
     )
   }
 
+  const dimension = normalizeSize(size)
+
+  // Icon map still streaming in — hold the layout box so the icon pops in without
+  // shifting anything. Only ever shown on the first paint before the chunk lands.
+  if (!ready) {
+    return (
+      <span
+        aria-hidden="true"
+        className={`inline-flex items-center justify-center ${className}`}
+        style={{ width: dimension, height: dimension, lineHeight: 0, ...style }}
+      />
+    )
+  }
+
   const svgMarkup = resolveIcon(name, variant)
 
   if (!svgMarkup) {
@@ -102,7 +140,6 @@ const Icon = ({
     return null
   }
 
-  const dimension = normalizeSize(size)
   const sizedMarkup = applySizeToMarkup(svgMarkup, dimension)
 
   return (

@@ -9,7 +9,7 @@
 import { useEffect, useState } from 'react'
 
 const KEY = 'kol-labs:settings'
-const DEFAULTS = { defaultAspect: '4:5', defaultTheme: 'kol', autoplay: false, clipToFrame: true }
+const DEFAULTS = { defaultAspect: '4:5', defaultTheme: 'kol', autoplay: false, clipToFrame: true, audioReactive: false }
 
 function load() {
   try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) || '{}') } }
@@ -68,4 +68,13 @@ export function defaultAutoplay() {
  */
 export function defaultClipToFrame() {
   return state.clipToFrame !== false
+}
+
+/**
+ * Whether the mic analyser drives the audio expression variables (level/bass/
+ * mid/high). Default false. Only actually starts on an explicit toggle (a user
+ * gesture); persisted true is best-effort resumed on Home mount.
+ */
+export function defaultAudioReactive() {
+  return state.audioReactive === true
 }

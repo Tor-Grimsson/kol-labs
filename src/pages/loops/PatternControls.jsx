@@ -1,5 +1,6 @@
 import Dropdown from '../../components/molecules/Dropdown.jsx'
 import Slider from '../../components/atoms/Slider.jsx'
+import Input from '../../components/atoms/Input.jsx'
 import { roundIfNum } from '../../lib/exprParam.js'
 import Button from '../../components/atoms/Button.jsx'
 import ToggleSwitch from '../../components/atoms/ToggleSwitch.jsx'
@@ -9,6 +10,7 @@ import ColorField from '../../components/color/ColorField.jsx'
 import RuleRow from './RuleRow.jsx'
 import { SHAPE_OPTIONS } from '../../loops/pattern/shapes.js'
 import { newRule, randomRule } from '../../loops/pattern/rules.js'
+import { FONT_OPTIONS, fontByKey } from '../kinetic/lib/vfAxes.js'
 
 const SWEEP_AXES = [
   { value: 'none', label: 'None' },
@@ -18,13 +20,23 @@ const SWEEP_AXES = [
   { value: 'radial', label: 'Radial' },
 ]
 
+// Interleave the base fill across colours by cell index — the clean R/Y/B test
+// grid. checker = 2-colour; cols/rows/diag round-robin Shape · Colour 2 · Colour 3.
+const COLOR_RULES = [
+  { value: 'none', label: 'None' },
+  { value: 'checker', label: 'Checker' },
+  { value: 'cols', label: 'Columns' },
+  { value: 'rows', label: 'Rows' },
+  { value: 'diag', label: 'Diagonal' },
+]
+
 // The Pattern loop's Edit controls, split across two rail tabs so it isn't one
 // giant scroll:
 //   tab="pattern"   — what the pattern IS: shape · grid · colour · rules
 //   tab="animation" — how it MOVES: camera (zoom/flow/angle/spin) + the per-cell
 //                     sweep (axis/cycles/waves · pulse/fade/swing/colour-mix)
 // `onChange(key, value)` patches one param on the loop's params object.
-export default function PatternControls({ values, onChange, tab = 'pattern' }) {
+export default function PatternControls({ values, onChange, tab = 'pattern', glyphBound = false }) {
   const v = values
   // Canonical [swatch][label][hex] row — ColorField owns the label (never wrapped
   // in a LabeledControl; see the ColorField rule).
@@ -70,7 +82,28 @@ export default function PatternControls({ values, onChange, tab = 'pattern' }) {
   return (
     <>
       <Section label="Shape">
-        <Dropdown variant="subtle" size="sm" className="w-full" options={SHAPE_OPTIONS} value={v.shape} onChange={(val) => onChange('shape', val)} />
+        <Dropdown
+          variant="subtle" size="sm" className="w-full" options={SHAPE_OPTIONS} value={v.shape}
+          onChange={(val) => {
+            onChange('shape', val)
+            // Glyph mode tiles a TYPE outline — seed the font url on first pick.
+            if (val === 'glyph' && !v.glyphFontUrl) {
+              const key = v.glyphFontKey || 'rot'
+              onChange('glyphFontKey', key)
+              onChange('glyphFontUrl', fontByKey(key).url)
+            }
+          }}
+        />
+        {v.shape === 'glyph' && (glyphBound ? (
+          <div className="kol-helper-10 text-meta">Tiling the text instance — change the word, font and axes in Content / Edit.</div>
+        ) : (
+          <>
+            <Input value={v.glyphChar ?? 'A'} onChange={(e) => onChange('glyphChar', e.target.value)} placeholder="A" />
+            <LabeledControl inline label="Font">
+              <Dropdown variant="subtle" size="sm" className="w-full" options={FONT_OPTIONS} value={v.glyphFontKey || 'rot'} onChange={(key) => { onChange('glyphFontKey', key); onChange('glyphFontUrl', fontByKey(key).url) }} />
+            </LabeledControl>
+          </>
+        ))}
         {v.shape === 'custom' && (
           <textarea
             className="w-full h-20 mt-1 p-2 rounded bg-surface-secondary border border-fg-08 kol-mono-12 text-body"
@@ -92,6 +125,11 @@ export default function PatternControls({ values, onChange, tab = 'pattern' }) {
 
       <Section label="Colour">
         {colorCtl('Shape', 'color')}
+        <LabeledControl inline label="Interleave">
+          <Dropdown variant="subtle" size="sm" className="w-full" options={COLOR_RULES} value={v.colorRule ?? 'none'} onChange={(val) => onChange('colorRule', val)} />
+        </LabeledControl>
+        {v.colorRule && v.colorRule !== 'none' && colorCtl('Colour 2', 'color2')}
+        {(v.colorRule === 'cols' || v.colorRule === 'rows' || v.colorRule === 'diag') && colorCtl('Colour 3', 'color3')}
         {colorCtl('Background', 'bg')}
       </Section>
 

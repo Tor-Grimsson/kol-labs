@@ -5,6 +5,9 @@ import LabeledControl from '../../components/molecules/LabeledControl.jsx'
 import ToggleSwitch from '../../components/atoms/ToggleSwitch.jsx'
 import ColorField from '../../components/color/ColorField.jsx'
 import Divider from '../../components/atoms/Divider.jsx'
+import SegmentedToggle from '../../components/molecules/SegmentedToggle.jsx'
+import PatternControls from '../loops/PatternControls.jsx'
+import { useState } from 'react'
 import { THEME_OPTIONS } from '../../lib/themes.js'
 
 /**
@@ -16,7 +19,10 @@ export default function DesignControls({
   themeId, onTheme, invert, onInvert,
   frameBg, onFrameBg, onAllFill,
   instances, onText,
+  pattern, onPattern,
+  hideContent = false,
 }) {
+  const [patTab, setPatTab] = useState('pattern')
   return (
     <>
       <Section label="Theme">
@@ -31,13 +37,36 @@ export default function DesignControls({
         <ColorField label="Text" value={instances[0]?.fill || '#e8e4dc'} onChange={onAllFill} />
       </Section>
 
-      <Divider />
+      {!hideContent && (
+        <>
+          <Divider />
+          <Section label="Content">
+            {instances.map((ins) => (
+              <Textarea key={ins.id} value={ins.text} onChange={(e) => onText(ins.id, e.target.value)} rows={2} resize="vertical" placeholder="Type…" />
+            ))}
+          </Section>
+        </>
+      )}
 
-      <Section label="Content">
-        {instances.map((ins) => (
-          <Textarea key={ins.id} value={ins.text} onChange={(e) => onText(ins.id, e.target.value)} rows={2} resize="vertical" placeholder="Type…" />
-        ))}
-      </Section>
+      {pattern && onPattern && (
+        <>
+          <Divider />
+          <Section label="Pattern background">
+            <ToggleSwitch variant="plain" labeled label="Pattern fill" checked={!!pattern.on} onChange={(v) => {
+              onPattern('on', v)
+              // seed glyph mode + a word-friendly grid (a wide word in a dense square
+              // grid reads as mush) the first time it's enabled.
+              if (v && pattern.shape !== 'glyph') { onPattern('shape', 'glyph'); onPattern('cols', 2); onPattern('rows', 4); onPattern('cell', 200); onPattern('gap', 12) }
+            }} />
+          </Section>
+          {pattern.on && (
+            <>
+              <SegmentedToggle value={patTab} onChange={setPatTab} options={[{ value: 'pattern', label: 'Pattern' }, { value: 'animation', label: 'Animation' }]} />
+              <PatternControls values={pattern} onChange={onPattern} tab={patTab} glyphBound />
+            </>
+          )}
+        </>
+      )}
     </>
   )
 }

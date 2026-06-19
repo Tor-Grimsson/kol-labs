@@ -4,6 +4,7 @@ import SourcePlaceholder from '../components/SourcePlaceholder.jsx'
 import LibrarySourceButton from '../components/LibrarySourceButton.jsx'
 import { RefractEngine } from './engine.js'
 import { SURFACE2D_BY_ID } from './surfaces2d.js'
+import { resolveDeep } from '../../../lib/exprParam.js'
 import { ASPECT_SPECS, SOURCE_DEFAULT, DEFAULT_SCALE, ratioFor, dimsFor } from '../../_shared/exportSpecs.js'
 import ImagePlacement from '../../_shared/ImagePlacement.jsx'
 import EditorRail, { RailHeader } from '../../../components/framework/EditorRail.jsx'
@@ -82,16 +83,36 @@ export default function Lens2DShell({ surface = 'glass', title = 'Glass' }) {
     setImgAspect(w / h)
   }, [sourceImage])
 
-  useEffect(() => {
-    engineRef.current?.setParams({
-      type: surface, scale: detail, reflect,
-      depth: distance, chromatic, frost,
-      shape, size, radius, edge, magnify, glassX, glassY,
-      fit, zoom, offsetX, offsetY, bg,
-      sheen, lightAngle, tint, tintAmt, flow,
-    })
-  }, [surface, detail, reflect, distance, chromatic, frost, shape, size, radius, edge, magnify, glassX, glassY, fit, zoom, offsetX, offsetY, bg, sheen, lightAngle, tint, tintAmt, flow])
+  // Non-numeric params (enums + colours) → push on change; the numeric ones are
+  // resolved each frame below so they can be expression / audio bound.
+  useEffect(() => { engineRef.current?.setParams({ type: surface, shape, fit, bg, tint }) }, [surface, shape, fit, bg, tint])
   useEffect(() => { engineRef.current?.setPlaying(playing) }, [playing])
+
+  // Per-frame resolve of the numeric params (all cheap uniform sets in setParams)
+  // against the engine clock + live audio, so `dispersion`/`size`/… animate.
+  const cfg = useRef({})
+  cfg.current = { detail, reflect, distance, chromatic, frost, size, radius, edge, magnify, glassX, glassY, zoom, offsetX, offsetY, sheen, lightAngle, tintAmt, flow }
+  useEffect(() => {
+    if (!ready) return
+    let alive = true
+    let raf
+    const loop = () => {
+      if (!alive) return
+      const engine = engineRef.current
+      if (engine) {
+        const c = cfg.current
+        engine.setParams(resolveDeep({
+          scale: c.detail, reflect: c.reflect, depth: c.distance, chromatic: c.chromatic, frost: c.frost,
+          size: c.size, radius: c.radius, edge: c.edge, magnify: c.magnify, glassX: c.glassX, glassY: c.glassY,
+          zoom: c.zoom, offsetX: c.offsetX, offsetY: c.offsetY, sheen: c.sheen, lightAngle: c.lightAngle,
+          tintAmt: c.tintAmt, flow: c.flow,
+        }, engine.getTime?.() ?? 0))
+      }
+      raf = requestAnimationFrame(loop)
+    }
+    raf = requestAnimationFrame(loop)
+    return () => { alive = false; cancelAnimationFrame(raf) }
+  }, [ready])
 
   const handleFileUpload = (e) => loadImageFromFile(e.target.files[0])
   const handleDragOver = (e) => { e.preventDefault(); setDragging(true) }

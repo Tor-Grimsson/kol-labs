@@ -1,6 +1,8 @@
+import { useEffect } from 'react'
 import Dropdown from '../components/molecules/Dropdown.jsx'
 import ToggleSwitch from '../components/atoms/ToggleSwitch.jsx'
 import { useAppSettings, setAppSetting } from '../lib/appSettings.js'
+import { enableAudio, disableAudio } from '../lib/audioSource.js'
 import { RATIO_ASPECTS } from './_shared/exportSpecs.js'
 import { THEME_OPTIONS } from '../lib/themes.js'
 
@@ -12,7 +14,10 @@ const ASPECT_OPTIONS = [
 ]
 
 export default function Home() {
-  const { defaultAspect, defaultTheme, autoplay, clipToFrame } = useAppSettings()
+  const { defaultAspect, defaultTheme, autoplay, clipToFrame, audioReactive } = useAppSettings()
+  // Best-effort resume on mount if it was left on — getUserMedia resolves
+  // without a prompt once this origin has been granted; otherwise it stays 0.
+  useEffect(() => { if (audioReactive) enableAudio() }, []) // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <main className="flex min-h-screen">
       <div className="p-8 md:p-12 w-1/2 bg-surface-primary">
@@ -75,6 +80,18 @@ export default function Home() {
           </div>
           <p className="kol-mono-12 text-meta mt-1">
             Exports crop to the chosen aspect frame. On by default.
+          </p>
+
+          <div className="flex items-center justify-between mt-4">
+            <label className="kol-helper-12 uppercase tracking-widest text-body">Audio reactive</label>
+            <ToggleSwitch
+              variant="plain"
+              checked={!!audioReactive}
+              onChange={(v) => { setAppSetting('audioReactive', v); v ? enableAudio() : disableAudio() }}
+            />
+          </div>
+          <p className="kol-mono-12 text-meta mt-1">
+            Mic drives the level, bass, mid, high expression variables. Off by default.
           </p>
         </div>
       </section>

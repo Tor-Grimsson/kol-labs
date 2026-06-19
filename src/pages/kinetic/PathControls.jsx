@@ -5,6 +5,7 @@ import Section from '../../components/molecules/Section.jsx'
 import LabeledControl from '../../components/molecules/LabeledControl.jsx'
 import Button from '../../components/atoms/Button.jsx'
 import { PATH_OPTIONS, DEFAULT_POINTS, isArray } from './engine/paths.js'
+import { roundIfNum } from '../../lib/exprParam.js'
 
 // One instance's arrangement: its TYPE (line/path/circle/array/…), whether it's
 // kept inside the frame (Paragraph), and its position. By default type ignores the
@@ -20,29 +21,29 @@ export default function PathControls({ params, set, setPath }) {
         <LabeledControl inline label="Type">
           <Dropdown variant="subtle" size="sm" className="w-full" options={PATH_OPTIONS} value={path.type} onChange={(v) => setPath('type', v)} />
         </LabeledControl>
-        {!array && <Slider labeled noExpr label="Copies" min={1} max={24} step={1} value={params.multiply ?? 1} onChange={(v) => set('multiply', Math.round(v))} variant="default" />}
+        {!array && <Slider labeled label="Copies" min={1} max={24} step={1} value={params.multiply ?? 1} onChange={(v) => set('multiply', roundIfNum(v))} variant="default" />}
         {!array && <ToggleSwitch variant="plain" labeled label="Paragraph" checked={params.flow === 'contain'} onChange={(c) => set('flow', c ? 'contain' : 'flow')} />}
         {!array && <ToggleSwitch variant="plain" labeled label="Show path" checked={!!params.showPath} onChange={(c) => set('showPath', c)} />}
       </Section>
 
       <Section label="Position">
-        <Slider labeled noExpr label="X" min={-1} max={1} step={0.01} value={off.x ?? 0} onChange={(v) => setOff('x', v)} variant="default" />
-        <Slider labeled noExpr label="Y" min={-1} max={1} step={0.01} value={off.y ?? 0} onChange={(v) => setOff('y', v)} variant="default" />
+        <Slider labeled label="X" min={-1} max={1} step={0.01} value={off.x ?? 0} onChange={(v) => setOff('x', v)} variant="default" />
+        <Slider labeled label="Y" min={-1} max={1} step={0.01} value={off.y ?? 0} onChange={(v) => setOff('y', v)} variant="default" />
       </Section>
 
       {array && (
         <Section label="Grid">
-          <Slider labeled noExpr label="Rows" min={1} max={8} step={1} value={path.rows ?? 2} onChange={(v) => setPath('rows', Math.round(v))} variant="default" />
-          <Slider labeled noExpr label="Columns" min={1} max={8} step={1} value={path.cols ?? 3} onChange={(v) => setPath('cols', Math.round(v))} variant="default" />
+          <Slider labeled label="Rows" min={1} max={8} step={1} value={path.rows ?? 2} onChange={(v) => setPath('rows', roundIfNum(v))} variant="default" />
+          <Slider labeled label="Columns" min={1} max={8} step={1} value={path.cols ?? 3} onChange={(v) => setPath('cols', roundIfNum(v))} variant="default" />
         </Section>
       )}
 
       {!array && path.type !== 'custom' && (
         <Section label="Shape">
-          <Slider labeled noExpr label="Amplitude" min={0} max={1} step={0.02} value={path.amp ?? 0.4} onChange={(v) => setPath('amp', v)} variant="default" />
-          <Slider labeled noExpr label="Frequency" min={1} max={8} step={1} value={path.freq ?? 2} onChange={(v) => setPath('freq', Math.round(v))} variant="default" />
-          <Slider labeled noExpr label="Turns" min={1} max={8} step={1} value={path.turns ?? 3} onChange={(v) => setPath('turns', Math.round(v))} variant="default" />
-          <Slider labeled noExpr label="Radius" min={0.3} max={1} step={0.02} value={path.radius ?? 0.72} onChange={(v) => setPath('radius', v)} variant="default" />
+          <Slider labeled label="Amplitude" min={0} max={1} step={0.02} value={path.amp ?? 0.4} onChange={(v) => setPath('amp', v)} variant="default" />
+          <Slider labeled label="Frequency" min={1} max={8} step={1} value={path.freq ?? 2} onChange={(v) => setPath('freq', roundIfNum(v))} variant="default" />
+          <Slider labeled label="Turns" min={1} max={8} step={1} value={path.turns ?? 3} onChange={(v) => setPath('turns', roundIfNum(v))} variant="default" />
+          <Slider labeled label="Radius" min={0.3} max={1} step={0.02} value={path.radius ?? 0.72} onChange={(v) => setPath('radius', v)} variant="default" />
         </Section>
       )}
 

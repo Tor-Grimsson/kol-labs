@@ -12,6 +12,7 @@ import MotionControls from './MotionControls.jsx'
 export default function LayoutControls({
   instances, selId, onSelect, onEdit,
   onRemove, onDuplicate, onReorder, onPath, onMotion, set,
+  showMotion = true,
 }) {
   const dragFrom = useRef(null)
   const [dragOver, setDragOver] = useState(null)
@@ -50,7 +51,7 @@ export default function LayoutControls({
             set={(k, v) => set(selected.id, k, v)}
             setPath={(k, v) => onPath(selected.id, k, v)}
           />
-          <MotionControls params={selected} setMotion={(k, v) => onMotion(selected.id, k, v)} />
+          {showMotion && <MotionControls params={selected} setMotion={(k, v) => onMotion(selected.id, k, v)} />}
         </>
       )}
     </>

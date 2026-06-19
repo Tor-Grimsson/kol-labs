@@ -22,8 +22,18 @@ import { SCENE_GROUPS, ELEMENT_GROUPS } from './pages/kinetic/scenes/groups.js'
 import { GROUPS as LOOP_GROUPS, SUBGROUPS as LOOP_SUBGROUPS } from './loops/registry.js'
 import { SCENE_PRESETS } from './pages/radar/refract/scenes.js'
 import { CATEGORIES as SCANLINE_CATEGORIES, SUBPAGES as SCANLINE_SUBPAGES } from './pages/scanlines/registry.js'
+import { CATEGORIES as DRIFT_CATEGORIES, SUBPAGES as DRIFT_SUBPAGES } from './pages/drift/registry.js'
 import { FORMS } from './pages/gradient/forms/data/shapes.js'
 import { ENVIRONMENTS } from './pages/gradient/environments/data/scenes.js'
+import { SHAPES } from './pages/gradient/data/palettes.js'
+import { PRIMITIVES } from './pages/gradient/primitive/data/primitives.js'
+import { RD_VARIATIONS } from './pages/gradient/abstract/data/models.js'
+import { MSTP_PRESETS } from './pages/gradient/abstract/data/mstp.js'
+import { AUDIO_CATEGORIES, EXAMPLES as AUDIO_EXAMPLES } from './pages/live/audio/examples.js'
+import { GRADIENT_CATEGORIES, GRADIENT_TYPES } from './pages/gradients/registry.js'
+
+// SHAPES are bare value-strings (sphere/plane); author Capitalized nav labels here.
+const SHAPE_LABEL = { sphere: 'Sphere', plane: 'Plane' }
 
 export const NAV_TREE = [
   { id: 'home', label: 'Home', to: '/', icon: 'book-open' },
@@ -100,6 +110,8 @@ export const NAV_TREE = [
       label: g.label,
     })) },
   ] },
+  { id: 'type', label: 'Type', to: '/type', icon: 'font-01' },
+  { id: 'pattern', label: 'Pattern', to: '/pattern', icon: 'ptrn-checker' },
 
   { id: 'math', label: 'Math', to: '/math', icon: 'sum', children: [
     { label: 'Waveforms', children: [
@@ -131,9 +143,23 @@ export const NAV_TREE = [
       })),
     })),
   },
+  { id: 'gradients', label: 'Gradients', to: '/gradients', icon: 'circle', children:
+    GRADIENT_CATEGORIES.map((c) => ({
+      label: c.label,
+      children: GRADIENT_TYPES.filter((t) => t.cat === c.id).map((t) => ({
+        to: `/gradients/${t.id}`,
+        label: t.label,
+      })),
+    })),
+  },
   { id: '3d-scene', label: '3D Scene', to: '/3d-scene', icon: 'ball', children: [
-    { label: 'Gradient', children: [{ to: '/3d-scene', label: 'Gradient' }] },
-    { label: 'Primitive', children: [{ to: '/3d-scene/primitive', label: 'Primitive' }] },
+    { label: 'Abstract', children: [
+      { label: 'Field', children: SHAPES.map((s) => ({ to: `/3d-scene/gradient/${s}`, label: SHAPE_LABEL[s] ?? s })) },
+      { label: 'Reaction-Diffusion', children: RD_VARIATIONS.map((v) => ({ to: `/3d-scene/abstract/${v.id}`, label: v.label })) },
+      { label: 'Multi-Scale', children: MSTP_PRESETS.map((p) => ({ to: `/3d-scene/abstract/mstp/${p.id}`, label: p.label })) },
+      { label: 'Dither', children: [{ to: '/3d-scene/abstract/dither', label: 'Photo' }] },
+    ] },
+    { label: 'Primitive', children: PRIMITIVES.map((p) => ({ to: `/3d-scene/primitive/${p.id}`, label: p.label })) },
     { label: 'Forms', children: FORMS.map((f) => ({ to: `/3d-scene/forms/${f.id}`, label: f.label })) },
     { label: 'Environments', children: ENVIRONMENTS.map((e) => ({ to: `/3d-scene/environments/${e.id}`, label: e.label })) },
   ] },
@@ -167,8 +193,23 @@ export const NAV_TREE = [
       children: SCANLINE_SUBPAGES[c.id].map((s) => ({ to: s.route, label: s.label })),
     })),
   },
+  // Drift — seamless motion-loop eyecandy (Air · Water · Cloth). Phase 1 = Air;
+  // categories + sub-pages derive from the registry so nav + routes can't drift.
+  { id: 'drift', label: 'Drift', to: '/drift', icon: 'wave', children:
+    DRIFT_CATEGORIES.map((c) => ({
+      label: c.label,
+      children: DRIFT_SUBPAGES[c.id].map((s) => ({ to: s.route, label: s.label })),
+    })),
+  },
 
   { section: 'Source-in' },
+  { id: 'live', label: 'Modulation', to: '/live', icon: 'camera', children: [
+    { label: 'Controllers', children: [{ to: '/live/controllers', label: 'Gamepad' }] },
+    ...AUDIO_CATEGORIES.map((c) => ({
+      label: c.label,
+      children: AUDIO_EXAMPLES.filter((e) => e.cat === c.id).map((e) => ({ to: `/live/audio/${e.id}`, label: e.label })),
+    })),
+  ] },
   { id: 'poster', label: 'Poster', to: '/poster', icon: 'image' },
   { id: 'video', label: 'Video', to: '/video', icon: 'scissors' },
 

@@ -7,6 +7,10 @@ export const FONTS = [
   { key: 'malromur', label: 'Malromur', family: 'TG Malromur', url: '/fonts/TG/TGMalromurRomanVF.ttf', axes: [{ tag: 'wght', min: 300, max: 900, def: 300 }] },
   { key: 'ordspor', label: 'Ordspor', family: 'TG Ordspor', url: '/fonts/TG/TGOrdsporVF.ttf', axes: [{ tag: 'wght', min: 300, max: 900, def: 300 }] },
   { key: 'rot', label: 'Rot', family: 'TG Rot', url: '/fonts/TG/TGRotVF.ttf', axes: [{ tag: 'wdth', min: 64, max: 172, def: 100 }, { tag: 'wght', min: 100, max: 900, def: 400 }] },
+  { key: 'malromur-italic', label: 'Malromur Italic', family: 'TG Malromur Italic', url: '/fonts/TG/TGMalromurItalicVF.ttf', axes: [{ tag: 'wght', min: 300, max: 900, def: 300 }] },
+  { key: 'dylgjur', label: 'Dylgjur', family: 'TG Dylgjur', url: '/fonts/TG/TGDylgjur-Regular.otf', axes: [] },
+  { key: 'silfurbarki', label: 'Silfurbarki', family: 'TG Silfurbarki', url: '/fonts/TG/TGSilfurbarki-Regular.otf', axes: [] },
+  { key: 'trollatunga', label: 'Trollatunga', family: 'TG Trollatunga', url: '/fonts/TG/TGTrollatunga-Regular.otf', axes: [] },
   { key: 'jetbrains', label: 'JetBrains Mono', family: 'JetBrains Mono', url: '/fonts/jetbrains-mono/JetBrainsMono-Regular.woff2', axes: [] },
 ]
 

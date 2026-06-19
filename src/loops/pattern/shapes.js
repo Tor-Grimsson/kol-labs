@@ -25,6 +25,7 @@ const PRIMITIVES = [
 ]
 
 export const SHAPE_OPTIONS = [
+  { value: 'glyph', label: 'Glyph (type)' },
   ...PRIMITIVES.map((s) => ({ value: s.id, label: s.label })),
   ...ABSTRACTS.map((s) => ({ value: s.id, label: s.label })),
   { value: 'custom', label: 'Custom SVG…' },

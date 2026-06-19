@@ -1,6 +1,7 @@
 import { TAU, mixHex } from '../lib/util.js'
 import { resolveShape, DEFAULT_SHAPE_ID } from './shapes.js'
 import { composeCell, compileRules } from './rules.js'
+import { glyphShape, ensureGlyphFontUrl } from '../../lib/glyphPath.js'
 
 // Pattern — the ported kol-client rule/tiling system, rendered to Canvas2D so it
 // animates + outputs a texture. The cols×rows rule-block TILES infinitely; the
@@ -15,15 +16,33 @@ import { composeCell, compileRules } from './rules.js'
 // Controls are the custom `pattern` panel (PatternControls.jsx).
 
 let cache = null // { key, viewBox, paths:[Path2D] }
-function shapeFor(id, customSvg) {
+const EMPTY = { key: '', viewBox: [0, 0, 1, 1], paths: [] }
+function buildPaths(viewBox, paths) {
+  const built = []
+  for (const d of paths) { try { built.push(new Path2D(d)) } catch { /* skip bad path */ } }
+  return { viewBox, paths: built }
+}
+function shapeFor(id, customSvg, p) {
+  // 'glyph' — the tile is a TYPE outline (a letter/word), pulled via opentype.
+  // Async: returns an uncached empty until the font streams in, then caches.
+  if (id === 'glyph') {
+    const url = p?.glyphFontUrl || ''
+    const text = p?.glyphChar || 'A'
+    const coords = p?.glyphCoords || null
+    const slant = p?.glyphSlant || 0
+    const track = p?.glyphTrack || 0
+    const key = `glyph|${url}|${text}|${JSON.stringify(coords)}|${slant}|${track}`
+    if (cache && cache.key === key) return cache
+    if (!url) return EMPTY
+    const gs = glyphShape(url, text, coords, slant, track)
+    if (!gs) { ensureGlyphFontUrl(url); return EMPTY } // retry next frame
+    cache = { key, ...buildPaths(gs.viewBox, gs.paths) }
+    return cache
+  }
   const key = id + '|' + (id === 'custom' ? customSvg : '')
   if (cache && cache.key === key) return cache
   const { viewBox, paths } = resolveShape(id, customSvg)
-  const built = []
-  for (const d of paths) {
-    try { built.push(new Path2D(d)) } catch { /* skip bad path */ }
-  }
-  cache = { key, viewBox, paths: built }
+  cache = { key, ...buildPaths(viewBox, paths) }
   return cache
 }
 
@@ -45,6 +64,7 @@ export default {
     { key: 'bg', type: 'color', role: 'bg' },
     { key: 'color', type: 'color', role: 'fg' },
     { key: 'color2', type: 'color', role: 'accent' },
+    { key: 'color3', type: 'color', role: 'warm' },
     { key: 'cols', type: 'range', min: 1, max: 32, step: 1, noRandom: true },
     { key: 'rows', type: 'range', min: 1, max: 32, step: 1, noRandom: true },
     { key: 'cell', type: 'range', min: 40, max: 280, step: 1, noRandom: true },
@@ -56,6 +76,10 @@ export default {
   defaults: {
     shape: DEFAULT_SHAPE_ID,
     customSvg: '',
+    glyphChar: 'A',       // the type tile (one glyph or a short run)
+    glyphFontKey: 'rot',  // UI selection (mapped → url by PatternControls)
+    glyphFontUrl: '',     // resolved font url the engine reads
+    glyphCoords: null,    // optional VF axis coords for the glyph
     cols: 4,
     rows: 4,
     cell: 120,
@@ -65,6 +89,10 @@ export default {
     bg: '#0e0e11',
     color: '#fcfbf8',
     color2: '#c2502e',
+    color3: '#3f6485',
+    // Interleave the base fill across colours by cell index — the clean R/Y/B
+    // "test grid" substrate. none | checker (2-col) | cols | rows | diag (3-col).
+    colorRule: 'none',
     rules: [],
     camZoom: 1,
     camFlow: 1,
@@ -83,7 +111,7 @@ export default {
     ctx.fillStyle = p.bg
     ctx.fillRect(0, 0, w, h)
 
-    const shp = shapeFor(p.shape, p.customSvg)
+    const shp = shapeFor(p.shape, p.customSvg, p)
     if (!shp.paths.length) return
 
     const [vx, vy, vw, vh] = shp.viewBox
@@ -131,11 +159,25 @@ export default {
         const c = composeCell(p.rules, compiled, { row, col, cols, rows, i })
         if (c.hidden) continue
 
+        // Per-cell base colour: an optional R/Y/B interleave by cell index (the
+        // clean "test grid" substrate), else the single shape colour. Uses the
+        // block-wrapped col/row so it stays seamless under camera flow.
+        let baseColor = p.color
+        const crule = p.colorRule
+        if (crule && crule !== 'none') {
+          if (crule === 'checker') baseColor = ((col + row) & 1) ? p.color2 : p.color
+          else {
+            const k3 = crule === 'cols' ? col : crule === 'rows' ? row : col + row
+            const idx = ((k3 % 3) + 3) % 3
+            baseColor = idx === 0 ? p.color : idx === 1 ? p.color2 : (p.color3 || p.color)
+          }
+        }
+
         // Per-cell animation from the sweep (seamless: u only via tphase).
         let aScale = 1
         let aOpacity = c.opacity
         let aRot = 0
-        let aColor = p.color
+        let aColor = baseColor
         if (animOn) {
           const sp = axis === 'col' ? gx
             : axis === 'row' ? gy
@@ -146,7 +188,7 @@ export default {
           if (p.pulse) aScale = 1 - p.pulse + p.pulse * k
           if (p.fade) aOpacity = c.opacity * (1 - p.fade + p.fade * k)
           if (p.swing) aRot = p.swing * sw
-          if (p.colorMix) aColor = mixHex(p.color, p.color2, p.colorMix * k)
+          if (p.colorMix) aColor = mixHex(baseColor, p.color2, p.colorMix * k)
         }
 
         ctx.save()

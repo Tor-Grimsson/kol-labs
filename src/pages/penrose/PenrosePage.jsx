@@ -193,7 +193,7 @@ const TILE_WARMUP_MS = 2000
 // Grid with lazy init via IntersectionObserver: fire init the first time a
 // tile scrolls into view. Tiles never uninit while the grid is mounted; the
 // parent remounts the whole grid (key bump) on rebake/reset/re-seed.
-function Grid({ groups, onSelect, seedBase, frame, focusedIdx }) {
+function Grid({ groups, onSelect, onOpen, seedBase, frame, focusedIdx }) {
   const fitClass = frame.w >= frame.h ? 'h-full w-auto' : 'w-full h-auto'
   const gridRef = useRef(null)
   const focusedRef = useRef(null)
@@ -262,9 +262,10 @@ function Grid({ groups, onSelect, seedBase, frame, focusedIdx }) {
               ref={i === focusedIdx ? focusedRef : undefined}
               key={proto.id}
               onClick={() => onSelect(i)}
+              onDoubleClick={() => onOpen(i)}
               onMouseEnter={() => hover(i, true)}
               onMouseLeave={() => hover(i, false)}
-              title={proto.summary}
+              title={`${proto.summary} · double-click to open`}
             >
               {/* Media frames to the Home aspect; the square specimen fits its short side. */}
               <div className="flex items-center justify-center overflow-hidden" style={{ aspectRatio: `${frame.w} / ${frame.h}`, background: 'var(--bg)' }}>
@@ -591,7 +592,8 @@ function App() {
             seedBase={seedBase}
             frame={fr}
             focusedIdx={idx}
-            onSelect={(i) => { setIdx(i); navigate(pathFor('generate', selectedCat)) }}
+            onSelect={(i) => setIdx(i)}
+            onOpen={(i) => { setIdx(i); navigate(pathFor('generate', selectedCat)) }}
           />
         )}
       </div>

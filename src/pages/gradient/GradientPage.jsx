@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useParams } from 'react-router-dom'
 import { usePublishReset } from '../../components/framework/pageShortcuts.jsx'
 import Button from '../../components/atoms/Button.jsx'
 import Divider from '../../components/atoms/Divider.jsx'
 import Slider from '../../components/atoms/Slider.jsx'
+import ToggleSwitch from '../../components/atoms/ToggleSwitch.jsx'
 import { roundIfNum } from '../../lib/exprParam.js'
 import Dropdown from '../../components/molecules/Dropdown.jsx'
 import LabeledControl from '../../components/molecules/LabeledControl.jsx'
@@ -48,13 +50,16 @@ function resolveSpec(seed, { shape, paletteId, hueShift, driver, distortMult }) 
 }
 
 export default function GradientPage() {
+  // /3d-scene/gradient/:shape deep-links a locked shape from the sidebar;
+  // bare /3d-scene leaves it on 'auto' (grid rolls both shapes).
+  const { shape: shapeParam } = useParams()
   const [view, setView] = useState('grid')
   const [idx, setIdx] = useState(0)
   const [seedBase, setSeedBase] = useState(7)
   const [themeId, setThemeId] = useState(() => defaultTheme())
   const [invert, setInvert] = useState(false)
 
-  const [shape, setShape] = useState('auto')
+  const [shape, setShape] = useState(shapeParam && SHAPES.includes(shapeParam) ? shapeParam : 'auto')
   const [paletteId, setPaletteId] = useState('auto')
   const [hueShift, setHueShift] = useState(0)
   const [driver, setDriver] = useState('auto')
@@ -63,6 +68,7 @@ export default function GradientPage() {
   const [grain, setGrain] = useState(0.06)
   const [speed, setSpeed] = useState(0.5)
   const [paused, setPaused] = useState(true)
+  const [bgOn, setBgOn] = useState(true)
   const [bg, setBg] = useState(0.85)
   const [bgStyle, setBgStyle] = useState(0)
   const [aspect, setAspect] = useState(() => defaultAspectFor('view'))
@@ -79,7 +85,9 @@ export default function GradientPage() {
     () => seeds.map((seed) => resolveSpec(seed, { shape, paletteId, hueShift, driver, distortMult })),
     [seeds, shape, paletteId, hueShift, driver, distortMult],
   )
-  const globals = useMemo(() => ({ glow, grain, speed, paused, bg, bgStyle }), [glow, grain, speed, paused, bg, bgStyle])
+  // bgOn off → intensity 0, which the bg shader fully mixes back to the theme
+  // colour (mix(uBase, col, uIntensity)) — a clean flat backdrop, no field.
+  const globals = useMemo(() => ({ glow, grain, speed, paused, bg: bgOn ? bg : 0, bgStyle }), [glow, grain, speed, paused, bg, bgOn, bgStyle])
 
   // Engine lifecycle — one renderer for the page's lifetime.
   useEffect(() => {
@@ -100,6 +108,8 @@ export default function GradientPage() {
   useEffect(() => { engineRef.current?.update({ specs }) }, [specs])
   useEffect(() => { engineRef.current?.update({ mode: view, idx }) }, [view, idx])
   useEffect(() => { engineRef.current?.update({ globals }) }, [globals])
+  // Follow sidebar nav between gradient shapes.
+  useEffect(() => { if (shapeParam && SHAPES.includes(shapeParam)) setShape(shapeParam) }, [shapeParam])
 
   const go = (d) => {
     setIdx((i) => (i + d + VARIATIONS) % VARIATIONS)
@@ -108,7 +118,7 @@ export default function GradientPage() {
   const toggleView = () => setView((v) => (v === 'grid' ? 'single' : 'grid'))
   const randomize = () => setSeedBase(Math.floor(Math.random() * 1_000_000))
 
-  const getSettings = () => ({ themeId, invert, seedBase, shape, paletteId, hueShift, driver, distortMult, glow, grain, speed, bg, bgStyle })
+  const getSettings = () => ({ themeId, invert, seedBase, shape, paletteId, hueShift, driver, distortMult, glow, grain, speed, bgOn, bg, bgStyle })
   const applySettings = (s) => {
     if (s.themeId != null) setThemeId(s.themeId)
     if (s.invert != null) setInvert(s.invert)
@@ -121,6 +131,7 @@ export default function GradientPage() {
     if (s.glow != null) setGlow(s.glow)
     if (s.grain != null) setGrain(s.grain)
     if (s.speed != null) setSpeed(s.speed)
+    if (s.bgOn != null) setBgOn(s.bgOn)
     if (s.bg != null) setBg(s.bg)
     if (s.bgStyle != null) setBgStyle(s.bgStyle)
   }
@@ -249,17 +260,22 @@ export default function GradientPage() {
           </Section>
 
           <Section label="Background">
-            <LabeledControl inline label="style">
-              <Dropdown
-                size="sm"
-                variant="subtle"
-                className="w-full"
-                options={BG_STYLES.map((s) => ({ value: String(s.id), label: s.label }))}
-                value={String(bgStyle)}
-                onChange={(v) => setBgStyle(Number(v))}
-              />
-            </LabeledControl>
-            <Slider labeled label="Intensity" min={0} max={1} step={0.05} value={bg} onChange={setBg} className="w-full" />
+            <ToggleSwitch variant="plain" label="Show background" checked={bgOn} onChange={setBgOn} />
+            {bgOn && (
+              <>
+                <LabeledControl inline label="style">
+                  <Dropdown
+                    size="sm"
+                    variant="subtle"
+                    className="w-full"
+                    options={BG_STYLES.map((s) => ({ value: String(s.id), label: s.label }))}
+                    value={String(bgStyle)}
+                    onChange={(v) => setBgStyle(Number(v))}
+                  />
+                </LabeledControl>
+                <Slider labeled label="Intensity" min={0} max={1} step={0.05} value={bg} onChange={setBg} className="w-full" />
+              </>
+            )}
           </Section>
 
           <Section label="Surface">

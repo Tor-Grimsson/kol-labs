@@ -474,6 +474,7 @@ export class LensScene {
   }
 
   setPlaying(v) { this.playing = v }
+  getTime() { return this.filterPass?.uniforms?.uTime?.value ?? 0 }
   resetTime() { if (this.glass) this.glass.rotation.set(0, 0, 0) }
   resetCamera() {
     this.camera.position.set(1.1, 0.5, 4)

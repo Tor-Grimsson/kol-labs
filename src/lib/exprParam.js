@@ -9,17 +9,23 @@
 // and tempo-scales with the existing controls for free.
 //
 // Grammar mirrors src/pages/math/uzumaki/lib/funcgen.js (kept self-contained so
-// this stays a foundational lib with no page import):
+// this stays a foundational lib with no PAGE import — audioSource is a sibling lib):
 //   constants  : PI TAU PHI E SQRT2 SQRT3 SQRT5 LN2 LN10 DEG
 //   raw math   : sin cos tan asin acos atan atan2 sinh cosh tanh
 //                abs sign floor ceil round trunc sqrt cbrt exp log log2 log10
 //                pow hypot min max
 //   helpers    : frac mod clamp lerp smooth
 //   oscillators (0…1, scale explicitly): wave saw tri pulse ease bell step rand
+//   audio (0…1, 0 when off): level bass mid high  — e.g. `bass*2`, `t*0.1+level`
+
+import { readAudio } from './audioSource.js'
+
+const ZERO_AUDIO = { level: 0, bass: 0, mid: 0, high: 0 }
 
 const PRELUDE = `
   "use strict";
   var s=t, time=t;
+  var level=+a.level||0, bass=+a.bass||0, mid=+a.mid||0, high=+a.high||0;
   var PI=Math.PI, TAU=6.283185307179586, PHI=1.618033988749895, E=Math.E,
       SQRT2=Math.SQRT2, SQRT3=1.7320508075688772, SQRT5=2.23606797749979,
       LN2=Math.LN2, LN10=Math.LN10, DEG=0.017453292519943295;
@@ -68,20 +74,21 @@ export function compileExprParam(str) {
 
   let entry
   try {
+    // `a` carries the live audio bands (level/bass/mid/high); see PRELUDE.
     // eslint-disable-next-line no-new-func
-    const raw = new Function('t', `${PRELUDE}return (${str});`)
-    // Probe at t=1: rejects strings that LOOK like expressions but aren't
-    // real numeric ones — "#fff" (syntax error, caught below) and "red"
+    const raw = new Function('t', 'a', `${PRELUDE}return (${str});`)
+    // Probe at t=1 with silent audio: rejects strings that LOOK like expressions
+    // but aren't real numeric ones — "#fff" (syntax error, caught below) and "red"
     // (undefined ref → throws here) both fall through to ok:false, so colors
     // / enums / text pass through resolveParams untouched.
-    const probe = raw(1)
+    const probe = raw(1, ZERO_AUDIO)
     if (typeof probe !== 'number') throw new Error('not numeric')
     let last = 0
     entry = {
       ok: true,
-      fn: (t) => {
+      fn: (t, a = ZERO_AUDIO) => {
         try {
-          const v = raw(t)
+          const v = raw(t, a)
           if (typeof v === 'number' && Number.isFinite(v)) { last = v; return v }
           return last
         } catch {
@@ -101,6 +108,13 @@ export function isValidExpr(str) {
   return compileExprParam(str).ok
 }
 
+const AUDIO_RE = /\b(level|bass|mid|high)\b/
+/** True if the expression references an audio band — so a consumer can re-eval
+ *  it off the live mic even when the transport clock is paused. */
+export function referencesAudio(str) {
+  return typeof str === 'string' && AUDIO_RE.test(str)
+}
+
 /**
  * Round a numeric value, but pass an expression string through untouched.
  * Use in slider onChange wrappers that previously did `Math.round(v)` — so an
@@ -110,9 +124,11 @@ export function roundIfNum(v) {
   return isExpr(v) ? v : Math.round(v)
 }
 
-/** Evaluate a single expression at time `t` (seconds). Safe; never throws. */
-export function evalExpr(str, t) {
-  return compileExprParam(str).fn(t)
+/** Evaluate a single expression at time `t` (seconds). Safe; never throws.
+ *  `a` defaults to the live audio bands so `bass`/`mid`/`high`/`level` resolve
+ *  in scope with no call-site change. */
+export function evalExpr(str, t, a = readAudio()) {
+  return compileExprParam(str).fn(t, a)
 }
 
 /**
@@ -132,10 +148,10 @@ export function hasExpr(params) {
  * engine keeps moving instead of freezing or going NaN). A valid expression that
  * genuinely evaluates to 0 still returns 0.
  */
-export function resolveRate(v, t, dflt = 1) {
+export function resolveRate(v, t, dflt = 1, a = readAudio()) {
   if (isExpr(v)) {
     if (!isValidExpr(v)) return dflt
-    const r = evalExpr(v, t)
+    const r = evalExpr(v, t, a)
     return Number.isFinite(r) ? r : dflt
   }
   const n = Number(v)
@@ -148,7 +164,7 @@ export function resolveRate(v, t, dflt = 1) {
  * object only when at least one field is an expression, so the no-expression
  * case is zero-cost.
  */
-export function resolveParams(params, t) {
+export function resolveParams(params, t, a = readAudio()) {
   if (!params || typeof params !== 'object') return params
   let out = null
   for (const k in params) {
@@ -157,8 +173,50 @@ export function resolveParams(params, t) {
       const c = compileExprParam(v)
       if (!c.ok) continue // color / enum / half-typed expr — leave untouched
       if (!out) out = Array.isArray(params) ? params.slice() : { ...params }
-      out[k] = c.fn(t)
+      out[k] = c.fn(t, a)
     }
   }
   return out || params
+}
+
+/**
+ * Like resolveParams but recurses into nested objects/arrays — for engines whose
+ * params hold sub-objects (e.g. moiré's `grids: [{ freq, angle, … }]`). Allocates
+ * a new container only along branches that actually contain an expression, so the
+ * no-expression case returns the same reference (zero-cost).
+ */
+export function resolveDeep(value, t, a = readAudio()) {
+  if (typeof value === 'string') {
+    if (!isExpr(value)) return value
+    const c = compileExprParam(value)
+    return c.ok ? c.fn(t, a) : value
+  }
+  if (Array.isArray(value)) {
+    let out = null
+    for (let i = 0; i < value.length; i++) {
+      const r = resolveDeep(value[i], t, a)
+      if (r !== value[i]) { if (!out) out = value.slice(); out[i] = r }
+    }
+    return out || value
+  }
+  if (value && typeof value === 'object') {
+    let out = null
+    for (const k in value) {
+      const r = resolveDeep(value[k], t, a)
+      if (r !== value[k]) { if (!out) out = { ...value }; out[k] = r }
+    }
+    return out || value
+  }
+  return value
+}
+
+/** True if any string anywhere in the tree references an audio band — so a
+ *  consumer can keep its render loop alive (off the mic) while paused. */
+export function treeReferencesAudio(value) {
+  if (typeof value === 'string') return referencesAudio(value)
+  if (Array.isArray(value)) return value.some((v) => treeReferencesAudio(v))
+  if (value && typeof value === 'object') {
+    for (const k in value) if (treeReferencesAudio(value[k])) return true
+  }
+  return false
 }

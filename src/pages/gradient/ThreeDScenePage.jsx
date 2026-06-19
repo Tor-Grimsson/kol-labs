@@ -8,21 +8,48 @@ import GradientPage from './GradientPage'
 const PrimitiveScenePage = lazy(() => import('./primitive/PrimitiveScenePage'))
 const FormsPage = lazy(() => import('./forms/FormsPage.jsx'))
 const EnvironmentsPage = lazy(() => import('./environments/EnvironmentsPage.jsx'))
+const AbstractRDPage = lazy(() => import('./abstract/AbstractRDPage.jsx'))
+const AbstractDitherPage = lazy(() => import('./abstract/AbstractDitherPage.jsx'))
+const AbstractMSTPPage = lazy(() => import('./abstract/AbstractMSTPPage.jsx'))
 
 // Descendant routes under the shell's /3d-scene/* mount. The #4 pipeline rebuild
 // will add more scene types as siblings here.
 export default function ThreeDScenePage() {
+  // Primitive renders the same lazy page whether or not a primitive is deep-linked
+  // (the sidebar Primitive category routes to /primitive/<id>); share one element.
+  const primitiveEl = (
+    <Suspense fallback={<div className="min-h-dvh bg-surface-secondary" />}>
+      <PrimitiveScenePage />
+    </Suspense>
+  )
+  // Abstract › Reaction-Diffusion — one page, variation chosen by :variant.
+  const abstractEl = (
+    <Suspense fallback={<div className="min-h-dvh bg-surface-secondary" />}>
+      <AbstractRDPage />
+    </Suspense>
+  )
+  const ditherEl = (
+    <Suspense fallback={<div className="min-h-dvh bg-surface-secondary" />}>
+      <AbstractDitherPage />
+    </Suspense>
+  )
+  const mstpEl = (
+    <Suspense fallback={<div className="min-h-dvh bg-surface-secondary" />}>
+      <AbstractMSTPPage />
+    </Suspense>
+  )
   return (
     <Routes>
       <Route path="/" element={<GradientPage />} />
-      <Route
-        path="primitive"
-        element={
-          <Suspense fallback={<div className="min-h-dvh bg-surface-secondary" />}>
-            <PrimitiveScenePage />
-          </Suspense>
-        }
-      />
+      {/* Abstract › Field deep-links a locked gradient shape; bare /3d-scene = auto grid. */}
+      <Route path="gradient/:shape" element={<GradientPage />} />
+      <Route path="abstract" element={abstractEl} />
+      <Route path="abstract/dither" element={ditherEl} />
+      <Route path="abstract/mstp" element={mstpEl} />
+      <Route path="abstract/mstp/:preset" element={mstpEl} />
+      <Route path="abstract/:variant" element={abstractEl} />
+      <Route path="primitive" element={primitiveEl} />
+      <Route path="primitive/:primitiveId" element={primitiveEl} />
       <Route
         path="forms/*"
         element={

@@ -260,6 +260,7 @@ export class RefractEngine {
 
   setPlaying(v) { this.playing = v }
   resetTime() { this.time = 0; if (this.uniforms) this.uniforms.uTime.value = 0 }
+  getTime() { return this.time }
 
   async exportBlob(w, h) {
     if (!this.renderer) return null

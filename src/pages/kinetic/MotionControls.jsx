@@ -4,6 +4,7 @@ import Section from '../../components/molecules/Section.jsx'
 import LabeledControl from '../../components/molecules/LabeledControl.jsx'
 import { MOTION_OPTIONS, FIELD_OPTIONS, isSweep } from './engine/animations.js'
 import { fontByKey, AXIS_LABELS } from './lib/vfAxes.js'
+import { roundIfNum } from '../../lib/exprParam.js'
 
 // Animation mode + its parameters. (Transport play/tempo lives in the footer.)
 export default function MotionControls({ params, setMotion }) {
@@ -20,13 +21,13 @@ export default function MotionControls({ params, setMotion }) {
           <Dropdown variant="subtle" size="sm" className="w-full" options={FIELD_OPTIONS} value={m.field || 'x'} onChange={(v) => setMotion('field', v)} />
         </LabeledControl>
       )}
-      <Slider labeled noExpr label="Cycles" min={1} max={4} step={1} value={m.cycles ?? 1} onChange={(v) => setMotion('cycles', Math.round(v))} variant="default" />
-      {!sweep && <Slider labeled noExpr label="Phase" min={0} max={2} step={0.05} value={m.phase ?? 0.5} onChange={(v) => setMotion('phase', v)} variant="default" />}
+      <Slider labeled label="Cycles" min={1} max={4} step={1} value={m.cycles ?? 1} onChange={(v) => setMotion('cycles', roundIfNum(v))} variant="default" />
+      {!sweep && <Slider labeled label="Phase" min={0} max={2} step={0.05} value={m.phase ?? 0.5} onChange={(v) => setMotion('phase', v)} variant="default" />}
       {sweep && (
-        <Slider labeled noExpr label="Band" min={0.05} max={1} step={0.02} value={m.amp ?? 0.35} onChange={(v) => setMotion('amp', v)} variant="default" />
+        <Slider labeled label="Band" min={0.05} max={1} step={0.02} value={m.amp ?? 0.35} onChange={(v) => setMotion('amp', v)} variant="default" />
       )}
       {m.mode === 'glyphwave' && (
-        <Slider labeled noExpr label="Amount" min={0} max={1} step={0.02} value={m.amp ?? 0.3} onChange={(v) => setMotion('amp', v)} variant="default" />
+        <Slider labeled label="Amount" min={0} max={1} step={0.02} value={m.amp ?? 0.3} onChange={(v) => setMotion('amp', v)} variant="default" />
       )}
       {m.mode === 'vfwave' && font.axes.length > 0 && (
         <LabeledControl inline label="Axis">
