@@ -19,7 +19,6 @@ import Input from '../../../components/atoms/Input.jsx'
 import Slider from '../../../components/atoms/Slider.jsx'
 import ToggleSwitch from '../../../components/atoms/ToggleSwitch.jsx'
 import Dropdown from '../../../components/molecules/Dropdown.jsx'
-import LabeledControl from '../../../components/molecules/LabeledControl.jsx'
 import Section from '../../../components/molecules/Section.jsx'
 import ColorField from '../../../components/color/ColorField.jsx'
 import SegmentedToggle from '../../../components/molecules/SegmentedToggle.jsx'
@@ -336,12 +335,8 @@ export default function SurfacePage() {
           {tab === 'render' && (
             <>
               <Section label="Color">
-                <LabeledControl inline label="Low">
-                  <ColorField value={low} onChange={setLow} />
-                </LabeledControl>
-                <LabeledControl inline label="High">
-                  <ColorField value={high} onChange={setHigh} />
-                </LabeledControl>
+                <ColorField label="Low" value={low} onChange={setLow} />
+                <ColorField label="High" value={high} onChange={setHigh} />
               </Section>
               <CameraPanel viewRef={viewRef} spin={spin} onSpin={setSpin} />
             </>

@@ -20,6 +20,7 @@ const MathPage = lazy(() => import('./pages/math/MathPage.jsx'))
 const LoopsPage = lazy(() => import('./pages/loops/LoopsPage.jsx'))
 const KineticPage = lazy(() => import('./pages/kinetic/KineticPage.jsx'))
 const OpticPage = lazy(() => import('./pages/optic/OpticPage.jsx'))
+const ScanlinesPage = lazy(() => import('./pages/scanlines/ScanlinesPage.jsx'))
 
 export default function App() {
   return (
@@ -40,6 +41,7 @@ export default function App() {
         <Route path="/loops/*" element={<Suspense fallback={null}><LoopsPage /></Suspense>} />
         <Route path="/kinetic/*" element={<Suspense fallback={null}><KineticPage /></Suspense>} />
         <Route path="/optic/*" element={<Suspense fallback={null}><OpticPage /></Suspense>} />
+        <Route path="/scanlines/*" element={<Suspense fallback={null}><ScanlinesPage /></Suspense>} />
       </Route>
     </Routes>
   )

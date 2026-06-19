@@ -83,7 +83,7 @@ export default function SettingsPanel({
       {onRandomize && (
         <>
           {onSeed && seed != null && <SeedInfo label={page} seed={seed} />}
-          <Button variant="primary" size="sm" iconLeft="refresh" onClick={onRandomize} className="w-full">Randomise</Button>
+          <Button variant="primary" size="sm" iconLeft="cycle" onClick={onRandomize} className="w-full">Randomise</Button>
         </>
       )}
 

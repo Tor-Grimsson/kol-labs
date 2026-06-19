@@ -19,6 +19,11 @@ import { GROUPS as INTERFACE_GROUPS } from './pages/interfaces/widgets/groups.js
 import { SCREEN_GROUPS } from './pages/interfaces/screens.groups.js'
 import { EFFECT_GROUPS } from './pages/effects/effects.config.js'
 import { SCENE_GROUPS, ELEMENT_GROUPS } from './pages/kinetic/scenes/groups.js'
+import { GROUPS as LOOP_GROUPS, SUBGROUPS as LOOP_SUBGROUPS } from './loops/registry.js'
+import { SCENE_PRESETS } from './pages/radar/refract/scenes.js'
+import { CATEGORIES as SCANLINE_CATEGORIES, SUBPAGES as SCANLINE_SUBPAGES } from './pages/scanlines/registry.js'
+import { FORMS } from './pages/gradient/forms/data/shapes.js'
+import { ENVIRONMENTS } from './pages/gradient/environments/data/scenes.js'
 
 export const NAV_TREE = [
   { id: 'home', label: 'Home', to: '/', icon: 'book-open' },
@@ -96,7 +101,7 @@ export const NAV_TREE = [
     })) },
   ] },
 
-  { id: 'math', label: 'Math', to: '/math', icon: 'math', children: [
+  { id: 'math', label: 'Math', to: '/math', icon: 'sum', children: [
     { label: 'Waveforms', children: [
       { to: '/math', label: 'Expression' },
       { to: '/math/fourier', label: 'Fourier' },
@@ -115,15 +120,22 @@ export const NAV_TREE = [
       { to: '/math/complex', label: 'Complex' },
     ]},
   ] },
-  { id: 'loops', label: 'Loops', to: '/loops', icon: 'cycle', children: [
-    { to: '/loops', label: 'Simple' },
-    { to: '/loops/pattern', label: 'Pattern' },
-    { to: '/loops/field', label: 'Field' },
-  ] },
+  { id: 'loops', label: 'Loops', to: '/loops', icon: 'cycle', children:
+    // Three categories (Simple · Pattern · Field), six routed sub-pages each —
+    // derived from the loop registry so nav + router never drift (mirrors Math).
+    LOOP_GROUPS.map((g) => ({
+      label: g.label,
+      children: LOOP_SUBGROUPS[g.id].map((s) => ({
+        to: s.route,
+        label: s.sub,
+      })),
+    })),
+  },
   { id: '3d-scene', label: '3D Scene', to: '/3d-scene', icon: 'ball', children: [
-    { to: '/3d-scene', label: 'Gradient' },
-    { to: '/3d-scene/primitive', label: 'Primitive Scene' },
-    { to: '/3d-scene/forms', label: 'Forms' },
+    { label: 'Gradient', children: [{ to: '/3d-scene', label: 'Gradient' }] },
+    { label: 'Primitive', children: [{ to: '/3d-scene/primitive', label: 'Primitive' }] },
+    { label: 'Forms', children: FORMS.map((f) => ({ to: `/3d-scene/forms/${f.id}`, label: f.label })) },
+    { label: 'Environments', children: ENVIRONMENTS.map((e) => ({ to: `/3d-scene/environments/${e.id}`, label: e.label })) },
   ] },
   { id: 'optic', label: 'Optic', to: '/optic', icon: 'ptrn-dot', children: [
     { label: 'Pattern', children: [
@@ -133,9 +145,28 @@ export const NAV_TREE = [
       { to: '/optic/reaction', label: 'Reaction' },
     ] },
     { label: 'Lens', children: [
-      { to: '/optic/refract', label: 'Refract' },
+      { to: '/optic/lens/glass', label: 'Glass' },
+      { to: '/optic/lens/ice', label: 'Ice' },
+      { to: '/optic/lens/metal', label: 'Liquid Metal' },
+      { to: '/optic/lens/mirror', label: 'Mirror' },
+      { to: '/optic/lens/ripple', label: 'Ripple' },
     ] },
+    // Scene = a category of 3D-scene SETTINGS presets (same concept, different
+    // mood). The glass material is switched by the floating menu on the stage.
+    { label: 'Scene', children: SCENE_PRESETS.map((s) => ({
+      to: `/optic/scene/${s.id}`,
+      label: s.label,
+    })) },
   ] },
+  // Scanlines — cumulative-sum variable-density scanline toys. Three categories
+  // (Lines · Radial · Source), each a routed family; derived from the registry
+  // so nav + routes can't drift.
+  { id: 'scanlines', label: 'Scanlines', to: '/scanlines', icon: 'line-line', children:
+    SCANLINE_CATEGORIES.map((c) => ({
+      label: c.label,
+      children: SCANLINE_SUBPAGES[c.id].map((s) => ({ to: s.route, label: s.label })),
+    })),
+  },
 
   { section: 'Source-in' },
   { id: 'poster', label: 'Poster', to: '/poster', icon: 'image' },

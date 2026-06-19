@@ -18,7 +18,6 @@ import Input from '../../../components/atoms/Input.jsx'
 import Slider from '../../../components/atoms/Slider.jsx'
 import ToggleSwitch from '../../../components/atoms/ToggleSwitch.jsx'
 import Dropdown from '../../../components/molecules/Dropdown.jsx'
-import LabeledControl from '../../../components/molecules/LabeledControl.jsx'
 import Section from '../../../components/molecules/Section.jsx'
 import SegmentedToggle from '../../../components/molecules/SegmentedToggle.jsx'
 import ColorField from '../../../components/color/ColorField.jsx'
@@ -401,12 +400,8 @@ export default function FieldPage() {
                 <Slider labeled label="Speed" min={0.1} max={4} step={0.1} value={flowSpeed} onChange={setFlowSpeed} variant="default" />
               </Section>
               <Section label="Color">
-                <LabeledControl inline label="Low">
-                  <ColorField value={low} onChange={setLow} />
-                </LabeledControl>
-                <LabeledControl inline label="High">
-                  <ColorField value={high} onChange={setHigh} />
-                </LabeledControl>
+                <ColorField label="Low" value={low} onChange={setLow} />
+                <ColorField label="High" value={high} onChange={setHigh} />
                 <div className="flex flex-wrap gap-1">
                   {RAMPS.map(([lo, hi], i) => (
                     <button

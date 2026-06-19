@@ -26,10 +26,10 @@ const SWEEP_AXES = [
 // `onChange(key, value)` patches one param on the loop's params object.
 export default function PatternControls({ values, onChange, tab = 'pattern' }) {
   const v = values
+  // Canonical [swatch][label][hex] row — ColorField owns the label (never wrapped
+  // in a LabeledControl; see the ColorField rule).
   const colorCtl = (label, key) => (
-    <LabeledControl inline label={label}>
-      <ColorField value={v[key]} onChange={(c) => onChange(key, c)} />
-    </LabeledControl>
+    <ColorField label={label} value={v[key]} onChange={(c) => onChange(key, c)} />
   )
 
   if (tab === 'animation') {

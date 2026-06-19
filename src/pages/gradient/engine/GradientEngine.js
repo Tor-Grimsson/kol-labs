@@ -1,5 +1,4 @@
 import * as THREE from 'three'
-import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { gradientVertex, gradientFragment, bgVertex, bgFragment } from './shaders.js'
 import { resolveParams, resolveRate } from '../../../lib/exprParam.js'
@@ -52,10 +51,7 @@ export default class GradientEngine {
     this.bgBase = new THREE.Color(BG)
     this.geoms = {
       sphere: new THREE.SphereGeometry(1.02, 96, 96),
-      cube: new RoundedBoxGeometry(1.55, 1.55, 1.55, 6, 0.26),
-      torus: new THREE.TorusGeometry(0.82, 0.3, 64, 128),
-      blob: new THREE.SphereGeometry(0.95, 128, 128),
-      wave: new THREE.PlaneGeometry(2.1, 1.5, 128, 96),
+      plane: new THREE.PlaneGeometry(2.1, 1.5, 128, 96),
     }
     this.tiles = []
     this.rects = []
@@ -120,7 +116,7 @@ export default class GradientEngine {
   applySpec(tile, spec) {
     const u = tile.material.uniforms
     tile.mesh.geometry = this.geoms[spec.shape]
-    tile.mesh.rotation.set(spec.shape === 'wave' ? -0.35 : 0.12, 0, 0)
+    tile.mesh.rotation.set(spec.shape === 'plane' ? -0.35 : 0.12, 0, 0)
     u.uDistort.value = spec.distort
     u.uSeedOffset.value = spec.seed % 977
     u.uDriver.value = spec.driver
@@ -193,8 +189,8 @@ export default class GradientEngine {
       b.uIntensity.value = g.bg
       b.uStyle.value = g.bgStyle
       tile.glow.material.opacity = 0.18 + g.glow * 0.3
-      const wave = tile.spec.shape === 'wave'
-      tile.mesh.rotation.y = tile.spec.phase + this.time * tile.spec.rotSpeed * (wave ? 0.3 : 1)
+      const plane = tile.spec.shape === 'plane'
+      tile.mesh.rotation.y = tile.spec.phase + this.time * tile.spec.rotSpeed * (plane ? 0.3 : 1)
     }
 
     this.renderer.setScissorTest(false)

@@ -45,6 +45,10 @@ import { useLiveClock } from '../../lib/liveClock.jsx'
  * @param {Function} props.formatValue - Optional formatter for displayed value
  * @param {boolean} props.noExpr - Disallow expression input (numbers only)
  * @param {number} props.liveValue - Engine's current resolved value (for the readout/thumb while expression-bound)
+ * @param {boolean} props.clamp - Hard-limit TYPED input to [min,max] too. Default false:
+ *   the track (drag) is the soft range, but typing in the box accepts any number
+ *   (push a param past the slider's max — e.g. a shape that overflows the frame).
+ *   Set clamp when a value beyond the range genuinely breaks the engine.
  */
 const Slider = ({
   label,
@@ -62,6 +66,7 @@ const Slider = ({
   formatValue,
   noExpr = false,
   liveValue,
+  clamp = false,
   raised = false // value box on a raised surface → use surface-primary so it reads as an input
 }) => {
   const exprBound = !noExpr && isExpr(value)
@@ -141,9 +146,10 @@ const Slider = ({
 
     const num = Number(raw)
     if (Number.isFinite(num)) {
-      const clamped = Math.max(min, Math.min(max, num))
-      onChange(clamped)
-      setDraft(fmtNum(clamped))
+      // Track (drag) is the soft range; typing is free unless `clamp` is set.
+      const next = clamp ? Math.max(min, Math.min(max, num)) : num
+      onChange(next)
+      setDraft(fmtNum(next))
       return
     }
     // Non-numeric input.
@@ -158,7 +164,8 @@ const Slider = ({
     if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && !exprBound) {
       e.preventDefault()
       const dir = e.key === 'ArrowUp' ? 1 : -1
-      const next = Math.max(min, Math.min(max, Number(value) + dir * step))
+      const raw = Number(value) + dir * step
+      const next = clamp ? Math.max(min, Math.min(max, raw)) : raw
       if (onChange) onChange(next)
       setDraft(fmtNum(next))
       setEditing(false)

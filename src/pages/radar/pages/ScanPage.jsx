@@ -35,9 +35,7 @@ export default function ScanPage() {
             <Slider labeled label="Displace" min={0} max={2.5} step={0.05} value={p.displace} onChange={(v) => update('displace', v)} variant="default" />
             <ToggleSwitch variant="plain" label="Monochrome" checked={p.mono} onChange={(v) => update('mono', v)} />
             {p.mono && (
-              <LabeledControl inline label="Tint">
-                <ColorField value={p.tint} onChange={(c) => update('tint', c)} />
-              </LabeledControl>
+              <ColorField label="Tint" value={p.tint} onChange={(c) => update('tint', c)} />
             )}
           </Section>
 

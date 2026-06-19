@@ -1,0 +1,301 @@
+// Scanlines — cumulative-sum variable-density scanline engine. Canvas2D.
+//
+// The @polyhop "cumulative sum spacing" system, generalized. A GEOMETRY lays out
+// scan-paths (horizontal rows, vertical columns, radial rays, concentric rings,
+// or a spiral). Along each path we accumulate a local DENSITY read from a scalar
+// FIELD (fbm noise / waves / radial lens, OR an image/video/webcam luma sampler)
+// and emit a MARK every time the running sum crosses 1 — so marks bunch where the
+// field is bright and spread where it's dark. Marks render as dots, dashes, a
+// proximity-line mesh, or glyphs, optionally displaced along the path normal
+// (the draped-terrain look) and optionally woven (rows + columns together).
+
+const TAU = Math.PI * 2
+const clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v)
+const lerp = (a, b, t) => a + (b - a) * t
+
+export const PALETTES = [
+  { value: 'mono', label: 'Mono', bg: '#06070b', fg: '#f4f1ea' },
+  { value: 'cream', label: 'Cream', bg: '#f4f1ea', fg: '#14161c' },
+  { value: 'blueprint', label: 'Blueprint', bg: '#0a1628', fg: '#7fb6ff' },
+  { value: 'ember', label: 'Ember', bg: '#0b0707', fg: '#ff7a3c' },
+  { value: 'acid', label: 'Acid', bg: '#0a0d07', fg: '#c8ff4d' },
+]
+export const FIELD_OPTIONS = [
+  { value: 'noise', label: 'Noise' },
+  { value: 'waves', label: 'Waves' },
+  { value: 'radial', label: 'Radial' },
+]
+export const GEOMETRY_OPTIONS = [
+  { value: 'rows', label: 'Rows' },
+  { value: 'columns', label: 'Columns' },
+  { value: 'radial', label: 'Radial' },
+  { value: 'rings', label: 'Rings' },
+  { value: 'spiral', label: 'Spiral' },
+]
+export const MARK_OPTIONS = [
+  { value: 'dots', label: 'Dots' },
+  { value: 'dash', label: 'Dash' },
+  { value: 'lattice', label: 'Lattice' },
+  { value: 'glyph', label: 'Glyph' },
+]
+export const SOURCE_OPTIONS = [
+  { value: 'none', label: 'None' },
+  { value: 'image', label: 'Image' },
+  { value: 'video', label: 'Video' },
+  { value: 'webcam', label: 'Webcam' },
+]
+export const CHARSETS = {
+  ascii: ' .:-=+*#%@',
+  blocks: '░▒▓█',
+  binary: '01',
+  dots: '·•●',
+}
+export const CHARSET_OPTIONS = [
+  { value: 'ascii', label: 'ASCII' },
+  { value: 'blocks', label: 'Blocks' },
+  { value: 'binary', label: 'Binary' },
+  { value: 'dots', label: 'Dots' },
+]
+
+// ── seedable value noise ──────────────────────────────────────────────────
+function hash2(x, y, seed) {
+  const s = Math.sin((x + seed * 0.137) * 127.1 + (y - seed * 0.219) * 311.7) * 43758.5453
+  return s - Math.floor(s)
+}
+function vnoise(x, y, seed) {
+  const xi = Math.floor(x), yi = Math.floor(y)
+  const xf = x - xi, yf = y - yi
+  const u = xf * xf * (3 - 2 * xf)
+  const v = yf * yf * (3 - 2 * yf)
+  const a = hash2(xi, yi, seed), b = hash2(xi + 1, yi, seed)
+  const c = hash2(xi, yi + 1, seed), d = hash2(xi + 1, yi + 1, seed)
+  return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v
+}
+function fbm(x, y, seed) {
+  let v = 0, amp = 0.5, f = 1
+  for (let o = 0; o < 4; o++) { v += amp * vnoise(x * f, y * f, seed); f *= 2; amp *= 0.5 }
+  return v
+}
+
+// scalar field 0..1 at normalized (nx,ny), time t.
+function internalField(field, nx, ny, t, freq, lens, seed) {
+  const cx = nx - 0.5, cy = ny - 0.5
+  switch (field) {
+    case 'waves': {
+      const a = Math.sin((nx * freq * 2 - t) * TAU * 0.25)
+      const b = Math.sin((ny * freq * 2 + t * 0.6) * TAU * 0.25)
+      return clamp01(0.5 + 0.35 * a + 0.15 * b)
+    }
+    case 'radial': {
+      const r = Math.sqrt(cx * cx + cy * cy) * 2
+      const bulge = clamp01(1 - Math.pow(clamp01(r), Math.max(0.2, lens || 1)))
+      return clamp01(bulge * (0.78 + 0.22 * Math.sin(t)))
+    }
+    case 'noise':
+    default:
+      return clamp01(fbm(nx * freq + t * 0.3, ny * freq, seed))
+  }
+}
+
+// ── geometry: build the scan-paths ─────────────────────────────────────────
+// Each path is { pts: [{x,y,nx,ny,sl}], amp } where (nx,ny) is the unit normal
+// (displacement direction) and sl is the segment length used to advance the
+// accumulator; amp is the displacement amplitude for that path.
+function buildPaths(geo, W, H, p) {
+  const step = 2
+  const out = []
+  if (geo === 'rows' || geo === 'columns') {
+    const horiz = geo === 'rows'
+    const count = Math.max(2, Math.round(p.rows ?? 90))
+    const along = horiz ? W : H
+    const amp = (horiz ? H / count : W / count) * 2.2
+    for (let i = 0; i < count; i++) {
+      const c = (i + 0.5) / count
+      const pts = []
+      for (let s = 0; s <= along; s += step) {
+        const a = s / along
+        pts.push({ x: horiz ? a * W : c * W, y: horiz ? c * H : a * H, nx: horiz ? 0 : 1, ny: horiz ? 1 : 0, sl: step })
+      }
+      out.push({ pts, amp })
+    }
+    return out
+  }
+  const cx = W / 2, cy = H / 2
+  const maxR = Math.sqrt(cx * cx + cy * cy)
+  const unit = Math.min(W, H) / 1200
+  if (geo === 'radial') {
+    const rays = Math.max(8, Math.round(p.rayCount ?? 200))
+    const swirl = p.swirl ?? 0
+    for (let i = 0; i < rays; i++) {
+      const base = (i / rays) * TAU
+      const pts = []
+      for (let r = 4; r <= maxR; r += step) {
+        const ang = base + swirl * (r / maxR) * TAU * 0.5
+        pts.push({ x: cx + Math.cos(ang) * r, y: cy + Math.sin(ang) * r, nx: -Math.sin(ang), ny: Math.cos(ang), sl: step })
+      }
+      out.push({ pts, amp: 12 * unit })
+    }
+    return out
+  }
+  if (geo === 'rings') {
+    const rings = Math.max(3, Math.round(p.ringCount ?? 60))
+    const swirl = p.swirl ?? 0
+    for (let i = 0; i < rings; i++) {
+      const rad = ((i + 0.5) / rings) * maxR
+      const circ = TAU * rad
+      const n = Math.max(8, Math.floor(circ / step))
+      const sl = circ / n
+      const off = swirl * (rad / maxR) * TAU
+      const pts = []
+      for (let j = 0; j <= n; j++) {
+        const ang = (j / n) * TAU + off
+        pts.push({ x: cx + Math.cos(ang) * rad, y: cy + Math.sin(ang) * rad, nx: Math.cos(ang), ny: Math.sin(ang), sl })
+      }
+      out.push({ pts, amp: (maxR / rings) * 1.6 })
+    }
+    return out
+  }
+  // spiral — one (or a few) arms
+  const arms = Math.max(1, Math.round(p.arms ?? 1))
+  const turns = Math.max(0.5, p.turns ?? 6)
+  for (let a = 0; a < arms; a++) {
+    const armOff = (a / arms) * TAU
+    const pts = []
+    let r = 4
+    while (r <= maxR) {
+      const u = r / maxR
+      const ang = armOff + u * turns * TAU
+      const dAng = (step / maxR) * turns * TAU
+      pts.push({ x: cx + Math.cos(ang) * r, y: cy + Math.sin(ang) * r, nx: Math.cos(ang), ny: Math.sin(ang), sl: Math.sqrt(step * step + (r * dAng) * (r * dAng)) })
+      r += step
+    }
+    out.push({ pts, amp: 12 * unit })
+  }
+  return out
+}
+
+const hexRgb = (h) => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255] }
+
+// ── mark renderers ─────────────────────────────────────────────────────────
+function strokePolyline(ctx, marks) {
+  ctx.beginPath()
+  for (let i = 0; i < marks.length; i++) {
+    const m = marks[i]
+    if (i === 0) ctx.moveTo(m.x, m.y); else ctx.lineTo(m.x, m.y)
+  }
+  ctx.stroke()
+}
+// proximity lines between two ordered mark lists, nearest by primary axis
+function crossConnect(ctx, marks, prev, axis, maxDist) {
+  if (!prev || !prev.length) return
+  let j = 0
+  ctx.beginPath()
+  for (let i = 0; i < marks.length; i++) {
+    const m = marks[i], k0 = axis === 'x' ? m.x : m.y
+    while (j < prev.length - 1 && (axis === 'x' ? prev[j + 1].x : prev[j + 1].y) < k0) j++
+    let k = j
+    if (j + 1 < prev.length) {
+      const dA = Math.abs((axis === 'x' ? prev[j].x : prev[j].y) - k0)
+      const dB = Math.abs((axis === 'x' ? prev[j + 1].x : prev[j + 1].y) - k0)
+      if (dB < dA) k = j + 1
+    }
+    const pp = prev[k]
+    if (Math.abs((axis === 'x' ? pp.x : pp.y) - k0) < maxDist) { ctx.moveTo(m.x, m.y); ctx.lineTo(pp.x, pp.y) }
+  }
+  ctx.stroke()
+}
+
+export function renderScanlines(canvas, p, t) {
+  const ctx = canvas.getContext('2d')
+  const W = canvas.width, H = canvas.height
+  const pal = PALETTES.find((x) => x.value === p.palette) || PALETTES[0]
+  ctx.fillStyle = pal.bg
+  ctx.fillRect(0, 0, W, H)
+  ctx.fillStyle = pal.fg
+  ctx.strokeStyle = pal.fg
+
+  const seed = p.seed || 0
+  const freq = (p.freq ?? 1) * 3
+  const contrast = p.contrast ?? 1
+  const minGap = Math.max(1, p.minGap ?? 5)
+  const maxGap = Math.max(minGap + 1, p.maxGap ?? 24)
+  const invert = !!p.invert
+  const sample = p.sample
+  const unit = Math.min(W, H) / 1200
+  const markSize = (p.markSize ?? 1) * unit
+  const displace = p.displace ?? 0
+  const mark = p.mark || 'dots'
+
+  const fieldAt = (x, y) => {
+    let f = sample ? sample(x / W, y / H) : internalField(p.field, x / W, y / H, t, freq, p.lens, seed)
+    if (invert) f = 1 - f
+    if (contrast !== 1) f = clamp01(Math.pow(clamp01(f), contrast))
+    return clamp01(f)
+  }
+
+  // geometry list (weave runs rows + columns together)
+  const geos = p.weave && (p.geometry === 'rows' || p.geometry === 'columns')
+    ? ['rows', 'columns']
+    : [p.geometry || 'rows']
+
+  if (mark === 'glyph') {
+    const fs = (p.geometry === 'rows' || p.geometry === 'columns')
+      ? (p.fontScale ?? 1) * (Math.min(W, H) / Math.max(2, Math.round(p.rows ?? 90))) * 1.05
+      : (p.fontScale ?? 1) * 16 * unit
+    ctx.font = `${fs.toFixed(1)}px ui-monospace, "SFMono-Regular", Menlo, monospace`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+  }
+  const set = CHARSETS[p.charset] || CHARSETS.ascii
+  const dashLen = (p.dashLen ?? 1) * 7
+  const canCross = mark === 'lattice'
+
+  for (const geo of geos) {
+    const paths = buildPaths(geo, W, H, p)
+    const crossAxis = geo === 'rows' ? 'x' : geo === 'columns' ? 'y' : null
+    let prev = null
+    for (let li = 0; li < paths.length; li++) {
+      const { pts, amp } = paths[li]
+      const marks = []
+      let acc = 0
+      for (let k = 0; k < pts.length; k++) {
+        const pt = pts[k]
+        const f = fieldAt(pt.x, pt.y)
+        acc += pt.sl / lerp(maxGap, minGap, f)
+        if (acc >= 1) {
+          acc -= 1
+          const d = displace ? (f - 0.5) * displace * amp : 0
+          marks.push({ x: pt.x + (d ? pt.nx * d : 0), y: pt.y + (d ? pt.ny * d : 0), f })
+        }
+      }
+      if (mark === 'lattice') {
+        ctx.lineWidth = Math.max(0.5, markSize * 0.9)
+        strokePolyline(ctx, marks)
+        if (crossAxis) crossConnect(ctx, marks, prev, crossAxis, amp)
+        prev = canCross && crossAxis ? marks : null
+      } else if (mark === 'glyph') {
+        for (const m of marks) {
+          const ch = set[Math.min(set.length - 1, Math.max(0, Math.floor(m.f * set.length)))]
+          if (ch !== ' ') ctx.fillText(ch, m.x, m.y)
+        }
+      } else if (mark === 'dash') {
+        ctx.lineWidth = Math.max(0.8, markSize * 1.4)
+        ctx.beginPath()
+        for (const m of marks) {
+          const half = dashLen * (0.35 + 0.65 * m.f) * unit
+          ctx.moveTo(m.x - half, m.y); ctx.lineTo(m.x + half, m.y)
+        }
+        ctx.stroke()
+      } else {
+        const base = markSize * 1.6
+        for (const m of marks) {
+          const rad = base * (0.45 + m.f)
+          if (rad < 0.3) continue
+          ctx.beginPath(); ctx.arc(m.x, m.y, rad, 0, TAU); ctx.fill()
+        }
+      }
+    }
+  }
+}
+
+export { hexRgb }

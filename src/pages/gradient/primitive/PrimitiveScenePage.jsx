@@ -303,7 +303,7 @@ export default function PrimitiveScenePage() {
         footerBare
         header={
           <>
-            <RailHeader>Primitive Scene</RailHeader>
+            <RailHeader>Primitive</RailHeader>
 
             <SegmentedToggle
               value={panel}
@@ -404,9 +404,7 @@ export default function PrimitiveScenePage() {
                 <LabeledControl inline label="type">
                   <Dropdown size="sm" variant="subtle" className="w-full" options={MATERIAL_TYPES} value={materialType} onChange={setMaterialType} />
                 </LabeledControl>
-                <LabeledControl inline label="Color">
-                  <ColorField value={color} onChange={setColor} />
-                </LabeledControl>
+                <ColorField label="Color" value={color} onChange={setColor} />
                 <ToggleSwitch variant="plain" label="Flat shading" checked={flatShading} onChange={setFlatShading} />
                 <ToggleSwitch variant="plain" label="Environment" checked={environment} onChange={setEnvironment} />
                 <Slider labeled label="Roughness" min={0} max={1} step={0.02} value={roughness} onChange={setRoughness} variant="default" />

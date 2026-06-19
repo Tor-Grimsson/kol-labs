@@ -98,30 +98,82 @@ export const PATTERN_PRESETS = [
     spin: 1, rules: [R({ selectKind: 'checker' })],
     animAxis: 'diag', animWaves: 2, pulse: 0.4, swing: 60, colorMix: 0.5,
   }, 'Abstract'),
-  // Flow & spin
+  // Flow
   P('star-scatter', 'Star scatter', {
     shape: 'prim:star', cols: 7, rows: 7, cell: 110, gap: 16, color: '#f6c453', color2: '#c2502e', bg: '#0b0b0e',
     camFlow: 0, rules: [R({ selectKind: 'every-nth', n: 3, hide: true }), R({ selectKind: 'checker', opacity: 0.5, rotate: 36 })],
     animAxis: 'radial', animWaves: 3, pulse: 0.5, swing: 36, colorMix: 0.5,
-  }, 'Flow & spin'),
+  }, 'Flow'),
   P('bar-scroll', 'Bar scroll', {
     shape: 'prim:bar', cols: 6, rows: 10, cell: 110, gap: 8, color: '#e8e4dc', color2: '#7fd1ff', bg: '#1b2a6b',
     camAngle: 90, camFlow: 1, rules: [R({ selectKind: 'every-row', n: 2, opacity: 0.6 })],
     animAxis: 'row', animWaves: 4, fade: 0.6, pulse: 0.3,
-  }, 'Flow & spin'),
+  }, 'Flow'),
   P('circle-rings', 'Circle rings', {
     shape: 'prim:circle', cols: 9, rows: 9, cell: 110, gap: 6, color: '#7fd1ff', color2: '#f6c453', bg: '#06060a',
     camFlow: 0, rules: [R({ selectKind: 'expression', expression: 'sin((col - 4) * (col - 4) + (row - 4) * (row - 4))' })],
     animAxis: 'radial', animWaves: 3, pulse: 0.6, colorMix: 0.6,
-  }, 'Flow & spin'),
+  }, 'Flow'),
   P('hex-flow', 'Hex flow', {
     shape: 'prim:hexagon', cols: 6, rows: 6, cell: 120, gap: 10, color: '#2a8f8f', color2: '#f6c453', bg: '#0e0e11',
     camFlow: 1, spin: 1, rules: [R({ selectKind: 'all', opacity: 0.85 })],
     animAxis: 'diag', animWaves: 2, pulse: 0.4, swing: 30, colorMix: 0.5,
-  }, 'Flow & spin'),
+  }, 'Flow'),
   P('diamond-zoom', 'Diamond zoom', {
     shape: 'prim:diamond', cols: 4, rows: 4, cell: 130, gap: 30, color: '#c2502e', color2: '#f6c453', bg: '#0b0b0e',
     camZoom: 2, camFlow: 1, rules: [R({ selectKind: 'checker', rotate: 45 })],
     animAxis: 'radial', animWaves: 3, pulse: 0.5, swing: 45, colorMix: 0.6,
-  }, 'Flow & spin'),
+  }, 'Flow'),
+  // Stripes — directional bar fields, animated along the stripe axis
+  P('vertical-bars', 'Vertical bars', {
+    shape: 'prim:bar', cols: 9, rows: 6, cell: 110, gap: 10, color: '#e8e4dc', color2: '#7fd1ff', bg: '#0b0b0e',
+    camFlow: 0, rules: [R({ selectKind: 'every-col', n: 2, rotate: 90, opacity: 0.55 })],
+    animAxis: 'col', animWaves: 4, fade: 0.6, pulse: 0.3,
+  }, 'Stripes'),
+  P('horizontal-scan', 'Horizontal scan', {
+    shape: 'prim:bar', cols: 6, rows: 9, cell: 110, gap: 10, color: '#f6c453', color2: '#c2502e', bg: '#06060a',
+    camFlow: 0, rules: [R({ selectKind: 'every-row', n: 2 })],
+    animAxis: 'row', animWaves: 4, fade: 0.7, swing: 12,
+  }, 'Stripes'),
+  P('diagonal-stripes', 'Diagonal stripes', {
+    shape: 'prim:square', cols: 8, rows: 8, cell: 110, gap: 4, color: '#7fd1ff', color2: '#f6c453', bg: '#0e0e11',
+    camFlow: 0, rules: [R({ selectKind: 'expression', expression: 'sin((col + row) * 0.9)', rotate: 45 })],
+    animAxis: 'diag', animWaves: 4, pulse: 0.35, colorMix: 0.5,
+  }, 'Stripes'),
+  P('thick-thin', 'Thick / thin', {
+    shape: 'prim:bar', cols: 10, rows: 5, cell: 110, gap: 6, color: '#c2502e', color2: '#f6c453', bg: '#0b0b0e',
+    camFlow: 0, rules: [R({ selectKind: 'every-col', n: 3, rotate: 90, groupW: 1 })],
+    animAxis: 'col', animWaves: 3, fade: 0.5, pulse: 0.4,
+  }, 'Stripes'),
+  P('bar-weave-2', 'Bar weave', {
+    shape: 'prim:bar', cols: 8, rows: 8, cell: 110, gap: 8, color: '#2a8f8f', color2: '#f4f1ea', bg: '#06060a',
+    camFlow: 0, rules: [R({ selectKind: 'every-col', n: 2, rotate: 90 }), R({ selectKind: 'every-row', n: 2, opacity: 0.7 })],
+    animAxis: 'diag', animWaves: 3, fade: 0.5, colorMix: 0.4,
+  }, 'Stripes'),
+  // Noise — scattered, hash-driven selection for a static / grain feel
+  P('scatter-dots', 'Scatter dots', {
+    shape: 'prim:circle', cols: 10, rows: 10, cell: 100, gap: 8, color: '#fcfbf8', color2: '#7fd1ff', bg: '#0b0b0e',
+    camFlow: 0, rules: [R({ selectKind: 'expression', expression: 'sin(col * 12.9 + row * 7.3)', hide: true })],
+    animAxis: 'radial', animWaves: 5, pulse: 0.5, colorMix: 0.4,
+  }, 'Noise'),
+  P('static-grain', 'Static grain', {
+    shape: 'prim:square', cols: 12, rows: 12, cell: 90, gap: 2, color: '#e8e4dc', color2: '#6b6b6b', bg: '#06060a',
+    camFlow: 0, rules: [R({ selectKind: 'expression', expression: 'cos(col * 8.1) * sin(row * 5.7)', opacity: 0.5 })],
+    animAxis: 'diag', animWaves: 6, fade: 0.6, colorMix: 0.5,
+  }, 'Noise'),
+  P('sparse-plus', 'Sparse plus', {
+    shape: 'prim:plus', cols: 9, rows: 9, cell: 110, gap: 6, color: '#f6c453', color2: '#c2502e', bg: '#0e0e11',
+    camFlow: 0, rules: [R({ selectKind: 'every-nth', n: 5, hide: true }), R({ selectKind: 'expression', expression: 'sin(col * 4.3 - row * 6.1)', rotate: 45 })],
+    animAxis: 'radial', animWaves: 4, pulse: 0.45, swing: 45,
+  }, 'Noise'),
+  P('flicker-cells', 'Flicker cells', {
+    shape: 'prim:diamond', cols: 10, rows: 10, cell: 100, gap: 6, color: '#7fd1ff', color2: '#8f5ad0', bg: '#06060a',
+    camFlow: 0, rules: [R({ selectKind: 'expression', expression: 'sin(col * 9.7) + cos(row * 11.3)', opacity: 0.6 })],
+    animAxis: 'diag', animWaves: 7, pulse: 0.6, fade: 0.4, colorMix: 0.6,
+  }, 'Noise'),
+  P('hash-field', 'Hash field', {
+    shape: 'prim:square', cols: 11, rows: 11, cell: 95, gap: 3, color: '#2a8f8f', color2: '#f6c453', bg: '#0b0b0e',
+    camFlow: 0, rules: [R({ selectKind: 'expression', expression: 'sin(col * 6.7 + row * 13.1) * cos(col * 3.3)', rotate: 90 })],
+    animAxis: 'col', animWaves: 6, fade: 0.5, pulse: 0.35, colorMix: 0.5,
+  }, 'Noise'),
 ]

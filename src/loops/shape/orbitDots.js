@@ -10,8 +10,8 @@ export default {
   duration: 7,
   params: [
     { key: 'bg', label: 'Background', type: 'color', role: 'bg', default: '#0b0b0e' },
-    { key: 'colA', label: 'Colour · inner', type: 'color', role: 'fg', default: '#e8e4dc' },
-    { key: 'colB', label: 'Colour · outer', type: 'color', role: 'accent', default: '#5a7fb0' },
+    { key: 'colA', label: 'Colour A', type: 'color', role: 'fg', default: '#e8e4dc' },
+    { key: 'colB', label: 'Colour B', type: 'color', role: 'accent', default: '#5a7fb0' },
     { key: 'rings', label: 'Rings', type: 'range', min: 2, max: 10, step: 1, default: 6, noRandom: true },
     { key: 'dotsPer', label: 'Dots / ring', type: 'range', min: 1, max: 6, step: 1, default: 1, noRandom: true },
     { key: 'size', label: 'Reach', type: 'range', min: 0.5, max: 0.95, step: 0.02, default: 0.88 },

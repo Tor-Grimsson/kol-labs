@@ -1,6 +1,6 @@
 /* Palette presets + shape/driver registries + a small hue-shift util. */
 
-export const SHAPES = ['sphere', 'cube', 'torus', 'blob', 'wave']
+export const SHAPES = ['sphere', 'plane']
 
 export const DRIVERS = [
   { id: 0, label: 'normal' },

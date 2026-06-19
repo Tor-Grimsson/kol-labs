@@ -1,6 +1,6 @@
 // Parametric point-cloud forms — the helix + 7 "creatures" ported from the
 // interfaces lofi widgets (creature3d / helix), here as real 3D point clouds for
-// the de-lofi'd /3d-scene/forms page. Each grid form is a pure fn (u,v,ph)->[x,y,z]
+// the de-lofi'd /forms pages. Each grid form is a pure fn (u,v,ph)->[x,y,z]
 // over a samples×samples grid; helix is two twisting strands. `ph` is the loop
 // phase in radians (= u_playhead · TAU · cycles), so every time term completes
 // integer cycles per loop → the webm export is seamless.

@@ -20,7 +20,7 @@ const VERT = `
 const FRAG = `
   precision highp float;
   varying vec2 vUv;
-  uniform float uTime, uWarp, uGrain, uDuotone, uSheen, uAspect;
+  uniform float uTime, uWarp, uGrain, uDuotone, uSheen, uAspect, uContrast;
   uniform vec3 uColors[5];
 
   float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
@@ -55,6 +55,9 @@ const FRAG = `
 
     if(uDuotone>0.5){ float l=dot(col, vec3(0.299,0.587,0.114)); col=mix(uColors[0], uColors[4], l); }
 
+    // contrast around mid-grey
+    col = clamp((col - 0.5) * uContrast + 0.5, 0.0, 1.0);
+
     float g = (hash(vUv*vec2(1920.0,1080.0)+uTime)-0.5)*uGrain;
     col += g;
 
@@ -86,6 +89,7 @@ export class MeshGradientEngine {
       uDuotone: { value: 0 },
       uSheen: { value: 0.6 },
       uAspect: { value: 1 },
+      uContrast: { value: 1 },
       uColors: { value: MG_PALETTES[0].cols.map(toVec3) },
     }
     this.mat = new THREE.ShaderMaterial({ vertexShader: VERT, fragmentShader: FRAG, uniforms: this.uniforms })
@@ -104,6 +108,7 @@ export class MeshGradientEngine {
     if (p.grain != null) this.uniforms.uGrain.value = p.grain
     if (p.duotone != null) this.uniforms.uDuotone.value = p.duotone ? 1 : 0
     if (p.sheen != null) this.uniforms.uSheen.value = p.sheen
+    if (p.contrast != null) this.uniforms.uContrast.value = p.contrast
     if (p.speed != null) this.speed = p.speed
     if (p.palette != null) {
       const pal = MG_PALETTES.find((x) => x.value === p.palette) || MG_PALETTES[0]

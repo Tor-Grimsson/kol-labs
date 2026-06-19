@@ -4,7 +4,7 @@ import { VIEW_ASPECTS, defaultAspectFor, DEFAULT_SCALE, ratioFor, dimsFor } from
 import EditorRail, { RailHeader } from '../../../components/framework/EditorRail.jsx'
 import EditorFooter from '../../../components/framework/EditorFooter.jsx'
 import Section from '../../../components/molecules/Section.jsx'
-import Dropdown from '../../../components/molecules/Dropdown.jsx'
+import SegmentedToggle from '../../../components/molecules/SegmentedToggle.jsx'
 import Slider from '../../../components/atoms/Slider.jsx'
 import ToggleSwitch from '../../../components/atoms/ToggleSwitch.jsx'
 import Button from '../../../components/atoms/Button.jsx'
@@ -20,6 +20,9 @@ export default function HalftonePage() {
   const [shape, setShape] = useState('dot')
   const [density, setDensity] = useState(34)
   const [dotScale, setDotScale] = useState(1)
+  const [fieldScale, setFieldScale] = useState(1)
+  const [contrast, setContrast] = useState(1)
+  const [rotate, setRotate] = useState(0)
   const [palette, setPalette] = useState('drekker')
   const [invert, setInvert] = useState(false)
   const [light, setLight] = useState(false)
@@ -30,7 +33,7 @@ export default function HalftonePage() {
   const [footTab, setFootTab] = useState('transport')
 
   const bg = light ? '#f4f1ea' : '#06070b'
-  const params = { field, layout, shape, density, dotScale, palette, bg, invert }
+  const params = { field, layout, shape, density, dotScale, fieldScale, contrast, rotate, palette, bg, invert }
 
   useEffect(() => {
     const cv = canvasRef.current
@@ -54,7 +57,7 @@ export default function HalftonePage() {
     }
     raf = requestAnimationFrame(loop)
     return () => { alive = false; cancelAnimationFrame(raf) }
-  }, [field, layout, shape, density, dotScale, palette, bg, invert, playing, tempo, aspect]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [field, layout, shape, density, dotScale, fieldScale, contrast, rotate, palette, bg, invert, playing, tempo, aspect]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const exportPng = () => {
     const dd = dimsFor(aspect, Number(scale)) || { w: canvasRef.current.width, h: canvasRef.current.height }
@@ -73,10 +76,10 @@ export default function HalftonePage() {
     }, 'image/png')
   }
 
-  const getSettings = () => ({ field, layout, shape, density, dotScale, palette, invert, light, aspect, scale })
+  const getSettings = () => ({ field, layout, shape, density, dotScale, fieldScale, contrast, rotate, palette, invert, light, aspect, scale })
   const applySettings = (s) => {
     for (const [k, v] of Object.entries(s)) {
-      ({ field: setField, layout: setLayout, shape: setShape, density: setDensity, dotScale: setDotScale, palette: setPalette, invert: setInvert, light: setLight, aspect: setAspect, scale: setScale }[k]?.(v))
+      ({ field: setField, layout: setLayout, shape: setShape, density: setDensity, dotScale: setDotScale, fieldScale: setFieldScale, contrast: setContrast, rotate: setRotate, palette: setPalette, invert: setInvert, light: setLight, aspect: setAspect, scale: setScale }[k]?.(v))
     }
   }
 
@@ -112,19 +115,25 @@ export default function HalftonePage() {
         }
       >
         <Section label="Field">
-          <Dropdown size="sm" options={FIELD_OPTIONS} value={field} onChange={setField} variant="subtle" className="w-full" />
-          <Dropdown size="sm" options={LAYOUT_OPTIONS} value={layout} onChange={setLayout} variant="subtle" className="w-full" />
-          <Dropdown size="sm" options={SHAPE_OPTIONS} value={shape} onChange={setShape} variant="subtle" className="w-full" />
+          <SegmentedToggle options={FIELD_OPTIONS} value={field} onChange={setField} className="w-full" />
+          <Slider labeled label="Field Scale" min={0.2} max={4} step={0.05} value={fieldScale} onChange={setFieldScale} variant="default" />
+          <Slider labeled label="Contrast" min={0.3} max={4} step={0.05} value={contrast} onChange={setContrast} variant="default" />
+          <Slider labeled label="Rotate" min={0} max={360} step={1} value={rotate} onChange={setRotate} variant="default" />
         </Section>
 
-        <Section label="Pattern">
+        <Section label="Grid">
+          <SegmentedToggle options={LAYOUT_OPTIONS} value={layout} onChange={setLayout} className="w-full" />
           <Slider labeled label="Density" min={4} max={80} step={1} value={density} onChange={setDensity} variant="default" noExpr />
+        </Section>
+
+        <Section label="Cell">
+          <SegmentedToggle options={SHAPE_OPTIONS} value={shape} onChange={setShape} className="w-full" />
           <Slider labeled label="Dot Scale" min={0.2} max={2} step={0.05} value={dotScale} onChange={setDotScale} variant="default" />
           <ToggleSwitch variant="plain" label="Invert" checked={invert} onChange={setInvert} />
         </Section>
 
         <Section label="Color">
-          <Dropdown size="sm" options={PALETTES.map((p) => ({ value: p.value, label: p.label }))} value={palette} onChange={setPalette} variant="subtle" className="w-full" />
+          <SegmentedToggle options={PALETTES.map((p) => ({ value: p.value, label: p.label }))} value={palette} onChange={setPalette} className="w-full" />
           <ToggleSwitch variant="plain" label="Light bg" checked={light} onChange={setLight} />
         </Section>
       </EditorRail>

@@ -122,20 +122,23 @@ export default function SideNav({ drawerOpen = false, onCloseDrawer, navTree = [
   const onPageRoot = activePage && pathname === activePage.to
   const activeSectionId = useScrollSpy(onPageRoot ? sectionIds : [])
 
-  // Per-page child expand/collapse: clicking the active page toggles its
-  // children open/closed; navigating to a page (re)expands it.
-  const [collapsedPages, setCollapsedPages] = useState(() => new Set())
-  const togglePage = (page, isActivePage) => (e) => {
-    if (!page.children) return
-    if (isActivePage) e.preventDefault() // already here — just toggle, don't re-navigate
-    setCollapsedPages((prev) => {
+  // Clicking a parent reveals its children WITHOUT navigating — you stay on the
+  // current page and just peek at another section's pages (navigate via a child).
+  // `expandedPages` tracks which parents are open; the active page auto-expands.
+  const [expandedPages, setExpandedPages] = useState(
+    () => new Set(activePage?.children ? [activePage.id] : []),
+  )
+  useEffect(() => {
+    if (!activePage?.children) return
+    setExpandedPages((prev) => (prev.has(activePage.id) ? prev : new Set(prev).add(activePage.id)))
+  }, [activePage?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+  const toggleExpand = (page) => (e) => {
+    if (!page.children) return // leaf hop → navigate normally
+    e.preventDefault() // parent with children → toggle open, stay put
+    setExpandedPages((prev) => {
       const next = new Set(prev)
-      if (isActivePage) {
-        if (next.has(page.id)) next.delete(page.id)
-        else next.add(page.id)
-      } else {
-        next.delete(page.id) // fresh navigation → expand
-      }
+      if (next.has(page.id)) next.delete(page.id)
+      else next.add(page.id)
       return next
     })
   }
@@ -179,13 +182,12 @@ export default function SideNav({ drawerOpen = false, onCloseDrawer, navTree = [
                 </li>
               )
             }
-            const isActivePage = activePage?.id === page.id
             return (
               <li key={page.id ?? `n-${idx}`}>
                 <NavLink
                   to={page.to}
                   end={page.to === '/'}
-                  onClick={togglePage(page, isActivePage)}
+                  onClick={toggleExpand(page)}
                   className={({ isActive }) =>
                     `kol-sidenav-hop kol-helper-12 relative flex items-center gap-3 py-2 pr-10 pl-6 no-underline${isActive ? ' is-active' : ''}`
                   }
@@ -197,7 +199,7 @@ export default function SideNav({ drawerOpen = false, onCloseDrawer, navTree = [
                   {page.children && (
                     <span
                       className="kol-sidenav-hop-caret absolute right-3 inline-flex items-center justify-center text-meta transition-transform duration-150"
-                      style={{ transform: (isActivePage && !collapsedPages.has(page.id)) ? 'rotate(90deg)' : 'none' }}
+                      style={{ transform: expandedPages.has(page.id) ? 'rotate(90deg)' : 'none' }}
                       aria-hidden="true"
                     >
                       <Icon name="chevron-right" size={12} />
@@ -205,7 +207,7 @@ export default function SideNav({ drawerOpen = false, onCloseDrawer, navTree = [
                   )}
                 </NavLink>
 
-                {isActivePage && page.children && !collapsedPages.has(page.id) && (
+                {page.children && expandedPages.has(page.id) && (
                   <ul className="kol-sidenav-list mb-2 flex flex-col gap-2">
                     {page.children.map((child, i) => (
                       <ChildNode

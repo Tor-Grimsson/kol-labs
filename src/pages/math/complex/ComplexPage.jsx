@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { usePublishReset } from '../../../components/framework/pageShortcuts.jsx'
+import { usePublishReset, usePublishShortcuts } from '../../../components/framework/pageShortcuts.jsx'
 import { VIEW_ASPECTS, DEFAULT_ASPECT, defaultAspectFor, DEFAULT_SCALE, ratioFor, dimsFor } from '../../_shared/exportSpecs.js'
 import { defaultTheme, defaultAutoplay } from '../../../lib/appSettings.js'
 import { mulberry32, randomSeed } from '../../../lib/rng.js'
@@ -141,12 +141,15 @@ export default function ComplexPage() {
     reset: () => { setCenter({ x: 0, y: 0 }); setRange(6) },
   })
   usePublishReset(() => { setCenter({ x: 0, y: 0 }); setRange(6) })
+  usePublishShortcuts('Complex', [['drag', 'pan'], ['wheel', 'zoom'], ['= / −', 'zoom in/out'], ['0', 'reset view'], ['space', 'play / pause']])
   const [coloring, setColoring] = useState('rings')
   const [quality, setQuality] = useState('1700')
   const [aspect, setAspect] = useState(() => defaultAspectFor('view'))
   const [scale, setScale] = useState(DEFAULT_SCALE)
   const [playing, setPlaying] = useState(() => defaultAutoplay())
   const [tempo, setTempo] = useState(120)
+  const [hueSpeed, setHueSpeed] = useState(1)
+  const [ringSpeed, setRingSpeed] = useState(1)
   const [tab, setTab] = useState('function')
   const [footTab, setFootTab] = useState('transport') // Transport · Output · File
   const [style, patchStyle, applyTheme] = useMathStyle({ axis: 'none' })
@@ -189,8 +192,12 @@ export default function ComplexPage() {
   const stateRef = useRef({})
   const playingRef = useRef(playing)
   const tempoRef = useRef(tempo)
+  const hueSpeedRef = useRef(hueSpeed)
+  const ringSpeedRef = useRef(ringSpeed)
   playingRef.current = playing
   tempoRef.current = tempo
+  hueSpeedRef.current = hueSpeed
+  ringSpeedRef.current = ringSpeed
   const fn = (FUNCS.find((f) => f.id === funcId) || DEFAULT_FUNC).f
   stateRef.current = { f: fn, cx: center.x, cy: center.y, range, coloring, aspect, style, cap: Number(quality) }
 
@@ -268,8 +275,8 @@ export default function ComplexPage() {
       last = now
       if (playingRef.current && fieldRef.current) {
         const s = tempoRef.current / 240
-        huePhaseRef.current = (huePhaseRef.current + dt * 0.08 * s) % 1
-        ringPhaseRef.current -= dt * 0.25 * s // rings flow inward toward the zeros
+        huePhaseRef.current = (huePhaseRef.current + dt * 0.08 * s * hueSpeedRef.current) % 1
+        ringPhaseRef.current -= dt * 0.25 * s * ringSpeedRef.current
         paintNow(cv.getContext('2d'))
       }
       raf = requestAnimationFrame(tick)
@@ -324,7 +331,6 @@ export default function ComplexPage() {
         </div>
         <div className="pointer-events-none absolute left-5 top-5">
           <div className="kol-helper-12 text-emphasis">f(z) = {funcLabel}</div>
-          <div className="kol-helper-10 text-meta" style={{ marginTop: 2 }}>domain coloring · drag to pan · wheel to zoom</div>
         </div>
       </div>
 
@@ -333,7 +339,7 @@ export default function ComplexPage() {
         header={(
           <>
             <RailHeader>Complex</RailHeader>
-            <SegmentedToggle value={tab} onChange={setTab} options={[{ value: 'function', label: 'Function' }, { value: 'style', label: 'Style' }]} />
+            <SegmentedToggle value={tab} onChange={setTab} options={[{ value: 'function', label: 'Function' }, { value: 'animate', label: 'Animate' }, { value: 'style', label: 'Style' }]} />
           </>
         )}
         footer={
@@ -382,8 +388,14 @@ export default function ComplexPage() {
               <Button variant="primary" size="sm" onClick={() => { setCenter({ x: 0, y: 0 }); setRange(6) }}>Reset view</Button>
             </Section>
 
-            <div className="kol-helper-10 text-body">hue = arg f(z) · brightness = |f| rings · play = phase + ring flow</div>
           </>
+        )}
+
+        {tab === 'animate' && (
+          <Section label="Animation">
+            <Slider labeled label="Hue speed" min={0} max={3} step={0.1} value={hueSpeed} onChange={setHueSpeed} variant="default" />
+            <Slider labeled label="Ring speed" min={0} max={3} step={0.1} value={ringSpeed} onChange={setRingSpeed} variant="default" />
+          </Section>
         )}
 
         {tab === 'style' && (

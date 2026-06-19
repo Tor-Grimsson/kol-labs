@@ -19,6 +19,7 @@ export default function GradientFieldPage() {
   const [warp, setWarp] = useState(0.35)
   const [grain, setGrain] = useState(0.04)
   const [sheen, setSheen] = useState(0.6)
+  const [contrast, setContrast] = useState(1)
   const [duotone, setDuotone] = useState(false)
   const [playing, setPlaying] = useState(true)
   const [tempo, setTempo] = useState(120)
@@ -53,7 +54,7 @@ export default function GradientFieldPage() {
     engineRef.current?.resize(w, h)
   }, [aspect])
 
-  useEffect(() => { engineRef.current?.setParams({ palette, warp, grain, sheen, duotone, speed: tempo / 120 }) }, [palette, warp, grain, sheen, duotone, tempo])
+  useEffect(() => { engineRef.current?.setParams({ palette, warp, grain, sheen, contrast, duotone, speed: tempo / 120 }) }, [palette, warp, grain, sheen, contrast, duotone, tempo])
   useEffect(() => { engineRef.current?.setPlaying(playing) }, [playing])
 
   const exportPng = async () => {
@@ -68,12 +69,13 @@ export default function GradientFieldPage() {
     URL.revokeObjectURL(url)
   }
 
-  const getSettings = () => ({ palette, warp, grain, sheen, duotone, aspect, scale })
+  const getSettings = () => ({ palette, warp, grain, sheen, contrast, duotone, aspect, scale })
   const applySettings = (s) => {
     if (s.palette != null) setPalette(s.palette)
     if (s.warp != null) setWarp(s.warp)
     if (s.grain != null) setGrain(s.grain)
     if (s.sheen != null) setSheen(s.sheen)
+    if (s.contrast != null) setContrast(s.contrast)
     if (s.duotone != null) setDuotone(s.duotone)
     if (s.aspect != null) setAspect(s.aspect)
     if (s.scale != null) setScale(s.scale)
@@ -117,6 +119,7 @@ export default function GradientFieldPage() {
         </Section>
 
         <Section label="Grade">
+          <Slider labeled label="Contrast" min={0.3} max={2.5} step={0.05} value={contrast} onChange={setContrast} variant="default" />
           <Slider labeled label="Grain" min={0} max={0.2} step={0.005} value={grain} onChange={setGrain} variant="default" />
           <ToggleSwitch variant="plain" label="Duotone" checked={duotone} onChange={setDuotone} />
         </Section>

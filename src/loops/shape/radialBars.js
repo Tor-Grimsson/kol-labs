@@ -10,8 +10,8 @@ export default {
   duration: 6,
   params: [
     { key: 'bg', label: 'Background', type: 'color', role: 'bg', default: '#0b0b0e' },
-    { key: 'colA', label: 'Colour · short', type: 'color', role: 'accent', default: '#1c2740' },
-    { key: 'colB', label: 'Colour · long', type: 'color', role: 'fg', default: '#e8e4dc' },
+    { key: 'colA', label: 'Colour A', type: 'color', role: 'accent', default: '#1c2740' },
+    { key: 'colB', label: 'Colour B', type: 'color', role: 'fg', default: '#e8e4dc' },
     { key: 'count', label: 'Spokes', type: 'range', min: 6, max: 64, step: 1, default: 32, noRandom: true },
     { key: 'minR', label: 'Inner', type: 'range', min: 0.05, max: 0.4, step: 0.01, default: 0.15 },
     { key: 'maxR', label: 'Outer', type: 'range', min: 0.4, max: 0.95, step: 0.01, default: 0.85 },

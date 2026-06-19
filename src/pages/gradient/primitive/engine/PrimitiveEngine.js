@@ -10,6 +10,7 @@ import { sampleKeyframes } from '../data/keyframes.js'
 import { layout } from '../data/composition.js'
 import * as audio from '../lib/audio.js'
 import { resolveParams, resolveRate } from '../../../../lib/exprParam.js'
+import { SpotLightLayer, SPOTLIGHT_DEFAULTS } from '../../../../lib/spotLight.js'
 
 /* PrimitiveEngine — a small 3D motion studio. N instanced items (shared geometry
  * + material + wireframe) are placed by an arrangement and animated by a preset
@@ -63,6 +64,9 @@ export default class PrimitiveEngine {
     this.pmrem = new THREE.PMREMGenerator(this.renderer)
     this.envTex = null
 
+    // Optional spotlight layer (reusable across 3D scenes).
+    this.spot = new SpotLightLayer(this.scene)
+
     // Material state (read by makeMaterial — set before first call).
     this.color = '#b9c2d0'
     this.roughness = 0.38
@@ -104,6 +108,7 @@ export default class PrimitiveEngine {
       wireframe: false, strokeWidth: 3, materialType: 'standard', environment: false,
       roughness: 0.38, metalness: 0.18, color: '#b9c2d0', flatShading: false,
       showAxis: false, axisLength: 1.5, axisOpacity: 0.7, audioReactive: false, audioAmount: 1,
+      spotlight: { ...SPOTLIGHT_DEFAULTS },
     }
     this.onProgress = null
     this.raf = requestAnimationFrame(this.loop)
@@ -233,6 +238,8 @@ export default class PrimitiveEngine {
       this.axes.visible = !!globals.showAxis
       this.axes.scale.setScalar(globals.axisLength ?? 1.5)
       this.axes.material.opacity = globals.axisOpacity ?? 0.7
+      // Spotlight layer.
+      this.spot.setParams(globals.spotlight)
     }
 
     if (geomDirty) this.rebuildGeometry()
@@ -423,6 +430,7 @@ export default class PrimitiveEngine {
     this.wireGeom.dispose()
     this.axes.geometry.dispose()
     this.axes.material.dispose()
+    this.spot.dispose()
     this.envTex?.dispose()
     this.pmrem.dispose()
     this.renderer.dispose()

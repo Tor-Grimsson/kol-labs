@@ -175,9 +175,7 @@ function KnobsPanel({ proto, onTweak }) {
           }
           if (p.type === 'color') {
             return (
-              <LabeledControl key={p.key} inline label={label}>
-                <ColorField value={values[p.key]} onChange={(v) => set(p.key, v)} />
-              </LabeledControl>
+              <ColorField key={p.key} label={label} value={values[p.key]} onChange={(v) => set(p.key, v)} />
             )
           }
           return null

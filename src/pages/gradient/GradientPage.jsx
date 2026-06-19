@@ -34,9 +34,8 @@ function resolveSpec(seed, { shape, paletteId, hueShift, driver, distortMult }) 
 
   const resolvedShape = shape === 'auto' ? shapeRoll : shape
   const palette = paletteId === 'auto' ? paletteRoll : PALETTES.find((p) => p.id === paletteId)
-  const baseDistort = resolvedShape === 'blob' ? 0.25 + distortRoll * 0.3
-    : resolvedShape === 'wave' ? 0.3 + distortRoll * 0.35
-    : distortRoll * 0.12
+  const baseDistort = resolvedShape === 'plane' ? 0.3 + distortRoll * 0.35
+    : 0.25 + distortRoll * 0.3
   return {
     seed,
     shape: resolvedShape,

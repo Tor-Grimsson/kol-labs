@@ -1,7 +1,6 @@
 import Slider from '../../../../components/atoms/Slider.jsx'
 import ToggleSwitch from '../../../../components/atoms/ToggleSwitch.jsx'
 import Section from '../../../../components/molecules/Section.jsx'
-import LabeledControl from '../../../../components/molecules/LabeledControl.jsx'
 import ColorField from '../../../../components/color/ColorField.jsx'
 
 // Editable controls for a clip's modifiers + appearance. Pure-prop, no page
@@ -26,9 +25,7 @@ export default function ClipForm({ modifiers, show, style, onMod, onShow, onStyl
       </Section>
 
       <Section label="Style">
-        <LabeledControl inline label="Color" labelWidth={64}>
-          <ColorField value={st.color || '#ffffff'} onChange={(c) => onStyle({ color: c })} />
-        </LabeledControl>
+        <ColorField label="Color" value={st.color || '#ffffff'} onChange={(c) => onStyle({ color: c })} />
         <Slider labeled label="Weight" min={0.5} max={4} step={0.1} value={st.weight || 1.5} onChange={(v) => onStyle({ weight: v })} variant="default" />
       </Section>
     </>

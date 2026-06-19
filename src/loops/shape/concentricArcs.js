@@ -10,8 +10,8 @@ export default {
   duration: 6,
   params: [
     { key: 'bg', label: 'Background', type: 'color', role: 'bg', default: '#0b0b0e' },
-    { key: 'colA', label: 'Colour · inner', type: 'color', role: 'fg', default: '#e8e4dc' },
-    { key: 'colB', label: 'Colour · outer', type: 'color', role: 'accent', default: '#c2502e' },
+    { key: 'colA', label: 'Colour A', type: 'color', role: 'fg', default: '#e8e4dc' },
+    { key: 'colB', label: 'Colour B', type: 'color', role: 'accent', default: '#c2502e' },
     { key: 'rings', label: 'Rings', type: 'range', min: 2, max: 14, step: 1, default: 7, noRandom: true },
     { key: 'gap', label: 'Gap', type: 'range', min: 0.05, max: 0.6, step: 0.05, default: 0.3 },
     { key: 'spin', label: 'Spin', type: 'range', min: 1, max: 4, step: 1, default: 1 },

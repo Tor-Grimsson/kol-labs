@@ -6,7 +6,7 @@ import Button from '../atoms/Button.jsx'
 const DEFAULT = { yaw: 24, pitch: 22, dist: 3 }
 const isTyping = (el) => !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)
 
-export default function CameraPanel({ viewRef, spin, onSpin }) {
+export default function CameraPanel({ viewRef, spin, onSpin, bare = false }) {
   const [yaw, setYaw] = useState(DEFAULT.yaw)
   const [pitch, setPitch] = useState(DEFAULT.pitch)
   const [dist, setDist] = useState(DEFAULT.dist)
@@ -56,8 +56,8 @@ export default function CameraPanel({ viewRef, spin, onSpin }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  return (
-    <Section label="Camera">
+  const body = (
+    <>
       <Slider labeled label="Yaw" min={-180} max={180} step={1} value={yaw} onChange={applyYaw} variant="default" noExpr />
       <Slider labeled label="Pitch" min={-89} max={89} step={1} value={pitch} onChange={applyPitch} variant="default" noExpr />
       <Slider labeled label="Distance" min={0.6} max={20} step={0.1} value={dist} onChange={applyDist} variant="default" noExpr />
@@ -78,6 +78,12 @@ export default function CameraPanel({ viewRef, spin, onSpin }) {
         ))}
         <Button variant="primary" size="sm" onClick={reset} className="ml-auto">Reset</Button>
       </div>
-    </Section>
+    </>
   )
+
+  // `bare` skips the Section wrapper — used when an outer FloatingPanel already
+  // provides the titled header (so the "Camera" label isn't doubled).
+  return bare
+    ? <div className="flex flex-col gap-2 px-3 py-3">{body}</div>
+    : <Section label="Camera">{body}</Section>
 }

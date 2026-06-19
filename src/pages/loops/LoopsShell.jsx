@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { usePublishReset, usePublishRetrigger } from '../../components/framework/pageShortcuts.jsx'
+import { usePublishReset, usePublishRetrigger, usePublishShortcuts } from '../../components/framework/pageShortcuts.jsx'
 import LoopPlayer2D from '../../loops/LoopPlayer2D.js'
-import { presetsInGroup, presetById, loopById, presetParams, groupById } from '../../loops/registry.js'
+import { presetsInGroup, presetsInSub, presetById, loopById, presetParams, groupById } from '../../loops/registry.js'
 import { VIEW_ASPECTS, DEFAULT_ASPECT, defaultAspectFor, DEFAULT_SCALE, ratioFor, dimsFor } from '../_shared/exportSpecs.js'
 import LoopControls from './LoopControls.jsx'
+import ColorControls from './ColorControls.jsx'
 import PatternControls from './PatternControls.jsx'
 import Button from '../../components/atoms/Button.jsx'
-import Divider from '../../components/atoms/Divider.jsx'
 import Section from '../../components/molecules/Section.jsx'
 import SegmentedToggle from '../../components/molecules/SegmentedToggle.jsx'
 import Scrubber from '../../components/framework/Scrubber.jsx'
@@ -16,6 +16,7 @@ import EditorFooter from '../../components/framework/EditorFooter.jsx'
 import SettingsPanel from '../../components/framework/SettingsPanel.jsx'
 import { defaultTheme } from '../../lib/appSettings.js'
 import { mulberry32, randomSeed, randomizeSchema } from '../../lib/rng.js'
+import { isExpr } from '../../lib/exprParam.js'
 import { themeParams } from '../../loops/theme.js'
 
 // The loop-library shell, parameterised by GROUP. /loops mounts one of these per
@@ -25,9 +26,10 @@ import { themeParams } from '../../loops/theme.js'
 // pattern = Pattern (shape/grid/colour/rules) + Animation (camera + sweep).
 // Loads paused (no autoplay).
 
-export default function LoopsShell({ group }) {
-  const presets = useMemo(() => presetsInGroup(group), [group])
+export default function LoopsShell({ group, sub }) {
+  const presets = useMemo(() => (sub ? presetsInSub(group, sub) : presetsInGroup(group)), [group, sub])
   const groupLabel = groupById(group).label
+  const railLabel = sub || groupLabel
 
   const [presetId, setPresetId] = useState(presets[0].id)
   const activePreset = presetById(presetId)
@@ -91,14 +93,20 @@ export default function LoopsShell({ group }) {
     }
   }, [sizeCanvas])
 
-  // Selected preset change → swap loop + reset params (stays paused).
+  // Selected preset change → swap loop + load the preset's params, but CARRY OVER
+  // any param the user has expression-bound (their live animation) for keys the
+  // new preset still has. Picking a preset shouldn't null the rig you built.
   useEffect(() => {
     presetIdRef.current = presetId
     const preset = presetById(presetId)
     const loop = loopById(preset.loop)
     const def = presetParams(preset)
-    setParams(def)
-    playerRef.current?.setLoop(loop, def)
+    setParams((prev) => {
+      const next = { ...def }
+      for (const k of Object.keys(prev)) if (isExpr(prev[k]) && k in def) next[k] = prev[k]
+      playerRef.current?.setLoop(loop, next)
+      return next
+    })
   }, [presetId])
 
   useEffect(() => { sizeCanvas() }, [aspect, sizeCanvas])
@@ -117,16 +125,31 @@ export default function LoopsShell({ group }) {
   const updateParam = (k, v) => setParams((p) => ({ ...p, [k]: v }))
   const pickPreset = (id) => setPresetId(id) // stay on the Presets tab; Edit is opt-in
   usePublishReset(() => pickPreset(presets[0].id))
-  usePublishRetrigger(onRandomize)
 
   // ── Scene settings (theme · invert · randomise · export/import) ──
-  // Roll the schema with a given seed, merging over current params (skips the
-  // structural noRandom params; keeps the rules array + other untouched fields).
+  // Merge rolled values over current params, but NEVER overwrite a param the user
+  // has expression-bound — that's their live animation, random shouldn't reset it.
+  // (Also skips structural noRandom params via the schema; keeps rules + untouched.)
+  const mergeRoll = (prev, schema, rng) => {
+    const rolled = randomizeSchema(schema, rng)
+    for (const k of Object.keys(rolled)) if (isExpr(prev[k])) delete rolled[k]
+    return { ...prev, ...rolled }
+  }
   const rollWith = (n) => {
     const rng = mulberry32(n >>> 0)
-    setParams((p) => ({ ...p, ...randomizeSchema(activeLoop.params, rng) }))
+    setParams((p) => mergeRoll(p, activeLoop.params, rng))
   }
   const onRandomize = () => { const n = randomSeed(); setSeed(n); rollWith(n) }
+  usePublishRetrigger(onRandomize)
+
+  // Edit-tab Randomise: rerolls only the shape's transform (range/toggle) params,
+  // leaving the chosen colours intact (the Scene tab's Randomise rolls everything).
+  const rollTransform = () => {
+    const rng = mulberry32(randomSeed() >>> 0)
+    const transform = activeLoop.params.filter((p) => p.type !== 'color' && p.tab !== 'color')
+    setParams((p) => mergeRoll(p, transform, rng))
+  }
+  usePublishShortcuts(railLabel, [['space', 'play / pause'], ['drag timeline', 'scrub'], ['r', 'reset'], ['shift+r', 'reroll']])
 
   const getSettings = () => ({ presetId, params, themeId, invert, seed, tempo, aspect, scale })
   const applySettings = (s) => {
@@ -169,8 +192,11 @@ export default function LoopsShell({ group }) {
     }
   }
 
-  // Presets grouped by their `sub` label (falls back to one "Presets" section).
+  // Preset sections. A scoped page (one `sub`) already names the sub in the rail
+  // title, so the picker is a single plain "Presets" section — no redundant
+  // sub-name header. Unscoped (whole group) keeps the per-sub grouping.
   const subs = useMemo(() => {
+    if (sub) return [{ label: 'Presets', items: presets }]
     const out = []
     for (const p of presets) {
       const label = p.sub || 'Presets'
@@ -179,14 +205,14 @@ export default function LoopsShell({ group }) {
       g.items.push(p)
     }
     return out
-  }, [presets])
+  }, [presets, sub])
 
   const isPattern = activeLoop.controls === 'pattern'
   const tabs = [{ value: 'presets', label: 'Presets' }]
   if (isPattern) {
     tabs.push({ value: 'pattern', label: 'Pattern' }, { value: 'animation', label: 'Animation' })
   } else {
-    tabs.push({ value: 'edit', label: 'Edit' })
+    tabs.push({ value: 'color', label: 'Color' }, { value: 'edit', label: 'Edit' })
     if (activeLoop.camera) tabs.push({ value: 'camera', label: 'Camera' })
   }
   tabs.push({ value: 'scene', label: 'Scene' })
@@ -197,7 +223,7 @@ export default function LoopsShell({ group }) {
         <canvas ref={canvasRef} className="block max-w-full max-h-full" />
         <div className="pointer-events-none absolute left-5 top-5">
           <div className="kol-helper-12 text-emphasis">{activePreset.label}</div>
-          <div className="kol-helper-10 text-meta" style={{ marginTop: 2 }}>{groupLabel}</div>
+          <div className="kol-helper-10 text-meta" style={{ marginTop: 2 }}>{sub ? `${groupLabel} · ${sub}` : groupLabel}</div>
         </div>
         <Scrubber progressRef={progressRef} playerRef={playerRef} />
       </div>
@@ -207,7 +233,7 @@ export default function LoopsShell({ group }) {
         footerBare
         header={
           <>
-            <RailHeader>Loops · {groupLabel}</RailHeader>
+            <RailHeader>{railLabel}</RailHeader>
             <SegmentedToggle value={panel} onChange={setPanel} options={tabs} />
           </>
         }
@@ -258,8 +284,12 @@ export default function LoopsShell({ group }) {
           </Section>
         ))}
 
+        {panel === 'color' && (
+          <ColorControls schema={activeLoop.params} values={params} onChange={updateParam} />
+        )}
+
         {panel === 'edit' && (
-          <LoopControls schema={activeLoop.params} values={params} onChange={updateParam} />
+          <LoopControls schema={activeLoop.params} values={params} onChange={updateParam} onRandomize={rollTransform} />
         )}
 
         {panel === 'camera' && activeLoop.camera && (
@@ -284,13 +314,6 @@ export default function LoopsShell({ group }) {
             applySettings={applySettings}
           />
         )}
-
-        <Divider />
-
-        <div className="kol-helper-10 text-body flex flex-col gap-1">
-          <div>space = play / pause</div>
-          <div>scrub the timeline below</div>
-        </div>
       </EditorRail>
       </LiveClock>
     </div>

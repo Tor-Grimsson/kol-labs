@@ -10,8 +10,8 @@ export default {
   duration: 6,
   params: [
     { key: 'bg', label: 'Background', type: 'color', role: 'bg', default: '#0b0b0e' },
-    { key: 'colA', label: 'Colour · low', type: 'color', role: 'accent', default: '#1c2740' },
-    { key: 'colB', label: 'Colour · high', type: 'color', role: 'fg', default: '#e8e4dc' },
+    { key: 'colA', label: 'Colour A', type: 'color', role: 'accent', default: '#1c2740' },
+    { key: 'colB', label: 'Colour B', type: 'color', role: 'fg', default: '#e8e4dc' },
     { key: 'cols', label: 'Columns', type: 'range', min: 4, max: 32, step: 1, default: 14, noRandom: true },
     { key: 'cycles', label: 'Cycles', type: 'range', min: 1, max: 4, step: 1, default: 1 },
     { key: 'wavesX', label: 'Waves X', type: 'range', min: 0, max: 6, step: 1, default: 2 },
