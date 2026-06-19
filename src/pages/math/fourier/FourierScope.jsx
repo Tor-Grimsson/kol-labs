@@ -113,7 +113,7 @@ const FourierScope = forwardRef(function FourierScope({
       if (!lastRef.current) lastRef.current = now
       const dt = (now - lastRef.current) / 1000
       lastRef.current = now
-      if (playingRef.current) accumRef.current += dt * (tempoRef.current / 120)
+      if (playingRef.current) accumRef.current += dt * (tempoRef.current / 240)
       const elapsed = accumRef.current
 
       ctx.clearRect(0, 0, w, h)

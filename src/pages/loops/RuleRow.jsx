@@ -73,7 +73,7 @@ export default function RuleRow({ rule, onChange, onRemove, onReroll }) {
         <Button variant="secondary" size="sm" selected={rule.hide} onClick={() => set({ hide: !rule.hide })} title="Hide cell">hide</Button>
       </div>
 
-      <Slider label="Opacity" min={0} max={100} step={1} value={Math.round(rule.opacity * 100)} onChange={(v) => set({ opacity: isExpr(v) ? v : v / 100 })} variant="default" />
+      <Slider labeled label="Opacity" min={0} max={100} step={1} value={Math.round(rule.opacity * 100)} onChange={(v) => set({ opacity: isExpr(v) ? v : v / 100 })} variant="default" />
     </div>
   )
 }

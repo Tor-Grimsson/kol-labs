@@ -9,7 +9,7 @@
 
 
 import { num } from '../../knobs'
-import { clear, strokeOutline, wrapLoop } from '../common'
+import { clear, strokeOutline, wrapLoop, rampRGB, roleRGB } from '../common'
 
 const PARAMS          = [
   { key: 'res',   type: 'int',   min: 80, max: 180, default: 140, step: 20,  label: 'grid res' },
@@ -88,17 +88,15 @@ export const r2_wave_02_chladni            = {
           const i = y * G + x
           const j = i * 4
           if (!mask[i]) {
-            img.data[j] = 10; img.data[j+1] = 11; img.data[j+2] = 20; img.data[j+3] = 255
+            const [br, bgc, bb] = roleRGB('bg')
+            img.data[j] = br; img.data[j+1] = bgc; img.data[j+2] = bb; img.data[j+3] = 255
             continue
           }
           const u = cA * evalMode(mA, nA, x, y) + cB * evalMode(mB, nB, x, y)
           const abs = Math.abs(u)
-          // nodal line: u near 0 → dark. Away from zero → bright
+          // nodal line: u near 0 → bg end of ramp. Away from zero → bright end
           const bright = abs < band ? abs / band : 1.0
-          // warm cream for bright, indigo for nodal
-          const r = (243 * bright + 20 * (1 - bright)) | 0
-          const g = (220 * bright + 15 * (1 - bright)) | 0
-          const b = (180 * bright + 60 * (1 - bright)) | 0
+          const [r, g, b] = rampRGB(bright)
           img.data[j] = r; img.data[j+1] = g; img.data[j+2] = b; img.data[j+3] = 255
         }
       }

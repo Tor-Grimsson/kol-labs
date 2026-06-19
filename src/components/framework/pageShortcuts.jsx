@@ -14,8 +14,10 @@ const PageShortcutsContext = createContext(null)
 
 export function PageShortcutsProvider({ children }) {
   const [shortcuts, setShortcuts] = useState(null)
+  // Parallel channel for the `i` extra-info overlay (page metadata: seed, etc.).
+  const [info, setInfo] = useState(null)
   return (
-    <PageShortcutsContext.Provider value={{ shortcuts, setShortcuts }}>
+    <PageShortcutsContext.Provider value={{ shortcuts, setShortcuts, info, setInfo }}>
       {children}
     </PageShortcutsContext.Provider>
   )
@@ -38,4 +40,23 @@ export function usePublishShortcuts(title, items) {
 // Overlay reader: the current page's shortcuts, or null.
 export function usePageShortcuts() {
   return useContext(PageShortcutsContext)?.shortcuts ?? null
+}
+
+// Same mechanism as usePublishShortcuts, for the `i` info overlay. Items are
+// [label, value] rows of page metadata (e.g. ['Seed', '1234']).
+export function usePublishInfo(title, items) {
+  const ctx = useContext(PageShortcutsContext)
+  const setInfo = ctx?.setInfo
+  const key = JSON.stringify(items)
+  useEffect(() => {
+    if (!setInfo) return undefined
+    setInfo({ title, items })
+    return () => setInfo(null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [setInfo, title, key])
+}
+
+// Overlay reader: the current page's info, or null.
+export function usePageInfo() {
+  return useContext(PageShortcutsContext)?.info ?? null
 }

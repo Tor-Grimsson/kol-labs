@@ -148,6 +148,8 @@ export default class PrimitiveEngine {
       case 'phong': return new THREE.MeshPhongMaterial({ color, flatShading: this.flat, shininess: 60 })
       case 'toon': return new THREE.MeshToonMaterial({ color })
       case 'glass': return new THREE.MeshPhysicalMaterial({ color, metalness: 0, roughness: this.roughness, transmission: 1, thickness: 0.6, ior: 1.4, flatShading: this.flat })
+      // chromatic dispersion (three r0.166+): light splits into rainbow through the IOR — the joe_ryba "Puddle" glass.
+      case 'dispersion': return new THREE.MeshPhysicalMaterial({ color, metalness: 0, roughness: this.roughness, transmission: 1, thickness: 0.8, ior: 1.5, dispersion: 6, flatShading: this.flat })
       default: return new THREE.MeshStandardMaterial({ color, roughness: this.roughness, metalness: this.metalness, flatShading: this.flat })
     }
   }
@@ -165,7 +167,7 @@ export default class PrimitiveEngine {
     const m = this.material
     if (m.color && this.matType !== 'normal') m.color.set(this.color)
     if ('roughness' in m) m.roughness = this.roughness
-    if ('metalness' in m && this.matType !== 'glass') m.metalness = this.metalness
+    if ('metalness' in m && this.matType !== 'glass' && this.matType !== 'dispersion') m.metalness = this.metalness
     if ('flatShading' in m && m.flatShading !== this.flat) { m.flatShading = this.flat; m.needsUpdate = true }
     this.lineMat.color.set(this.color)
   }
@@ -272,7 +274,7 @@ export default class PrimitiveEngine {
   _applyLive(g) {
     const m = this.material
     if (Number.isFinite(g.roughness) && 'roughness' in m) m.roughness = g.roughness
-    if (Number.isFinite(g.metalness) && 'metalness' in m && this.matType !== 'glass') m.metalness = g.metalness
+    if (Number.isFinite(g.metalness) && 'metalness' in m && this.matType !== 'glass' && this.matType !== 'dispersion') m.metalness = g.metalness
     if (Number.isFinite(g.strokeWidth)) this.lineMat.linewidth = g.strokeWidth * STROKE_TO_WORLD
     if (Number.isFinite(g.fov) && g.fov !== this.camera.fov) { this.camera.fov = g.fov; this.camera.updateProjectionMatrix() }
     if (Number.isFinite(g.axisLength)) this.axes.scale.setScalar(g.axisLength)

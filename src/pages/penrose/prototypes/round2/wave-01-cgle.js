@@ -8,7 +8,7 @@
 
 
 import { num } from '../../knobs'
-import { clear, strokeOutline, wrapLoop } from '../common'
+import { clear, strokeOutline, wrapLoop, rampRGB, roleRGB } from '../common'
 
 const PARAMS          = [
   { key: 'res',  type: 'int',   min: 80, max: 180, default: 120, step: 20,   label: 'grid res' },
@@ -106,30 +106,17 @@ export const r2_wave_01_cgle            = {
       for (let i = 0; i < N; i++) {
         const j = i * 4
         if (!mask[i]) {
-          img.data[j] = 10; img.data[j+1] = 11; img.data[j+2] = 20; img.data[j+3] = 255
+          const [br, bg, bb] = roleRGB('bg')
+          img.data[j] = br; img.data[j+1] = bg; img.data[j+2] = bb; img.data[j+3] = 255
           continue
         }
         const r = re[i], m = im[i]
         const amp = Math.min(1, Math.sqrt(r * r + m * m))
-        const phase = Math.atan2(m, r) // −π..π
-        const hue = (phase / (Math.PI * 2) + 0.5) * 360 // 0..360
-        // HSL → RGB inline, L = 0.15 + 0.6*amp, S = 0.8
-        const l = 0.15 + 0.6 * amp
-        const sat = 0.8
-        const c = (1 - Math.abs(2 * l - 1)) * sat
-        const x2 = c * (1 - Math.abs((hue / 60) % 2 - 1))
-        const m2 = l - c / 2
-        let rr = 0, gg = 0, bb = 0
-        const h6 = (hue / 60) | 0
-        if (h6 === 0) { rr=c; gg=x2 }
-        else if (h6 === 1) { rr=x2; gg=c }
-        else if (h6 === 2) { gg=c; bb=x2 }
-        else if (h6 === 3) { gg=x2; bb=c }
-        else if (h6 === 4) { rr=x2; bb=c }
-        else { rr=c; bb=x2 }
-        img.data[j]   = ((rr + m2) * 255) | 0
-        img.data[j+1] = ((gg + m2) * 255) | 0
-        img.data[j+2] = ((bb + m2) * 255) | 0
+        // amplitude → palette ramp (vortex cores = low amp = bg end)
+        const [cr, cg, cb] = rampRGB(amp)
+        img.data[j]   = cr
+        img.data[j+1] = cg
+        img.data[j+2] = cb
         img.data[j+3] = 255
       }
 

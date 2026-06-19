@@ -5,8 +5,7 @@ import { DEFAULT_KEYFRAMES } from './data/keyframes.js'
 import { ARRANGEMENTS } from './data/composition.js'
 import { MATERIAL_TYPES } from './data/materials.js'
 import { randomScene } from './data/generate.js'
-import { VIEW_ASPECTS, DEFAULT_ASPECT, DEFAULT_SCALE, ratioFor, dimsFor } from '../../_shared/exportSpecs.js'
-import ExportPanel from '../../_shared/ExportPanel.jsx'
+import { VIEW_ASPECTS, DEFAULT_ASPECT, defaultAspectFor, DEFAULT_SCALE, ratioFor, dimsFor } from '../../_shared/exportSpecs.js'
 import * as audio from './lib/audio.js'
 import KeyframeEditor from './KeyframeEditor.jsx'
 import Button from '../../../components/atoms/Button.jsx'
@@ -19,11 +18,13 @@ import LabeledControl from '../../../components/molecules/LabeledControl.jsx'
 import Section from '../../../components/molecules/Section.jsx'
 import ColorField from '../../../components/color/ColorField.jsx'
 import SegmentedToggle from '../../../components/molecules/SegmentedToggle.jsx'
-import TransportBar from '../../../components/framework/TransportBar.jsx'
 import Scrubber from '../../../components/framework/Scrubber.jsx'
 import EditorRail, { RailHeader } from '../../../components/framework/EditorRail.jsx'
+import EditorFooter from '../../../components/framework/EditorFooter.jsx'
+import { LiveClock } from '../../../lib/liveClock.jsx'
 import SettingsPanel from '../../../components/framework/SettingsPanel.jsx'
-import { resolveTheme, DEFAULT_THEME } from '../../../lib/themes.js'
+import { resolveTheme } from '../../../lib/themes.js'
+import { defaultTheme } from '../../../lib/appSettings.js'
 import { randomSeed } from '../../../lib/rng.js'
 
 const SHAPE_PARAM = { torus: 'tube', torusKnot: 'pq', icosahedron: 'detail', octahedron: 'detail', dodecahedron: 'detail' }
@@ -46,7 +47,7 @@ export default function PrimitiveScenePage() {
   const [qKnot, setQKnot] = useState(3)
   const [detail, setDetail] = useState(0)
   const [seed, setSeed] = useState(1)
-  const [themeId, setThemeId] = useState(DEFAULT_THEME)
+  const [themeId, setThemeId] = useState(() => defaultTheme())
   const [invert, setInvert] = useState(false)
   // animation
   const [animMode, setAnimMode] = useState('preset')
@@ -79,10 +80,11 @@ export default function PrimitiveScenePage() {
   const [axisLength, setAxisLength] = useState(1.5)
   const [axisOpacity, setAxisOpacity] = useState(0.7)
   // view / output
-  const [aspect, setAspect] = useState(DEFAULT_ASPECT)
+  const [aspect, setAspect] = useState(() => defaultAspectFor('view'))
   const [scale, setScale] = useState(DEFAULT_SCALE)
   const [recording, setRecording] = useState(false)
   const [panel, setPanel] = useState('scene')
+  const [footTab, setFootTab] = useState('transport')
 
   const wrapRef = useRef(null)
   const canvasRef = useRef(null)
@@ -94,7 +96,7 @@ export default function PrimitiveScenePage() {
 
   const globals = useMemo(
     () => ({
-      preset, animMode, keyframes, loop, duration, paused: !playing, speed: tempo / 120,
+      preset, animMode, keyframes, loop, duration, paused: !playing, speed: tempo / 240,
       count, arrangement, spread, objectSize, stagger,
       cameraMotion, orbitSpeed, fov,
       wireframe, strokeWidth, materialType, environment, flatShading, rounding, roughness, metalness, color,
@@ -293,26 +295,59 @@ export default function PrimitiveScenePage() {
         />
       </div>
 
-      <EditorRail>
-        <RailHeader>Primitive Scene</RailHeader>
+      <LiveClock getT={() => progressRef.current.t}>
+      <EditorRail
+        footerBare
+        header={
+          <>
+            <RailHeader>Primitive Scene</RailHeader>
 
-        <SegmentedToggle
-          value={panel}
-          onChange={setPanel}
-          options={[
-            { value: 'scene', label: 'Scene' },
-            { value: 'style', label: 'Style' },
-            { value: 'anim', label: 'Anim' },
-            { value: 'camera', label: 'Camera' },
-            { value: 'view', label: 'View' },
-          ]}
-        />
-
-        <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-5">
+            <SegmentedToggle
+              value={panel}
+              onChange={setPanel}
+              options={[
+                { value: 'scene', label: 'Scene' },
+                { value: 'style', label: 'Style' },
+                { value: 'anim', label: 'Anim' },
+                { value: 'camera', label: 'Camera' },
+              ]}
+            />
+          </>
+        }
+        footer={
+          <EditorFooter
+            tab={footTab}
+            onTab={setFootTab}
+            transport={{
+              playing,
+              onPlay: () => setPlaying(true),
+              onPause: () => setPlaying(false),
+              onStop: () => { setPlaying(false); engineRef.current?.seek(0) },
+              onRewind: () => engineRef.current?.seek(0),
+              tempo,
+              onTempo: setTempo,
+              tempoMax: 600,
+            }}
+            exportProps={{ aspect, onAspect: setAspect, aspects: VIEW_ASPECTS, scale, onScale: setScale }}
+            exportActions={
+              <>
+                <Button variant="primary" size="sm" className="w-full" iconLeft="download" onClick={exportPng}>Export PNG</Button>
+                <Button variant="primary" size="sm" className="w-full" iconLeft="download" onClick={exportVideo} disabled={recording}>
+                  {recording ? 'Recording loop…' : 'Export loop (webm)'}
+                </Button>
+              </>
+            }
+            settingsPage="primitive"
+            getSettings={getSettings}
+            applySettings={applySettings}
+          />
+        }
+      >
           {panel === 'scene' && (
             <>
               <SettingsPanel
                 page="primitive"
+                showIO={false}
                 theme={themeId}
                 onTheme={setThemeId}
                 invert={invert}
@@ -337,14 +372,14 @@ export default function PrimitiveScenePage() {
 
               {shape && (
                 <Section label="Shape">
-                  {shape === 'tube' && <Slider label="Tube" min={0.1} max={0.45} step={0.01} value={tube} onChange={setTube} variant="default" />}
+                  {shape === 'tube' && <Slider labeled label="Tube" min={0.1} max={0.45} step={0.01} value={tube} onChange={setTube} variant="default" />}
                   {shape === 'pq' && (
                     <>
-                      <Slider label="P winds" min={1} max={5} step={1} value={pKnot} onChange={(v) => setPKnot(roundIfNum(v))} variant="default" />
-                      <Slider label="Q winds" min={1} max={5} step={1} value={qKnot} onChange={(v) => setQKnot(roundIfNum(v))} variant="default" />
+                      <Slider labeled label="P winds" min={1} max={5} step={1} value={pKnot} onChange={(v) => setPKnot(roundIfNum(v))} variant="default" />
+                      <Slider labeled label="Q winds" min={1} max={5} step={1} value={qKnot} onChange={(v) => setQKnot(roundIfNum(v))} variant="default" />
                     </>
                   )}
-                  {shape === 'detail' && <Slider label="Detail" min={0} max={3} step={1} value={detail} onChange={(v) => setDetail(roundIfNum(v))} variant="default" />}
+                  {shape === 'detail' && <Slider labeled label="Detail" min={0} max={3} step={1} value={detail} onChange={(v) => setDetail(roundIfNum(v))} variant="default" />}
                 </Section>
               )}
 
@@ -352,10 +387,10 @@ export default function PrimitiveScenePage() {
                 <LabeledControl inline label="arrange">
                   <Dropdown size="sm" variant="subtle" className="w-full" options={ARRANGEMENTS} value={arrangement} onChange={setArrangement} />
                 </LabeledControl>
-                <Slider label="Count" min={1} max={24} step={1} value={count} onChange={(v) => setCount(roundIfNum(v))} variant="default" />
-                <Slider label="Spread" min={0.5} max={5} step={0.1} value={spread} onChange={setSpread} variant="default" />
-                <Slider label="Object size" min={0.2} max={1.5} step={0.05} value={objectSize} onChange={setObjectSize} variant="default" />
-                <Slider label="Stagger" min={0} max={1} step={0.05} value={stagger} onChange={setStagger} variant="default" />
+                <Slider labeled label="Count" min={1} max={24} step={1} value={count} onChange={(v) => setCount(roundIfNum(v))} variant="default" />
+                <Slider labeled label="Spread" min={0.5} max={5} step={0.1} value={spread} onChange={setSpread} variant="default" />
+                <Slider labeled label="Object size" min={0.2} max={1.5} step={0.05} value={objectSize} onChange={setObjectSize} variant="default" />
+                <Slider labeled label="Stagger" min={0} max={1} step={0.05} value={stagger} onChange={setStagger} variant="default" />
               </Section>
             </>
           )}
@@ -371,14 +406,14 @@ export default function PrimitiveScenePage() {
                 </LabeledControl>
                 <ToggleSwitch variant="plain" label="Flat shading" checked={flatShading} onChange={setFlatShading} />
                 <ToggleSwitch variant="plain" label="Environment" checked={environment} onChange={setEnvironment} />
-                <Slider label="Roughness" min={0} max={1} step={0.02} value={roughness} onChange={setRoughness} variant="default" />
-                <Slider label="Metalness" min={0} max={1} step={0.02} value={metalness} onChange={setMetalness} variant="default" />
-                {primitive === 'box' && <Slider label="Rounding" min={0} max={0.7} step={0.02} value={rounding} onChange={setRounding} variant="default" />}
+                <Slider labeled label="Roughness" min={0} max={1} step={0.02} value={roughness} onChange={setRoughness} variant="default" />
+                <Slider labeled label="Metalness" min={0} max={1} step={0.02} value={metalness} onChange={setMetalness} variant="default" />
+                {primitive === 'box' && <Slider labeled label="Rounding" min={0} max={0.7} step={0.02} value={rounding} onChange={setRounding} variant="default" />}
               </Section>
 
               <Section label="Wireframe">
                 <ToggleSwitch variant="plain" label="Wireframe" checked={wireframe} onChange={setWireframe} />
-                {wireframe && <Slider label="Stroke" min={1} max={10} step={0.5} value={strokeWidth} onChange={setStrokeWidth} variant="default" />}
+                {wireframe && <Slider labeled label="Stroke" min={1} max={10} step={0.5} value={strokeWidth} onChange={setStrokeWidth} variant="default" />}
               </Section>
             </>
           )}
@@ -397,7 +432,7 @@ export default function PrimitiveScenePage() {
                   </div>
                 )}
                 <ToggleSwitch variant="plain" label="Loop animation" checked={loop} onChange={setLoop} />
-                <Slider label="Duration (s)" min={1} max={20} step={0.5} value={duration} onChange={setDuration} variant="default" />
+                <Slider labeled label="Duration (s)" min={1} max={20} step={0.5} value={duration} onChange={setDuration} variant="default" />
               </Section>
 
               {animMode === 'keyframe' && (
@@ -412,7 +447,7 @@ export default function PrimitiveScenePage() {
                 </div>
                 <input ref={audioFileRef} type="file" accept="audio/*" hidden onChange={onAudioFile} />
                 <ToggleSwitch variant="plain" label="Audio reactive" checked={audioReactive} onChange={setAudioReactive} />
-                {audioReactive && <Slider label="Amount" min={0} max={4} step={0.1} value={audioAmount} onChange={setAudioAmount} variant="default" />}
+                {audioReactive && <Slider labeled label="Amount" min={0} max={4} step={0.1} value={audioAmount} onChange={setAudioAmount} variant="default" />}
               </Section>
             </>
           )}
@@ -421,8 +456,8 @@ export default function PrimitiveScenePage() {
             <>
               <Section label="Camera">
                 <ToggleSwitch variant="plain" label="Camera orbit" checked={cameraMotion} onChange={setCameraMotion} />
-                {cameraMotion && <Slider label="Orbit speed" min={0} max={4} step={0.1} value={orbitSpeed} onChange={setOrbitSpeed} variant="default" />}
-                <Slider label="Field of view" min={20} max={90} step={1} value={fov} onChange={setFov} variant="default" />
+                {cameraMotion && <Slider labeled label="Orbit speed" min={0} max={4} step={0.1} value={orbitSpeed} onChange={setOrbitSpeed} variant="default" />}
+                <Slider labeled label="Field of view" min={20} max={90} step={1} value={fov} onChange={setFov} variant="default" />
                 <Button variant="primary" size="sm" onClick={() => engineRef.current?.resetCamera()}>Cam reset</Button>
               </Section>
 
@@ -430,22 +465,11 @@ export default function PrimitiveScenePage() {
                 <ToggleSwitch variant="plain" label="Show XYZ axis" checked={showAxis} onChange={setShowAxis} />
                 {showAxis && (
                   <>
-                    <Slider label="Axis length" min={0.5} max={4} step={0.1} value={axisLength} onChange={setAxisLength} variant="default" />
-                    <Slider label="Axis opacity" min={0} max={1} step={0.05} value={axisOpacity} onChange={setAxisOpacity} variant="default" />
+                    <Slider labeled label="Axis length" min={0.5} max={4} step={0.1} value={axisLength} onChange={setAxisLength} variant="default" />
+                    <Slider labeled label="Axis opacity" min={0} max={1} step={0.05} value={axisOpacity} onChange={setAxisOpacity} variant="default" />
                   </>
                 )}
               </Section>
-            </>
-          )}
-
-          {panel === 'view' && (
-            <>
-              <ExportPanel aspect={aspect} onAspect={setAspect} aspects={VIEW_ASPECTS} scale={scale} onScale={setScale}>
-                <Button variant="primary" size="sm" className="w-full" iconLeft="download" onClick={exportPng}>Export PNG</Button>
-                <Button variant="primary" size="sm" className="w-full" iconLeft="download" onClick={exportVideo} disabled={recording}>
-                  {recording ? 'Recording loop…' : 'Export loop (webm)'}
-                </Button>
-              </ExportPanel>
             </>
           )}
 
@@ -458,21 +482,8 @@ export default function PrimitiveScenePage() {
             <div>C = reset cam</div>
             <div>scrub the timeline below</div>
           </div>
-        </div>
-
-        <div className="border-t border-fg-08 pt-3">
-          <TransportBar
-            playing={playing}
-            onPlay={() => setPlaying(true)}
-            onPause={() => setPlaying(false)}
-            onStop={() => { setPlaying(false); engineRef.current?.seek(0) }}
-            onRewind={() => engineRef.current?.seek(0)}
-            tempo={tempo}
-            onTempo={setTempo}
-            tempoMax={300}
-          />
-        </div>
       </EditorRail>
+      </LiveClock>
     </div>
   )
 }

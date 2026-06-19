@@ -7,7 +7,7 @@
 
 
 import { num, bool } from '../../knobs'
-import { clear, strokeOutline, wrapLoop, sampleInside } from '../common'
+import { clear, strokeOutline, wrapLoop, sampleInside, rampRGB, roleRGB } from '../common'
 
 const PARAMS          = [
   { key: 'agents',   type: 'int',   min: 300,  max: 3000, default: 1200, step: 100,   label: 'agents' },
@@ -138,13 +138,15 @@ export const r2_phys_01_peristaltic            = {
       for (let i = 0; i < GS * GS; i++) {
         const j = i * 4
         if (!isIn[i]) {
-          img.data[j] = 10; img.data[j+1] = 11; img.data[j+2] = 20; img.data[j+3] = 255
+          const [br, bg, bb] = roleRGB('bg')
+          img.data[j] = br; img.data[j+1] = bg; img.data[j+2] = bb; img.data[j+3] = 255
           continue
         }
         const v = Math.min(1, trail[i] * 2.5)
-        img.data[j]   = (20  + 200 * v) | 0
-        img.data[j+1] = (180 * v)       | 0
-        img.data[j+2] = (60  + 160 * v) | 0
+        const [r, g, b] = rampRGB(v)
+        img.data[j]   = r
+        img.data[j+1] = g
+        img.data[j+2] = b
         img.data[j+3] = 255
       }
       clear(ctx, W, H)

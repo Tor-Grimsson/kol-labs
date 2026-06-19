@@ -12,12 +12,12 @@ export default function TrailsPage() {
     <SynthShell engineClass={TrailsEngine} title="Trails" name="trails" defaults={DEFAULTS}>
       {(p, update) => (
         <Section label="Feedback">
-          <Slider label="Decay" min={0.8} max={0.99} step={0.005} value={p.decay} onChange={(v) => update('decay', v)} variant="default" />
-          <Slider label="Colour trail" min={0} max={0.1} step={0.002} value={p.rgb} onChange={(v) => update('rgb', v)} variant="default" />
-          <Slider label="Chroma shift" min={0} max={0.02} step={0.001} value={p.shift} onChange={(v) => update('shift', v)} variant="default" />
-          <Slider label="Feedback zoom" min={0.9} max={1.1} step={0.002} value={p.zoom} onChange={(v) => update('zoom', v)} variant="default" />
-          <Slider label="Feedback spin" min={-0.1} max={0.1} step={0.002} value={p.rotate} onChange={(v) => update('rotate', v)} variant="default" />
-          <Slider label="Source mix" min={0} max={1} step={0.02} value={p.mix} onChange={(v) => update('mix', v)} variant="default" />
+          <Slider labeled label="Decay" min={0.8} max={0.99} step={0.005} value={p.decay} onChange={(v) => update('decay', v)} variant="default" />
+          <Slider labeled label="Colour trail" min={0} max={0.1} step={0.002} value={p.rgb} onChange={(v) => update('rgb', v)} variant="default" />
+          <Slider labeled label="Chroma shift" min={0} max={0.02} step={0.001} value={p.shift} onChange={(v) => update('shift', v)} variant="default" />
+          <Slider labeled label="Feedback zoom" min={0.9} max={1.1} step={0.002} value={p.zoom} onChange={(v) => update('zoom', v)} variant="default" />
+          <Slider labeled label="Feedback spin" min={-0.1} max={0.1} step={0.002} value={p.rotate} onChange={(v) => update('rotate', v)} variant="default" />
+          <Slider labeled label="Source mix" min={0} max={1} step={0.02} value={p.mix} onChange={(v) => update('mix', v)} variant="default" />
         </Section>
       )}
     </SynthShell>

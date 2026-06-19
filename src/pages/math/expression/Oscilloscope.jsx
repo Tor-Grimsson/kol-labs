@@ -1,13 +1,14 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
 import { hexToRgb } from '../style/mathStyle'
 
-// The oscilloscope display — expression input + live-plotted canvas. Pure stage:
-// scope state (bounds / view / pan) lives in ExpressionPage so the rail can
-// drive it; this component mirrors the props into refs for the rAF draw loop.
-// `aspect` (ratio | null) letterboxes the scope; exposes exportBlob/exportBlobAt
-// via a ref. Drawing logic ported from kol-mirror's ExpressionReference.
+// The oscilloscope display — the live-plotted canvas. Pure stage: scope state
+// (expression / bounds / view / pan) lives in ExpressionPage so the rail can
+// drive it (the expression field is the first control in the Scope tab); this
+// component mirrors the props into refs for the rAF draw loop. `aspect`
+// (ratio | null) letterboxes the scope; exposes exportBlob/exportBlobAt via a
+// ref. Drawing logic ported from kol-mirror's ExpressionReference.
 const Oscilloscope = forwardRef(function Oscilloscope({
-  expr, setExpr, fn,
+  fn,
   min, max, duration,
   zoomX, zoomY, panX, panY, setPanX, setPanY, onZoom,
   playing = true, tempo = 120, resetKey = 0, aspect = null, vstyle = null,
@@ -136,16 +137,19 @@ const Oscilloscope = forwardRef(function Oscilloscope({
       const vs = vstyleRef.current || {}
       const stroke = vs.stroke || '#2dd4bf'
       const strokeRgb = hexToRgb(stroke)
+      const weight = vs.weight ?? 2       // trace (the expression curve)
+      const uiWeight = vs.uiWeight ?? 1   // the rest of the scope: grid / reference / playhead
       const gridOn = vs.axis && vs.axis !== 'none'
       const gridCol = hexToRgb(vs.gridColor || '#ffffff')
       const gridOp = vs.gridOpacity ?? 0.06
-      // Pausable, tempo-scaled virtual clock (tempo 120 = realtime, matching the
-      // interfaces / 3D-scene TransportBar convention).
+      // Pausable, tempo-scaled virtual clock. 120 is the standard default (÷240) —
+      // the tempo number is normalized to the 120 convention without changing the
+      // playback speed.
       const now = performance.now()
       if (!lastRef.current) lastRef.current = now
       const dt = (now - lastRef.current) / 1000
       lastRef.current = now
-      if (playingRef.current) accumRef.current += dt * (tempoRef.current / 120)
+      if (playingRef.current) accumRef.current += dt * (tempoRef.current / 240)
       const elapsed = accumRef.current
 
       ctx.clearRect(0, 0, w, h)
@@ -180,7 +184,7 @@ const Oscilloscope = forwardRef(function Oscilloscope({
 
         // Knob range 0–100 reference lines (red dashed).
         ctx.strokeStyle = 'rgba(231,76,60,0.3)'
-        ctx.lineWidth = 1
+        ctx.lineWidth = uiWeight
         ctx.setLineDash([4, 4])
         const y0 = toY(0), y100 = toY(100)
         ctx.beginPath(); ctx.moveTo(0, y100); ctx.lineTo(w, y100); ctx.stroke()
@@ -192,7 +196,7 @@ const Oscilloscope = forwardRef(function Oscilloscope({
         ctx.fillText('0', w - 10, y0 - 4)
 
         // Grid lines at the curve's min / mid / max (gated by the axis style).
-        ctx.lineWidth = 1
+        ctx.lineWidth = uiWeight
         ctx.fillStyle = `rgba(${gridCol},${Math.min(1, gridOp * 3)})`
         for (const v of [vMax, vMid, vMin]) {
           const y = toY(v)
@@ -202,7 +206,7 @@ const Oscilloscope = forwardRef(function Oscilloscope({
 
         // Static curve (full window, dim).
         ctx.strokeStyle = `rgba(${strokeRgb},0.15)`
-        ctx.lineWidth = 1
+        ctx.lineWidth = uiWeight
         ctx.beginPath()
         for (let i = 0; i < w; i++) {
           const t = toT(i)
@@ -218,12 +222,12 @@ const Oscilloscope = forwardRef(function Oscilloscope({
         const playT = (elapsed % baseDur)
         const playX = ((playT - px) / dur) * w
         ctx.strokeStyle = `rgba(${strokeRgb},0.4)`
-        ctx.lineWidth = 1
+        ctx.lineWidth = uiWeight
         ctx.beginPath(); ctx.moveTo(playX, 0); ctx.lineTo(playX, h); ctx.stroke()
 
         // Live trace up to the playhead.
         ctx.strokeStyle = stroke
-        ctx.lineWidth = 2
+        ctx.lineWidth = weight
         ctx.beginPath()
         const traceEnd = Math.min(playX, w)
         for (let i = 0; i < traceEnd; i++) {
@@ -262,46 +266,34 @@ const Oscilloscope = forwardRef(function Oscilloscope({
   }, [])
 
   return (
-    <div className="flex flex-col gap-2 h-full w-full">
-      <input
-        type="text"
-        value={expr}
-        onChange={(e) => setExpr(e.target.value)}
-        onClick={(e) => { if (e.altKey) setExpr('') }}
-        placeholder="wave(t)"
-        spellCheck={false}
-        className="w-full bg-surface-tertiary text-fg-96 kol-helper-10 shrink-0"
-        style={{ border: 'none', outline: 'none', padding: '8px 10px', borderRadius: 2, height: 32, fontFamily: 'var(--kol-font-family-mono)' }}
-      />
-      <div ref={stageRef} className="flex-1 relative flex items-center justify-center overflow-hidden" style={{ minHeight: 200 }}>
-        <div
-          ref={boxRef}
-          className="bg-surface-tertiary relative overflow-hidden"
-          style={{ width: '100%', height: '100%', borderRadius: 2, cursor: 'grab', touchAction: 'none', backgroundColor: vstyle?.bg || undefined }}
-          onPointerDown={(e) => {
-            e.currentTarget.setPointerCapture(e.pointerId)
-            e.currentTarget.style.cursor = 'grabbing'
-            dragRef.current = { startX: e.clientX, startY: e.clientY, startPanX: panX, startPanY: panY }
-          }}
-          onPointerMove={(e) => {
-            if (!dragRef.current) return
-            const dx = e.clientX - dragRef.current.startX
-            const dy = e.clientY - dragRef.current.startY
-            const rect = e.currentTarget.getBoundingClientRect()
-            const w = rect.width || 300
-            const h = rect.height || 160
-            const dur = (Number(duration) || 5) / zoomX
-            const range = ((Number(max) || 100) - (Number(min) || 0)) / zoomY
-            setPanX(dragRef.current.startPanX - (dx / w) * dur)
-            setPanY(dragRef.current.startPanY + (dy / h) * range)
-          }}
-          onPointerUp={(e) => {
-            e.currentTarget.style.cursor = 'grab'
-            dragRef.current = null
-          }}
-        >
-          <canvas ref={canvasRef} className="block w-full h-full" />
-        </div>
+    <div ref={stageRef} className="relative flex items-center justify-center overflow-hidden h-full w-full" style={{ minHeight: 200 }}>
+      <div
+        ref={boxRef}
+        className="relative overflow-hidden"
+        style={{ width: '100%', height: '100%', borderRadius: 2, cursor: 'grab', touchAction: 'none', backgroundColor: vstyle?.bg || undefined }}
+        onPointerDown={(e) => {
+          e.currentTarget.setPointerCapture(e.pointerId)
+          e.currentTarget.style.cursor = 'grabbing'
+          dragRef.current = { startX: e.clientX, startY: e.clientY, startPanX: panX, startPanY: panY }
+        }}
+        onPointerMove={(e) => {
+          if (!dragRef.current) return
+          const dx = e.clientX - dragRef.current.startX
+          const dy = e.clientY - dragRef.current.startY
+          const rect = e.currentTarget.getBoundingClientRect()
+          const w = rect.width || 300
+          const h = rect.height || 160
+          const dur = (Number(duration) || 5) / zoomX
+          const range = ((Number(max) || 100) - (Number(min) || 0)) / zoomY
+          setPanX(dragRef.current.startPanX - (dx / w) * dur)
+          setPanY(dragRef.current.startPanY + (dy / h) * range)
+        }}
+        onPointerUp={(e) => {
+          e.currentTarget.style.cursor = 'grab'
+          dragRef.current = null
+        }}
+      >
+        <canvas ref={canvasRef} className="block w-full h-full" />
       </div>
     </div>
   )

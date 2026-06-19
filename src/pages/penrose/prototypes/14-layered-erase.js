@@ -16,14 +16,25 @@ export const layeredErase            = {
     'Subtractive layer interaction. A: packed circles, each with `life` initialized to 100. B: wandering erasers do a smooth random walk bounded by SDF; each eraser decrements the `life` of every circle within reach. Circles die when `life <= 0`. Over time the glyph hollows out.',
   helps:
     'Explicit "Conway-esque" life/death rule between two layers. Subtract is one shape of interaction — additive (add to life) and resurrect (revive dead) follow the same contract. This is the scaffold for a general LayerInteraction system.',
-  init({ ctx, sdf, W, H, rng }) {
+  params: [
+    { key: 'minR', type: 'int', min: 4, max: 24, default: 10, label: 'min radius' },
+    { key: 'maxR', type: 'int', min: 20, max: 80, default: 42, label: 'max radius' },
+    { key: 'attempts', type: 'int', min: 1000, max: 9000, step: 500, default: 3500, label: 'density' },
+    { key: 'circleLife', type: 'int', min: 20, max: 300, step: 10, default: 100, label: 'circle life' },
+    { key: 'erasers', type: 'int', min: 1, max: 40, default: 14, label: 'erasers' },
+    { key: 'eraserReach', type: 'int', min: 6, max: 50, default: 20, label: 'eraser reach' },
+    { key: 'damagePerTick', type: 'range', min: 0.1, max: 3, step: 0.1, default: 0.7, label: 'damage' },
+  ],
+  init({ ctx, sdf, W, H, rng, params }) {
     const sx = W / sdf.w, sy = H / sdf.h
+
+    const { minR, maxR, attempts, circleLife, erasers: NE, eraserReach, damagePerTick } = params
 
     // ---- Layer A: packed circles with life ----
     const circles           = []
-    const minR = 10, maxR = 42, padding = 2
+    const padding = 2
     const spawnCircle = (x        , y        , r        ) =>
-      circles.push({ x, y, r, life: 100 })
+      circles.push({ x, y, r, life: circleLife })
     const gridCell = Math.max(minR, 2)
     const gw = Math.ceil(sdf.w / gridCell) + 1
     const gh = Math.ceil(sdf.h / gridCell) + 1
@@ -54,7 +65,7 @@ export const layeredErase            = {
       return false
     }
     for (const [lo, hi] of [[maxR * 0.65, maxR], [maxR * 0.4, maxR * 0.65], [minR, maxR * 0.4]]                      ) {
-      for (let i = 0; i < 3500; i++) {
+      for (let i = 0; i < attempts; i++) {
         const x = rng() * sdf.w, y = rng() * sdf.h
         const s = sdf.sample(x, y)
         if (s >= 0) continue
@@ -70,13 +81,10 @@ export const layeredErase            = {
 
     // ---- Layer B: erasers (Brownian walkers) ----
     const erasers           = []
-    const NE = 14
     for (let i = 0; i < NE; i++) {
       const [x, y] = sampleInside(sdf, rng)
       erasers.push({ x, y, ang: rng() * Math.PI * 2 })
     }
-    const eraserReach = 20
-    const damagePerTick = 0.7
 
     return wrapLoop(() => {
       clear(ctx, W, H)
@@ -105,7 +113,7 @@ export const layeredErase            = {
       // render Layer A — circles with life-driven opacity
       for (const c of circles) {
         if (c.life <= 0) continue
-        const alpha = Math.max(0.05, c.life / 100)
+        const alpha = Math.max(0.05, c.life / circleLife)
         ctx.strokeStyle = `rgba(170, 174, 220, ${alpha * 0.6})`
         ctx.lineWidth = 0.8
         ctx.beginPath()

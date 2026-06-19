@@ -1,7 +1,7 @@
 
 
 import { num } from '../../knobs'
-import { clear, strokeOutline, wrapLoop } from '../common'
+import { clear, strokeOutline, wrapLoop, rampRGB } from '../common'
 
 const PARAMS          = [
   { key: 'iters', type: 'int', min: 5000, max: 60000, default: 20000, step: 2500, label: 'iterations' },
@@ -122,8 +122,7 @@ export const r2_frac_01_flame            = {
         const freq = hist[i * 2]
         if (freq < 1) continue
         const alpha = Math.pow(Math.log(freq + 1) / logMax, gamma)
-        const avgCol = hist[i * 2 + 1] / freq
-        const [r, g, b] = palettePx(avgCol, palette)
+        const [r, g, b] = rampRGB(alpha)
         img.data[i * 4] = r
         img.data[i * 4 + 1] = g
         img.data[i * 4 + 2] = b

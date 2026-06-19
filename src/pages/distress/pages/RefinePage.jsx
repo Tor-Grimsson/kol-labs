@@ -205,6 +205,7 @@ function RefinePage() {
   const [spaceDown, setSpaceDown] = useState(false)
   const [showNodes, setShowNodes] = useState(true)
   const [showHandles, setShowHandles] = useState(true)
+  const [showGrid, setShowGrid] = useState(false)
   const [mirrorMode, setMirrorMode] = useState('disconnected')
   const [resolution, setResolution] = useState(100)
   const resolutionRef = useRef(100)
@@ -825,7 +826,7 @@ function RefinePage() {
         {(() => {
           return (
             <>
-              <GridOverlay zoom={zoom} pan={pan} gridSpacing={64} />
+              {showGrid && <GridOverlay zoom={zoom} pan={pan} gridSpacing={64} />}
               <div className="relative z-10 flex h-full w-full items-center justify-center">
                 <svg
                   ref={svgRef}
@@ -1065,7 +1066,7 @@ function RefinePage() {
 
       <EditorRail>
                   <Section label="Refine tools">
-                    <Slider
+                    <Slider labeled
                       label="Resolution"
                       min={10}
                       max={100}
@@ -1075,7 +1076,7 @@ function RefinePage() {
                       variant="default"
                       className="w-full"
                     />
-                    <Slider
+                    <Slider labeled
                       label="Smoothness"
                       min={0.2}
                       max={2}
@@ -1085,7 +1086,7 @@ function RefinePage() {
                       variant="default"
                       className="w-full"
                     />
-                    <Slider
+                    <Slider labeled
                       label="Stroke width"
                       min={0}
                       max={12}
@@ -1095,7 +1096,7 @@ function RefinePage() {
                       variant="default"
                       className="w-full"
                     />
-                    <Slider
+                    <Slider labeled
                       label="Node size"
                       min={1}
                       max={8}
@@ -1105,7 +1106,7 @@ function RefinePage() {
                       variant="default"
                       className="w-full"
                     />
-                    <Slider
+                    <Slider labeled
                       label="Handle size"
                       min={1}
                       max={8}
@@ -1127,6 +1128,11 @@ function RefinePage() {
                         label="Handles"
                         checked={showHandles}
                         onChange={setShowHandles}
+                      />
+                      <ToggleCheckbox
+                        label="Grid"
+                        checked={showGrid}
+                        onChange={setShowGrid}
                       />
                     </div>
                   </Section>

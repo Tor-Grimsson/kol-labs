@@ -1,7 +1,7 @@
 
 
 import { num } from '../../knobs'
-import { clear, strokeOutline, wrapLoop } from '../common'
+import { clear, strokeOutline, wrapLoop, roleRGB } from '../common'
 
 // Drossel-Schwabl forest-fire model. Three states: empty (0), tree (1),
 // burning (2). Each tick: burning -> empty; tree catches fire from any burning
@@ -96,17 +96,14 @@ export const r2_soc_03_forestfire            = {
       for (let i = 0; i < N; i++) {
         const j = i * 4
         if (!isIn[i]) {
-          img.data[j] = 10; img.data[j + 1] = 11; img.data[j + 2] = 20; img.data[j + 3] = 255
+          const [br, bg, bb] = roleRGB('bg')
+          img.data[j] = br; img.data[j + 1] = bg; img.data[j + 2] = bb; img.data[j + 3] = 255
           continue
         }
         const s = grid[i]
-        if (s === TREE) {
-          img.data[j] = 30; img.data[j + 1] = 130; img.data[j + 2] = 50
-        } else if (s === BURNING) {
-          img.data[j] = 240; img.data[j + 1] = 90; img.data[j + 2] = 20
-        } else {
-          img.data[j] = 18; img.data[j + 1] = 18; img.data[j + 2] = 30
-        }
+        // discrete states: tree→accent, burning→warm, empty interior→dim
+        const [r, g, b] = roleRGB(s === TREE ? 'accent' : s === BURNING ? 'warm' : 'dim')
+        img.data[j] = r; img.data[j + 1] = g; img.data[j + 2] = b
         img.data[j + 3] = 255
       }
 

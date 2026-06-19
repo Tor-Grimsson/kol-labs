@@ -89,7 +89,7 @@ function widgetHost(cls = '')              {
 
 const S01_OSC         = {
   id: '01',
-  title: 'OSC-A SYNTH',
+  title: 'OSC-A Synth',
   subtitle: 'OUTPUT · OSC-A · STBL 128BPM',
   build(s) {
     const out       = []
@@ -130,7 +130,7 @@ const S01_OSC         = {
 
 const S02_DIAG         = {
   id: '02',
-  title: 'SYN / DIAGNOSTIC',
+  title: 'Syn / Diagnostic',
   subtitle: 'CELL STABILITY · PHASE LOCK',
   theme: 'blood',
   build(s) {
@@ -154,7 +154,7 @@ const S02_DIAG         = {
 
 const S03_EYE         = {
   id: '03',
-  title: 'REPLICANT RISK',
+  title: 'Replicant Risk',
   subtitle: 'CELLS 1.03M · BASELINE',
   theme: 'cream',
   build(s) {
@@ -181,7 +181,7 @@ const S03_EYE         = {
 
 const S04_CORE         = {
   id: '04',
-  title: 'CORE STABILITY',
+  title: 'Core Stability',
   subtitle: 'PHASE 02 · LOCKED',
   theme: 'blood',
   build(s) {
@@ -201,7 +201,7 @@ const S04_CORE         = {
 
 const S05_STEPS         = {
   id: '05',
-  title: 'DRUM BASS LEAD',
+  title: 'Drum Bass Lead',
   subtitle: 'PAT 01 · TUE · QLB',
   theme: 'mono',
   build(s) {
@@ -233,7 +233,7 @@ const S05_STEPS         = {
 
 const S06_DECK         = {
   id: '06',
-  title: 'CONTROL DECK',
+  title: 'Control Deck',
   subtitle: '9 AXIS · MANUAL',
   theme: 'default',
   build(s) {
@@ -257,7 +257,7 @@ const S06_DECK         = {
 
 const S07_WAVES         = {
   id: '07',
-  title: 'WAVEFORMS',
+  title: 'Waveforms',
   subtitle: '3 OSC · STACKED',
   theme: 'ice',
   build(s) {
@@ -277,7 +277,7 @@ const S07_WAVES         = {
 
 const S08_BIO         = {
   id: '08',
-  title: 'CORE DNA',
+  title: 'Core DNA',
   subtitle: 'STRAND ENTRY · 7·LAT·9×06',
   theme: 'mono',
   build(s) {
@@ -300,7 +300,7 @@ const S08_BIO         = {
 
 const S09_DENSE         = {
   id: '09',
-  title: 'STACK DRIFT',
+  title: 'Stack Drift',
   subtitle: 'MIN LOAD · SAVE',
   theme: 'blood',
   build(s) {
@@ -324,7 +324,7 @@ const S09_DENSE         = {
 
 const S10_MIN         = {
   id: '10',
-  title: 'MINIMAL',
+  title: 'Minimal',
   subtitle: 'ONE WAVE',
   theme: 'cream',
   build(s) {
@@ -343,7 +343,7 @@ const S10_MIN         = {
 
 const S11_STATS         = {
   id: '11',
-  title: 'STAT PANEL',
+  title: 'Stat Panel',
   subtitle: 'CHANNEL BARS · 6',
   theme: 'default',
   build(s) {
@@ -363,7 +363,7 @@ const S11_STATS         = {
 
 const S12_DUAL         = {
   id: '12',
-  title: 'DUAL STRAND',
+  title: 'Dual Strand',
   subtitle: 'PRE-ALIGN · HELIX 01',
   theme: 'blood',
   build(s) {
@@ -385,7 +385,7 @@ const S12_DUAL         = {
 
 const S13_LAB         = {
   id: '13',
-  title: 'LAB BENCH',
+  title: 'Lab Bench',
   subtitle: 'SAMPLE B-07 · READ',
   theme: 'cream',
   build(s) {
@@ -405,7 +405,7 @@ const S13_LAB         = {
 
 const S14_SPIN         = {
   id: '14',
-  title: 'CENTRIFUGE',
+  title: 'Centrifuge',
   subtitle: 'SPIN 7400 RPM',
   theme: 'mono',
   build(s) {
@@ -426,7 +426,7 @@ const S14_SPIN         = {
 
 const S15_ALIGN         = {
   id: '15',
-  title: 'HELIX ALIGN',
+  title: 'Helix Align',
   subtitle: 'DUAL STRAND · LOCKED',
   theme: 'blood',
   build(s) {
@@ -450,7 +450,7 @@ const S15_ALIGN         = {
 
 const S16_DECK         = {
   id: '16',
-  title: 'TAPE DECK',
+  title: 'Tape Deck',
   subtitle: 'SPOOL · PLAY',
   theme: 'mono',
   build(s) {
@@ -478,7 +478,7 @@ const S16_DECK         = {
 
 const S17_LAB2         = {
   id: '17',
-  title: 'SEQ · HELIX',
+  title: 'Seq · Helix',
   subtitle: 'READ · LOCK · TWIRL',
   theme: 'ice',
   build(s) {
@@ -502,7 +502,7 @@ const S17_LAB2         = {
 
 const S18_FULL         = {
   id: '18',
-  title: 'GENOME DESK',
+  title: 'Genome Desk',
   subtitle: 'FULL STACK · BIO',
   theme: 'blood',
   build(s) {
@@ -528,7 +528,7 @@ const S18_FULL         = {
 
 const S19_STUDIO         = {
   id: '19',
-  title: 'STUDIO DECK',
+  title: 'Studio Deck',
   subtitle: 'TAPE + HELIX + MIX',
   theme: 'mono',
   build(s) {
@@ -557,7 +557,7 @@ const S19_STUDIO         = {
 
 const S20_HELIX         = {
   id: '20',
-  title: 'HELIX HERO',
+  title: 'Helix Hero',
   subtitle: 'SINGLE STRAND · BIG',
   theme: 'blood',
   build(s) {
@@ -576,7 +576,7 @@ const S20_HELIX         = {
 // ---------- SCREENS 21–40: counter / bitmap icon / code scroller ----------
 
 const S21_CNT         = {
-  id: '21', title: 'BIG COUNT', subtitle: 'DROP · 0', theme: 'mono',
+  id: '21', title: 'Big Count', subtitle: 'DROP · 0', theme: 'mono',
   build(s) {
     const out       = []
     statusbar(s, 'DROP')
@@ -592,7 +592,7 @@ const S21_CNT         = {
 }
 
 const S22_ICON         = {
-  id: '22', title: 'CORE ICON', subtitle: 'BITMAP · RADIAL', theme: 'blood',
+  id: '22', title: 'Core Icon', subtitle: 'BITMAP · RADIAL', theme: 'blood',
   build(s) {
     const out       = []
     statusbar(s, 'CORE 22')
@@ -606,7 +606,7 @@ const S22_ICON         = {
 }
 
 const S23_CODES         = {
-  id: '23', title: 'CODE STREAM', subtitle: 'DENSE · ALPHA', theme: 'mono',
+  id: '23', title: 'Code Stream', subtitle: 'DENSE · ALPHA', theme: 'mono',
   build(s) {
     const out       = []
     statusbar(s, 'STREAM')
@@ -620,7 +620,7 @@ const S23_CODES         = {
 }
 
 const S24_MAND         = {
-  id: '24', title: 'MANDALA', subtitle: 'DUAL MANDALA ROT',
+  id: '24', title: 'Mandala', subtitle: 'DUAL MANDALA ROT',
   build(s) {
     const out       = []
     statusbar(s, 'ROT')
@@ -637,7 +637,7 @@ const S24_MAND         = {
 }
 
 const S25_TIMERS         = {
-  id: '25', title: 'TWIN TIMERS', subtitle: '00:01:07 · 00:05:30', theme: 'mono',
+  id: '25', title: 'Twin Timers', subtitle: '00:01:07 · 00:05:30', theme: 'mono',
   build(s) {
     const out       = []
     statusbar(s, 'TIMERS')
@@ -655,7 +655,7 @@ const S25_TIMERS         = {
 }
 
 const S26_FULL         = {
-  id: '26', title: 'ICON + CODE', subtitle: 'EYE · CODES · BARS', theme: 'blood',
+  id: '26', title: 'Icon + Code', subtitle: 'EYE · CODES · BARS', theme: 'blood',
   build(s) {
     const out       = []
     statusbar(s, 'READ 82%')
@@ -675,7 +675,7 @@ const S26_FULL         = {
 }
 
 const S27_MIXED         = {
-  id: '27', title: 'MIXED DECK', subtitle: 'ALL PRIMITIVES',
+  id: '27', title: 'Mixed Deck', subtitle: 'ALL PRIMITIVES',
   build(s) {
     const out       = []
     statusbar(s, 'ALL')
@@ -694,7 +694,7 @@ const S27_MIXED         = {
 }
 
 const S28_PULSE         = {
-  id: '28', title: 'PULSE LOG', subtitle: 'COUNTER · TAPE · BARS', theme: 'ice',
+  id: '28', title: 'Pulse Log', subtitle: 'COUNTER · TAPE · BARS', theme: 'ice',
   build(s) {
     const out       = []
     statusbar(s, 'LOG')
@@ -710,7 +710,7 @@ const S28_PULSE         = {
 }
 
 const S29_TWINS         = {
-  id: '29', title: 'DUAL SPIN', subtitle: 'TWO MANDALAS · LOCK', theme: 'blood',
+  id: '29', title: 'Dual Spin', subtitle: 'TWO MANDALAS · LOCK', theme: 'blood',
   build(s) {
     const out       = []
     statusbar(s, 'LOCK')
@@ -728,7 +728,7 @@ const S29_TWINS         = {
 }
 
 const S30_BIG         = {
-  id: '30', title: 'CLOCK', subtitle: 'BIG TIME', theme: 'mono',
+  id: '30', title: 'Clock', subtitle: 'BIG TIME', theme: 'mono',
   build(s) {
     const out       = []
     statusbar(s, 'TIME')
@@ -742,7 +742,7 @@ const S30_BIG         = {
 }
 
 const S31_BIOSCROLL         = {
-  id: '31', title: 'BIO STREAM', subtitle: 'DNA · HELIX · CODE', theme: 'blood',
+  id: '31', title: 'Bio Stream', subtitle: 'DNA · HELIX · CODE', theme: 'blood',
   build(s) {
     const out       = []
     statusbar(s, 'BIO')
@@ -759,7 +759,7 @@ const S31_BIOSCROLL         = {
 }
 
 const S32_HELIX_REEL         = {
-  id: '32', title: 'HELIX REELS', subtitle: 'TAPE FLANKS',
+  id: '32', title: 'Helix Reels', subtitle: 'TAPE FLANKS',
   build(s) {
     const out       = []
     statusbar(s, 'SPIN')
@@ -779,7 +779,7 @@ const S32_HELIX_REEL         = {
 }
 
 const S33_FLIP         = {
-  id: '33', title: 'FLIP BOOK', subtitle: 'ICON CYCLE', theme: 'cream',
+  id: '33', title: 'Flip Book', subtitle: 'ICON CYCLE', theme: 'cream',
   build(s) {
     const out       = []
     statusbar(s, 'FLIP')
@@ -795,7 +795,7 @@ const S33_FLIP         = {
 }
 
 const S34_STACK         = {
-  id: '34', title: 'WAVE STACK', subtitle: 'FOUR OSC',
+  id: '34', title: 'Wave Stack', subtitle: 'FOUR OSC',
   build(s) {
     const out       = []
     statusbar(s, '4·OSC')
@@ -810,7 +810,7 @@ const S34_STACK         = {
 }
 
 const S35_COUNTSEQ         = {
-  id: '35', title: 'COUNT + SEQ', subtitle: 'DROP · PATTERN', theme: 'mono',
+  id: '35', title: 'Count + Seq', subtitle: 'DROP · PATTERN', theme: 'mono',
   build(s) {
     const out       = []
     statusbar(s, 'CNT')
@@ -825,7 +825,7 @@ const S35_COUNTSEQ         = {
 }
 
 const S36_MIN         = {
-  id: '36', title: 'DROP 0', subtitle: 'MIN', theme: 'mono',
+  id: '36', title: 'Drop 0', subtitle: 'MIN', theme: 'mono',
   build(s) {
     const out       = []
     statusbar(s, '0')
@@ -837,7 +837,7 @@ const S36_MIN         = {
 }
 
 const S37_ALPHA         = {
-  id: '37', title: 'ALPHA ONLY', subtitle: 'CODE DUMP', theme: 'cream',
+  id: '37', title: 'Alpha Only', subtitle: 'CODE DUMP', theme: 'cream',
   build(s) {
     const out       = []
     statusbar(s, 'A–Z')
@@ -849,7 +849,7 @@ const S37_ALPHA         = {
 }
 
 const S38_ICON_TAPE         = {
-  id: '38', title: 'ICON + TAPE', subtitle: 'BURST · REELS',
+  id: '38', title: 'Icon + Tape', subtitle: 'BURST · REELS',
   build(s) {
     const out       = []
     statusbar(s, 'BRST')
@@ -868,7 +868,7 @@ const S38_ICON_TAPE         = {
 }
 
 const S39_INSTRU         = {
-  id: '39', title: 'INSTRUMENT', subtitle: 'DEEP PANEL', theme: 'blood',
+  id: '39', title: 'Instrument', subtitle: 'DEEP PANEL', theme: 'blood',
   build(s) {
     const out       = []
     statusbar(s, 'INS')
@@ -897,7 +897,7 @@ const S39_INSTRU         = {
 }
 
 const S40_ALL         = {
-  id: '40', title: 'STUDIO ALL', subtitle: 'EVERYTHING · ONE', theme: 'mono',
+  id: '40', title: 'Studio All', subtitle: 'EVERYTHING · ONE', theme: 'mono',
   build(s) {
     const out       = []
     statusbar(s, 'ALL')
@@ -1051,7 +1051,7 @@ const S47_SQUID         = makeCoreScreen(
 )
 
 const S48_TWIN         = {
-  id: '48', title: 'TWIN MANTAS', subtitle: 'PAIR DRIFT', theme: 'ice',
+  id: '48', title: 'Twin Mantas', subtitle: 'PAIR DRIFT', theme: 'ice',
   build(s) {
     const out       = []
     statusbar(s, 'PAIR')
@@ -1073,7 +1073,7 @@ const S48_TWIN         = {
 }
 
 const S49_CHORUS         = {
-  id: '49', title: 'WING CHORUS', subtitle: 'FOUR FOILS', theme: 'mono',
+  id: '49', title: 'Wing Chorus', subtitle: 'FOUR FOILS', theme: 'mono',
   build(s) {
     const out       = []
     statusbar(s, 'CHORUS')
@@ -1104,7 +1104,7 @@ const S49_CHORUS         = {
 }
 
 const S50_CORE_FULL         = {
-  id: '50', title: 'CORE · FULL STACK', subtitle: 'GRAND DECK', theme: 'blood',
+  id: '50', title: 'Core · Full Stack', subtitle: 'GRAND DECK', theme: 'blood',
   build(s) {
     const out       = []
     statusbar(s, 'CORE MAX')
@@ -1125,6 +1125,9 @@ const S50_CORE_FULL         = {
 
 // Chrome builders reused by the generator (registry chrome entries).
 export { statusbar, label, readouts, numericStrip, transport, dualNum, el, widgetHost }
+// Screen categories live in the lightweight ./screens.groups.js (no widget deps)
+// so the eager sidebar can import them without pulling in this whole module.
+export { SCREEN_GROUPS, screenCat } from './screens.groups.js'
 
 export const SCREENS           = [
   S01_OSC, S02_DIAG, S03_EYE, S04_CORE, S05_STEPS,

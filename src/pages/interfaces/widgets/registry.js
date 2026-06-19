@@ -11,7 +11,7 @@
  */
 import {
   hero, sequencer, eqBars, knob, tape, matrix, vu,
-  helix, reel, hBars, sevenSeg, bitmap, codeScroll, creature3d, cipher,
+  helix, reel, hBars, sevenSeg, bitmap, codeScroll, creature3d, cipher, reticle,
 } from './index.js'
 import { CIPHER_MODES } from './cipher.js'
 import { CHARSET_KEYS } from '../lib/charsets.js'
@@ -35,6 +35,9 @@ export const WIDGETS = [
   { key: 'bitmap', label: 'Bitmap', group: 'displays', factory: bitmap,
     defaults: { w: 72, h: 72, arms: 6, rings: 4, speed: 0.2, style: 'radial', seed: 0 },
     params: [R('arms', 2, 12, 1), R('rings', 2, 8, 1), R('speed', 0.05, 1, 0.05), SEL('style', ['radial', 'spiral', 'eye']), R('seed', 0, 9, 1)] },
+  { key: 'reticle', label: 'Reticle', group: 'displays', factory: reticle, square: true,
+    defaults: { size: 72, rings: 3, blips: 5, speed: 0.5, seed: 0 },
+    params: [R('size', 40, 120, 2), R('rings', 1, 6, 1), R('blips', 0, 12, 1), R('speed', 0.05, 2, 0.05), R('seed', 0, 9, 1)] },
 
   // meters
   { key: 'eqBars', label: 'EQ Bars', group: 'meters', factory: eqBars,

@@ -9,7 +9,7 @@
 
 
 import { num } from '../../knobs'
-import { clear, strokeOutline, wrapLoop } from '../common'
+import { clear, strokeOutline, wrapLoop, rampRGB, roleRGB } from '../common'
 
 const PARAMS          = [
   { key: 'res',   type: 'int',   min: 64,  max: 128, default: 96,  step: 16,   label: 'grid res (2ⁿ)' },
@@ -196,13 +196,15 @@ export const r2_wave_04_kuramoto_sivashinsky            = {
       for (let i = 0; i < N; i++) {
         const j = i * 4
         if (mask[i] === 0) {
-          img.data[j] = 10; img.data[j+1] = 11; img.data[j+2] = 20; img.data[j+3] = 255
+          const [br, bg, bb] = roleRGB('bg')
+          img.data[j] = br; img.data[j+1] = bg; img.data[j+2] = bb; img.data[j+3] = 255
           continue
         }
         const v = (u[i] - uMin) / uRange  // 0..1
-        img.data[j]   = (15  + 200 * v) | 0
-        img.data[j+1] = (20  + 160 * v) | 0
-        img.data[j+2] = (80  + 120 * v) | 0
+        const [r, g, b] = rampRGB(v)
+        img.data[j]   = r
+        img.data[j+1] = g
+        img.data[j+2] = b
         img.data[j+3] = 255
       }
 

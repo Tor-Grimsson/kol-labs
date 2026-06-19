@@ -7,7 +7,7 @@
 
 
 import { num } from '../../knobs'
-import { clear, strokeOutline, wrapLoop } from '../common'
+import { clear, strokeOutline, wrapLoop, rampRGB, roleRGB } from '../common'
 
 const SX = [-0.125, 0, 0.125, -0.25, 0, 0.25, -0.125, 0, 0.125]
 const SY = [-0.125, -0.25, -0.125, 0, 0, 0, 0.125, 0.25, 0.125]
@@ -129,18 +129,21 @@ export const r2_nca_04_steerable            = {
       for (let i = 0; i < N; i++) {
         const j = i * 4
         if (!mask[i]) {
-          img.data[j] = 10; img.data[j + 1] = 11; img.data[j + 2] = 20; img.data[j + 3] = 255
+          const [br, bg, bb] = roleRGB('bg')
+          img.data[j] = br; img.data[j + 1] = bg; img.data[j + 2] = bb; img.data[j + 3] = 255
           continue
         }
-        // Encode orientation as hue overlay on top of RGB appearance
+        // Orientation modulates intensity so co-oriented domains still read
         const th = Math.atan2(state[i * NC + 3], state[i * NC + 4])
         const hue = ((th / (Math.PI * 2)) + 1) % 1
         const r = Math.max(0, Math.min(1, state[i * NC + 0] * bright * 0.5 + 0.5 + hue * 0.15))
         const g = Math.max(0, Math.min(1, state[i * NC + 1] * bright * 0.5 + 0.5 - hue * 0.05))
         const b = Math.max(0, Math.min(1, state[i * NC + 2] * bright * 0.5 + 0.5 - hue * 0.1))
-        img.data[j]     = (r * 220 + 15) | 0
-        img.data[j + 1] = (g * 180 + 20) | 0
-        img.data[j + 2] = (b * 210 + 25) | 0
+        const intensity = (r + g + b) / 3
+        const [cr, cg, cb] = rampRGB(intensity)
+        img.data[j]     = cr
+        img.data[j + 1] = cg
+        img.data[j + 2] = cb
         img.data[j + 3] = 255
       }
       clear(ctx, W, H)

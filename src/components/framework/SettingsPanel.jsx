@@ -25,6 +25,9 @@ import { downloadSettings, readSettingsFile } from '../../lib/settingsIO.js'
  * @param {Function} props.getSettings     - () => JSON-safe settings snapshot
  * @param {Function} props.applySettings   - (settings) => void (restore on import)
  * @param {boolean}  [props.showTheme=true]
+ * @param {boolean}  [props.showIO=true]   - render the Export/Import row. Set
+ *                     false when the page hosts save/load in the File footer tab
+ *                     (EditorFooter) so it isn't duplicated.
  * @param {Array}    [props.themeOptions]  - override the theme list
  * @param {string}   [props.label='Settings']
  */
@@ -40,6 +43,7 @@ export default function SettingsPanel({
   getSettings,
   applySettings,
   showTheme = true,
+  showIO = true,
   themeOptions = THEME_OPTIONS,
   label = 'Settings',
 }) {
@@ -87,13 +91,16 @@ export default function SettingsPanel({
         </div>
       )}
 
-      <div className="flex gap-2">
-        <Button variant="secondary" size="sm" iconLeft="download" onClick={doExport} className="flex-1">Export</Button>
-        <Button variant="secondary" size="sm" onClick={() => fileRef.current?.click()} className="flex-1">Import</Button>
-        <input ref={fileRef} type="file" accept="application/json,.json" className="hidden" onChange={onFile} />
-      </div>
-
-      {err && <div className="kol-helper-10 text-red-500">{err}</div>}
+      {showIO && (
+        <>
+          <div className="flex gap-2">
+            <Button variant="secondary" size="sm" iconLeft="download" onClick={doExport} className="flex-1">Export</Button>
+            <Button variant="secondary" size="sm" onClick={() => fileRef.current?.click()} className="flex-1">Import</Button>
+            <input ref={fileRef} type="file" accept="application/json,.json" className="hidden" onChange={onFile} />
+          </div>
+          {err && <div className="kol-helper-10 text-red-500">{err}</div>}
+        </>
+      )}
     </Section>
   )
 }

@@ -7,7 +7,7 @@
 
 
 import { num } from '../../knobs'
-import { clear, strokeOutline, wrapLoop } from '../common'
+import { clear, strokeOutline, wrapLoop, rampRGB, roleRGB } from '../common'
 
 const PARAMS          = [
   { key: 'res',    type: 'int',   min: 64,   max: 160,  default: 112,  step: 16,  label: 'grid res' },
@@ -120,15 +120,18 @@ export const r2_nca_03_dynca            = {
       for (let i = 0; i < N; i++) {
         const j = i * 4
         if (!mask[i]) {
-          img.data[j] = 10; img.data[j + 1] = 11; img.data[j + 2] = 20; img.data[j + 3] = 255
+          const [br, bg, bb] = roleRGB('bg')
+          img.data[j] = br; img.data[j + 1] = bg; img.data[j + 2] = bb; img.data[j + 3] = 255
           continue
         }
         const r = Math.max(0, Math.min(1, state[i * NC + 0] * bright * 0.5 + 0.5))
         const g = Math.max(0, Math.min(1, state[i * NC + 1] * bright * 0.5 + 0.5))
         const b = Math.max(0, Math.min(1, state[i * NC + 2] * bright * 0.5 + 0.5))
-        img.data[j]     = (r * 200 + 20)  | 0
-        img.data[j + 1] = (g * 220 + 10)  | 0
-        img.data[j + 2] = (b * 180 + 40)  | 0
+        const intensity = (r + g + b) / 3
+        const [cr, cg, cb] = rampRGB(intensity)
+        img.data[j]     = cr
+        img.data[j + 1] = cg
+        img.data[j + 2] = cb
         img.data[j + 3] = 255
       }
       clear(ctx, W, H)

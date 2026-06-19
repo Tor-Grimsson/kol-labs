@@ -122,6 +122,24 @@ export default function SideNav({ drawerOpen = false, onCloseDrawer, navTree = [
   const onPageRoot = activePage && pathname === activePage.to
   const activeSectionId = useScrollSpy(onPageRoot ? sectionIds : [])
 
+  // Per-page child expand/collapse: clicking the active page toggles its
+  // children open/closed; navigating to a page (re)expands it.
+  const [collapsedPages, setCollapsedPages] = useState(() => new Set())
+  const togglePage = (page, isActivePage) => (e) => {
+    if (!page.children) return
+    if (isActivePage) e.preventDefault() // already here — just toggle, don't re-navigate
+    setCollapsedPages((prev) => {
+      const next = new Set(prev)
+      if (isActivePage) {
+        if (next.has(page.id)) next.delete(page.id)
+        else next.add(page.id)
+      } else {
+        next.delete(page.id) // fresh navigation → expand
+      }
+      return next
+    })
+  }
+
   const isEditor = pathname.startsWith('/editor/')
   const [collapsed, setCollapsed] = useState(isEditor)
 
@@ -153,13 +171,21 @@ export default function SideNav({ drawerOpen = false, onCloseDrawer, navTree = [
 
       <div className="kol-sidenav-scroll flex-1 flex flex-col justify-between overflow-y-auto pt-4 pb-4 [scrollbar-width:thin]">
         <ul className="kol-sidenav-tree flex flex-col gap-[2px]">
-          {navTree.map((page) => {
+          {navTree.map((page, idx) => {
+            if (page.section) {
+              return (
+                <li key={`sec-${page.section}`} className="kol-sidenav-section kol-helper-10 uppercase text-subtle pl-6 pr-4 pt-4 pb-1 mt-1">
+                  {page.section}
+                </li>
+              )
+            }
             const isActivePage = activePage?.id === page.id
             return (
-              <li key={page.id}>
+              <li key={page.id ?? `n-${idx}`}>
                 <NavLink
                   to={page.to}
                   end={page.to === '/'}
+                  onClick={togglePage(page, isActivePage)}
                   className={({ isActive }) =>
                     `kol-sidenav-hop kol-helper-12 relative flex items-center gap-3 py-2 pr-10 pl-6 no-underline${isActive ? ' is-active' : ''}`
                   }
@@ -168,9 +194,18 @@ export default function SideNav({ drawerOpen = false, onCloseDrawer, navTree = [
                     <Icon name={page.icon} size={16} />
                   </span>
                   <span className="kol-sidenav-hop-label flex-1 min-w-0">{page.label}</span>
+                  {page.children && (
+                    <span
+                      className="kol-sidenav-hop-caret absolute right-3 inline-flex items-center justify-center text-meta transition-transform duration-150"
+                      style={{ transform: (isActivePage && !collapsedPages.has(page.id)) ? 'rotate(90deg)' : 'none' }}
+                      aria-hidden="true"
+                    >
+                      <Icon name="chevron-right" size={12} />
+                    </span>
+                  )}
                 </NavLink>
 
-                {isActivePage && page.children && (
+                {isActivePage && page.children && !collapsedPages.has(page.id) && (
                   <ul className="kol-sidenav-list mb-2 flex flex-col gap-2">
                     {page.children.map((child, i) => (
                       <ChildNode

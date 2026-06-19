@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { startClock, tempoMillis } from './lib/clock.js'
 
 /**
  * Mounts a single widget p5 factory into a host div, managing its lifecycle.
@@ -15,6 +16,10 @@ export default function WidgetMount({ factory, opts, playing = true, onCanvas, t
     // and append directly + hang _cleanup on their element. Tolerate both.
     const inst = factory({ host: node, ...opts })
     instRef.current = inst
+    // route the widget's clock through the shared tempo clock so the footer
+    // Transport tempo scales its animation (widgets read time via p.millis()).
+    startClock()
+    if (inst && typeof inst.millis === 'function') inst.millis = () => tempoMillis()
     const cv = node.querySelector('canvas')
     if (cv) { cv.style.imageRendering = 'pixelated'; cv.style.display = 'block' }
     onCanvas?.(cv || null)

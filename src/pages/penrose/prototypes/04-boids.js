@@ -14,10 +14,20 @@ export const boids            = {
     'N autonomous agents with separation, alignment, cohesion forces + SDF inward force. Reads as a school or swarm drifting inside the letter. Ideal as a motion layer over a static pack (layer 1 structure, layer 2 life).',
   helps:
     'The "motion over structure" layer — boids drift over a static packed base. Cross-layer rules (predator/prey between layers) map cleanly onto boid weights.',
-  init({ ctx, sdf, W, H, rng }) {
+  params: [
+    { key: 'N', type: 'int', min: 50, max: 1200, step: 10, default: 450, label: 'count' },
+    { key: 'neighbor', type: 'int', min: 8, max: 60, default: 22, label: 'neighbor radius' },
+    { key: 'sepR', type: 'range', min: 2, max: 24, step: 0.5, default: 9, label: 'separation dist' },
+    { key: 'sepW', type: 'range', min: 0, max: 0.6, step: 0.01, default: 0.18, label: 'separation' },
+    { key: 'aliW', type: 'range', min: 0, max: 0.3, step: 0.01, default: 0.05, label: 'alignment' },
+    { key: 'cohW', type: 'range', min: 0, max: 0.2, step: 0.005, default: 0.02, label: 'cohesion' },
+    { key: 'maxSpeed', type: 'range', min: 0.5, max: 6, step: 0.1, default: 2.2, label: 'max speed' },
+  ],
+  init({ ctx, sdf, W, H, rng, params }) {
     const sx = W / sdf.w, sy = H / sdf.h
 
-    const N = 450
+    const { N, neighbor, sepR, sepW, aliW, cohW, maxSpeed } = params
+
     const boids         = []
     for (let i = 0; i < N; i++) {
       const [x, y] = sampleInside(sdf, rng)
@@ -25,12 +35,6 @@ export const boids            = {
       boids.push({ x, y, vx: Math.cos(a) * 0.8, vy: Math.sin(a) * 0.8 })
     }
 
-    const neighbor = 22
-    const sepR = 9
-    const sepW = 0.18
-    const aliW = 0.05
-    const cohW = 0.02
-    const maxSpeed = 2.2
     const sdfMargin = 8
 
     return wrapLoop(() => {

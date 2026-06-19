@@ -6,13 +6,14 @@ import CameraTimeline from './CameraTimeline'
 import { totalDuration } from '../engine/timeline'
 import StylePanel from '../../components/StylePanel'
 import { useMathStyle, AXIS_3D } from '../../style/mathStyle'
-import { VIEW_ASPECTS, DEFAULT_ASPECT, DEFAULT_SCALE, ratioFor, dimsFor } from '../../../_shared/exportSpecs.js'
-import ExportPanel from '../../../_shared/ExportPanel.jsx'
-import { DEFAULT_THEME, resolveTheme } from '../../../../lib/themes.js'
+import { VIEW_ASPECTS, DEFAULT_ASPECT, defaultAspectFor, DEFAULT_SCALE, ratioFor, dimsFor } from '../../../_shared/exportSpecs.js'
+import { defaultTheme } from '../../../../lib/appSettings.js'
+import { resolveTheme } from '../../../../lib/themes.js'
 import SettingsPanel from '../../../../components/framework/SettingsPanel.jsx'
 import Scrubber from '../../../../components/framework/Scrubber.jsx'
-import TransportBar from '../../../../components/framework/TransportBar.jsx'
 import EditorRail, { RailHeader } from '../../../../components/framework/EditorRail.jsx'
+import EditorFooter from '../../../../components/framework/EditorFooter.jsx'
+import { LiveClock } from '../../../../lib/liveClock.jsx'
 import Button from '../../../../components/atoms/Button.jsx'
 import ToggleSwitch from '../../../../components/atoms/ToggleSwitch.jsx'
 import Slider from '../../../../components/atoms/Slider.jsx'
@@ -65,10 +66,11 @@ export default function ClipEditor({
   const [cameraMotion, setCameraMotion] = useState(true)
   const [cam, setCam] = useState({ yaw: 20, pitch: 20, dist: 3, zoom: 1 })
   const [style, patchStyle, applyTheme] = useMathStyle({ plane: 'xy' })
-  const [themeId, setThemeId] = useState(DEFAULT_THEME)
+  const [themeId, setThemeId] = useState(() => defaultTheme())
   const [invert, setInvert] = useState(false)
-  const [aspect, setAspect] = useState(DEFAULT_ASPECT)
+  const [aspect, setAspect] = useState(() => defaultAspectFor('view'))
   const [scale, setScale] = useState(DEFAULT_SCALE)
+  const [footTab, setFootTab] = useState('transport') // Transport · Output · File
 
   // Theme drives the stage chrome (bg + grid colour/opacity). The clip's own
   // stroke colour stays a per-clip choice, so it isn't overwritten here.
@@ -208,7 +210,7 @@ export default function ClipEditor({
             clip={clip}
             sampleKey={sampleKey}
             paused={!playing}
-            speed={tempo / 120}
+            speed={tempo / 240}
             cameraMotion={cameraMotion}
             manualCam={cam}
             bg={style.bg}
@@ -223,9 +225,32 @@ export default function ClipEditor({
         <Scrubber progressRef={progressRef} playerRef={playerRef} marks={marks} />
       </div>
 
-      <EditorRail>
-        <RailHeader>{headerLabel}</RailHeader>
-
+      <LiveClock getT={() => progressRef.current.t}>
+      <EditorRail
+        footerBare
+        header={<RailHeader>{headerLabel}</RailHeader>}
+        footer={
+          <EditorFooter
+            tab={footTab}
+            onTab={setFootTab}
+            transport={{
+              playing,
+              onPlay: () => setPlaying(true),
+              onPause: () => setPlaying(false),
+              onStop: () => { setPlaying(false); setResetKey((k) => k + 1) },
+              onRewind: () => setResetKey((k) => k + 1),
+              tempo,
+              onTempo: setTempo,
+              tempoMax: 600,
+            }}
+            exportProps={{ aspect, onAspect: setAspect, aspects: VIEW_ASPECTS, scale, onScale: setScale }}
+            exportActions={<Button variant="primary" size="sm" className="w-full" iconLeft="download" onClick={exportPng}>Export PNG</Button>}
+            settingsPage={settingsPage}
+            getSettings={getSettings}
+            applySettings={applySettings}
+          />
+        }
+      >
         {/* Fixed: which control group is shown. */}
         <SegmentedToggle
           value={panel}
@@ -238,9 +263,7 @@ export default function ClipEditor({
           ]}
         />
 
-        {/* Scrolls: the active panel + rail extras. Transport (below) stays fixed. */}
-        <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-5">
-          {panel === 'curve' && (
+        {panel === 'curve' && (
             <Section label="Curve">
               <CurveControls curve={clip.curve} onChange={editCurve} onKind={setKind} />
             </Section>
@@ -265,10 +288,10 @@ export default function ClipEditor({
                 <CameraTimeline timeline={clip.timeline} onChange={editTimeline} selected={kfSel} onSelect={setKfSel} />
               ) : (
                 <>
-                  <Slider label="Yaw" min={-180} max={180} step={1} value={cam.yaw} onChange={(v) => setCamParam('yaw', v)} variant="default" />
-                  <Slider label="Pitch" min={-89} max={89} step={1} value={cam.pitch} onChange={(v) => setCamParam('pitch', v)} variant="default" />
-                  <Slider label="Distance" min={1} max={8} step={0.1} value={cam.dist} onChange={(v) => setCamParam('dist', v)} variant="default" />
-                  <Slider label="Zoom" min={0.3} max={3} step={0.05} value={cam.zoom} onChange={(v) => setCamParam('zoom', v)} variant="default" />
+                  <Slider labeled label="Yaw" min={-180} max={180} step={1} value={cam.yaw} onChange={(v) => setCamParam('yaw', v)} variant="default" />
+                  <Slider labeled label="Pitch" min={-89} max={89} step={1} value={cam.pitch} onChange={(v) => setCamParam('pitch', v)} variant="default" />
+                  <Slider labeled label="Distance" min={1} max={8} step={0.1} value={cam.dist} onChange={(v) => setCamParam('dist', v)} variant="default" />
+                  <Slider labeled label="Zoom" min={0.3} max={3} step={0.05} value={cam.zoom} onChange={(v) => setCamParam('zoom', v)} variant="default" />
                 </>
               )}
             </Section>
@@ -276,10 +299,6 @@ export default function ClipEditor({
 
           {panel === 'view' && (
             <>
-              <ExportPanel aspect={aspect} onAspect={setAspect} aspects={VIEW_ASPECTS} scale={scale} onScale={setScale}>
-                <Button variant="primary" size="sm" className="w-full" iconLeft="download" onClick={exportPng}>Export PNG</Button>
-              </ExportPanel>
-
               <StylePanel
                 style={style}
                 onPatch={patchStyle}
@@ -302,6 +321,7 @@ export default function ClipEditor({
                   onSeed={onSeed}
                   getSettings={getSettings}
                   applySettings={applySettings}
+                  showIO={false}
                 />
               )}
             </>
@@ -317,22 +337,8 @@ export default function ClipEditor({
               {railExtras}
             </>
           )}
-        </div>
-
-        {/* Fixed: transport — identical regardless of scroll position. */}
-        <div className="border-t border-fg-08 pt-3 flex flex-col gap-3">
-          <TransportBar
-            playing={playing}
-            onPlay={() => setPlaying(true)}
-            onPause={() => setPlaying(false)}
-            onStop={() => { setPlaying(false); setResetKey((k) => k + 1) }}
-            onRewind={() => setResetKey((k) => k + 1)}
-            tempo={tempo}
-            onTempo={setTempo}
-            tempoMax={300}
-          />
-        </div>
       </EditorRail>
+      </LiveClock>
     </div>
   )
 }

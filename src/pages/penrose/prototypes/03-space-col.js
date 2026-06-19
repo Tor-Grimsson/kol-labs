@@ -19,11 +19,18 @@ export const spaceCol            = {
     'Runions 2007 venation algorithm. Attractors live inside the glyph; each branch tip advances toward the mean of its visible attractors; attractors die on contact. Output is dendritic — like a root system conforming to the letter.',
   helps:
     'Venation / radial-spoke vocabulary that matches the ref-image cell structure. Multiple trees can co-grow and compete for attractors → natural layer interaction (two layers = two trees that steal each other\'s auxin).',
-  init({ ctx, sdf, W, H, rng }) {
+  params: [
+    { key: 'attractorCount', type: 'int', min: 100, max: 2400, step: 50, default: 900, label: 'attractors' },
+    { key: 'perception', type: 'int', min: 20, max: 200, default: 80, label: 'perception' },
+    { key: 'killDist', type: 'range', min: 2, max: 30, step: 0.5, default: 8, label: 'kill dist' },
+    { key: 'stepSize', type: 'range', min: 1, max: 10, step: 0.5, default: 3, label: 'step size' },
+  ],
+  init({ ctx, sdf, W, H, rng, params }) {
     const sx = W / sdf.w, sy = H / sdf.h
 
+    const { attractorCount, perception, killDist, stepSize } = params
+
     const attractors              = []
-    const attractorCount = 900
     while (attractors.length < attractorCount) {
       const [x, y] = sampleInside(sdf, rng, 1)
       if (sdf.sample(x, y) < -3) attractors.push({ x, y, alive: true })
@@ -33,10 +40,6 @@ export const spaceCol            = {
     // seed: start from a random interior point with no parent
     const [sx0, sy0] = sampleInside(sdf, rng)
     branches.push({ x: sx0, y: sy0, parent: -1, alive: true })
-
-    const perception = 80
-    const killDist = 8
-    const stepSize = 3
 
     return wrapLoop(() => {
       const perception2 = perception * perception

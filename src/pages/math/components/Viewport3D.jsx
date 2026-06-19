@@ -38,6 +38,9 @@ const Viewport3D = forwardRef(function Viewport3D(
   })
 
   useImperativeHandle(ref, () => ({
+    // Current playhead in seconds — the SAME `t` the render closure resolves
+    // expression params against, so expr-bound Sliders track it (see liveClock).
+    now() { const d = stateRef.current.dur; return d ? accumRef.current % d : accumRef.current },
     resetCamera() { camRef.current = { ...DEFAULT_CAM } },
     resetTime() { accumRef.current = 0 },
     seek(frac) { accumRef.current = Math.max(0, Math.min(1, frac)) * (stateRef.current.dur || 1) },

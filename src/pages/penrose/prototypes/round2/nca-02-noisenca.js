@@ -6,7 +6,7 @@
 
 
 import { num } from '../../knobs'
-import { clear, strokeOutline, wrapLoop } from '../common'
+import { clear, strokeOutline, wrapLoop, rampRGB, roleRGB } from '../common'
 
 // Fixed 3×3 filter bank: [Sobel-x, Sobel-y, Laplacian] (classic NCA perception)
 const FX = [ -1, 0, 1, -2, 0, 2, -1, 0, 1 ]  // Sobel-x
@@ -101,15 +101,18 @@ export const r2_nca_02_noisenca            = {
       for (let i = 0; i < N; i++) {
         const j = i * 4
         if (!mask[i]) {
-          img.data[j] = 10; img.data[j + 1] = 11; img.data[j + 2] = 20; img.data[j + 3] = 255
+          const [br, bg, bb] = roleRGB('bg')
+          img.data[j] = br; img.data[j + 1] = bg; img.data[j + 2] = bb; img.data[j + 3] = 255
           continue
         }
         const r = Math.max(0, Math.min(1, state[i * NC + 0] * gain * 0.5 + 0.5))
         const g = Math.max(0, Math.min(1, state[i * NC + 1] * gain * 0.5 + 0.5))
         const b = Math.max(0, Math.min(1, state[i * NC + 2] * gain * 0.5 + 0.5))
-        img.data[j]     = (r * 190 + 30)  | 0
-        img.data[j + 1] = (g * 160 + 50)  | 0
-        img.data[j + 2] = (b * 220 + 20)  | 0
+        const intensity = (r + g + b) / 3
+        const [cr, cg, cb] = rampRGB(intensity)
+        img.data[j]     = cr
+        img.data[j + 1] = cg
+        img.data[j + 2] = cb
         img.data[j + 3] = 255
       }
       clear(ctx, W, H)

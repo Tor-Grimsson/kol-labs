@@ -1,7 +1,7 @@
 
 
 import { num } from '../../knobs'
-import { clear, strokeOutline, wrapLoop } from '../common'
+import { clear, strokeOutline, wrapLoop, rampRGB, roleRGB } from '../common'
 
 const PARAMS          = [
   { key: 'maxIter', type: 'int', min: 32, max: 512, default: 128, step: 16, label: 'max iter' },
@@ -97,12 +97,16 @@ export const r2_frac_03_orbit_trap            = {
 
           const idx = (py * RES + px) * 4
           if (n === maxIter) {
-            // interior: black
+            // interior: theme bg
+            const [br, bg, bb] = roleRGB('bg')
+            img.data[idx] = br
+            img.data[idx + 1] = bg
+            img.data[idx + 2] = bb
             img.data[idx + 3] = 200
           } else {
-            // smooth trap color
+            // smooth trap color along the palette ramp
             const v = Math.exp(-trapMin * 3)
-            const [r, g, b] = paletteCol(v, palette)
+            const [r, g, b] = rampRGB(v)
             img.data[idx] = r
             img.data[idx + 1] = g
             img.data[idx + 2] = b

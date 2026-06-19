@@ -54,11 +54,10 @@ export default function TransportBar({
   tempoMax = 100,
   className = '',
 }) {
-  // Global Space → play / pause. The listener lives here so every page that
-  // renders a TransportBar gets the binding for free (one transport per page).
-  // Latest state + handlers are read through a ref so the listener subscribes
-  // once and never churns on the page's per-frame re-renders. Ignored while a
-  // form field is focused, so typing a value (incl. the Tempo box) isn't taken.
+  // Global Space → play / pause. The listener lives here; footer-toggle pages
+  // keep the TransportBar MOUNTED (hidden when another footer tab is active) so
+  // this binding stays alive regardless of which panel shows. Read via a ref so
+  // it subscribes once; ignored while a form field is focused.
   const live = useRef({ playing, onPlay, onPause })
   live.current = { playing, onPlay, onPause }
   useEffect(() => {

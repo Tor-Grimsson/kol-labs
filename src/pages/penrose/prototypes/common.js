@@ -1,7 +1,45 @@
 
 
 import { CLOCK } from '../clock'
-import { PALETTE } from '../settings'
+import { PALETTE, OPACITY } from '../settings'
+
+const _hexRGB = (h) => {
+  const m = /^#?([0-9a-f]{6})$/i.exec(h || '')
+  if (!m) return [255, 255, 255]
+  const n = parseInt(m[1], 16)
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255]
+}
+
+// Map a 0..1 field intensity to the palette ramp (bg→dim→accent→fg→warm) → [r,g,b].
+// For pixel-field prototypes that write raw ImageData and bypass the stroke tint
+// (CA / reaction-diffusion / fractals): replace their per-pixel colour with this so
+// the field reads in the theme instead of hardcoded/garish hues.
+export function rampRGB(t) {
+  const stops = ['bg', 'dim', 'accent', 'fg', 'warm'].map((k) => _hexRGB(PALETTE[k] ?? PALETTE.fg))
+  const x = Math.max(0, Math.min(1, t)) * (stops.length - 1)
+  const i = Math.floor(x)
+  const f = x - i
+  const a = stops[i]
+  const b = stops[Math.min(stops.length - 1, i + 1)]
+  return [Math.round(a[0] + (b[0] - a[0]) * f), Math.round(a[1] + (b[1] - a[1]) * f), Math.round(a[2] + (b[2] - a[2]) * f)]
+}
+
+// Discrete palette colour by role → [r,g,b]. For pixel-field protos that colour
+// distinct species/states (map each to a role: accent/fg/warm/dim).
+export function roleRGB(role) { return _hexRGB(PALETTE[role] ?? PALETTE.fg) }
+
+// Palette colour with alpha — prototypes pull each element's colour from the live
+// theme by ROLE (bg / fg / accent / dim / warm) so colours land where the author
+// intends, instead of being luminance-guessed by the tint. The role's live
+// opacity multiplier (Edit tab) scales the authored alpha. Returns rgba().
+export function pc(role, a = 1) {
+  const hex = PALETTE[role] ?? PALETTE.fg
+  const alpha = Math.min(1, a * (OPACITY[role] ?? 1))
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex)
+  if (!m) return hex // already rgba (e.g. grid) — pass through
+  const n = parseInt(m[1], 16)
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`
+}
 
 export function makeSampler(sdf              , w        , h        ) {
   return (x        , y        )         => {

@@ -1,0 +1,47 @@
+{
+  "groups": [
+    {
+      "name": "kol-kol",
+      "count": 1,
+      "files": [
+        "/images/kol-kol/PP Billboard 3.jpg"
+      ]
+    },
+    {
+      "name": "kol-mood",
+      "count": 4,
+      "files": [
+        "/images/kol-mood/01-wide.jpeg",
+        "/images/kol-mood/02-wide.jpeg",
+        "/images/kol-mood/03-detail.jpeg",
+        "/images/kol-mood/04-front.jpeg"
+      ]
+    },
+    {
+      "name": "kol-photoshoot",
+      "count": 8,
+      "files": [
+        "/images/kol-photoshoot/thg-01.jpg",
+        "/images/kol-photoshoot/thg-02.jpg",
+        "/images/kol-photoshoot/thg-03.jpg",
+        "/images/kol-photoshoot/thg-04.jpg",
+        "/images/kol-photoshoot/thg-05.jpg",
+        "/images/kol-photoshoot/thg-06.jpg",
+        "/images/kol-photoshoot/thg-07.jpg",
+        "/images/kol-photoshoot/thg-08.jpg"
+      ]
+    },
+    {
+      "name": "kol-textures",
+      "count": 6,
+      "files": [
+        "/images/kol-textures/open-graph-dylgjur.jpg",
+        "/images/kol-textures/open-graph-foundry.jpg",
+        "/images/kol-textures/open-graph-gullhamrar.jpg",
+        "/images/kol-textures/open-graph-malromur.jpg",
+        "/images/kol-textures/open-graph-rot.jpg",
+        "/images/kol-textures/open-graph-trollatunga.jpg"
+      ]
+    }
+  ]
+}

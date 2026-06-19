@@ -1,12 +1,17 @@
 // Canvas FX Modules — pixel-level post-processing on OffscreenCanvas buffers
 
+// Every FX carries an `amount` (0–100) — how much of the processed result is
+// mixed back into the pre-FX image (0 = original, 100 = full effect). Kept last
+// so it renders below the FX-specific params.
+const AMOUNT = { default: 100, min: 0, max: 100, step: 1 }
 export const CANVAS_FX_DEFS = [
-  { id: 'chromatic', label: 'RGB Split', params: { offsetX: { default: 5, min: 0, max: 50, step: 1 }, offsetY: { default: 0, min: 0, max: 50, step: 1 } } },
-  { id: 'edge-detect', label: 'Edge Detect', params: { threshold: { default: 30, min: 0, max: 100, step: 1 }, invert: { default: 0, min: 0, max: 1, step: 1 } } },
-  { id: 'posterize', label: 'Posterize', params: { levels: { default: 4, min: 2, max: 32, step: 1 } } },
-  { id: 'pixel-sort', label: 'Pixel Sort', params: { threshold: { default: 50, min: 0, max: 100, step: 1 }, direction: { default: 0, min: 0, max: 1, step: 1 } } },
-  { id: 'mirror', label: 'Mirror', params: { axis: { default: 0, min: 0, max: 1, step: 1 } } },
-  { id: 'threshold', label: 'Threshold', params: { level: { default: 50, min: 0, max: 100, step: 1 } } },
+  { id: 'chromatic', label: 'RGB Split', params: { offsetX: { default: 5, min: 0, max: 50, step: 1 }, offsetY: { default: 0, min: 0, max: 50, step: 1 }, amount: AMOUNT } },
+  { id: 'edge-detect', label: 'Edge Detect', params: { threshold: { default: 30, min: 0, max: 100, step: 1 }, invert: { default: 0, min: 0, max: 1, step: 1 }, amount: AMOUNT } },
+  { id: 'posterize', label: 'Posterize', params: { levels: { default: 4, min: 2, max: 32, step: 1 }, amount: AMOUNT } },
+  { id: 'pixel-sort', label: 'Pixel Sort', params: { threshold: { default: 50, min: 0, max: 100, step: 1 }, direction: { default: 0, min: 0, max: 1, step: 1 }, amount: AMOUNT } },
+  { id: 'mirror', label: 'Mirror', params: { axis: { default: 'horizontal', options: [{ value: 'horizontal', label: 'Horizontal' }, { value: 'vertical', label: 'Vertical' }] }, amount: AMOUNT } },
+  { id: 'kaleidoscope', label: 'Kaleidoscope', params: { segments: { default: 6, min: 2, max: 16, step: 1 }, angle: { default: 0, min: 0, max: 360, step: 1 }, amount: AMOUNT } },
+  { id: 'threshold', label: 'Threshold', params: { level: { default: 50, min: 0, max: 100, step: 1 }, amount: AMOUNT } },
 ]
 
 export const MAX_CANVAS_FX = 8
@@ -193,7 +198,7 @@ function sortSegmentVertical(data, w, x, y0, y1) {
 }
 
 function fxMirror(srcData, outData, w, h, params) {
-  const vertical = (params.axis | 0) === 1
+  const vertical = params.axis === 'vertical'
   // Copy all source first
   outData.set(srcData)
   if (vertical) {
@@ -228,6 +233,39 @@ function fxMirror(srcData, outData, w, h, params) {
   }
 }
 
+// Kaleidoscope — N-fold mirrored radial symmetry (N axes). Each output pixel
+// folds its angle (about the centre) into one wedge of 2π/segments, mirrored
+// within the wedge, then samples the source there (nearest, edge-clamped).
+function fxKaleidoscope(srcData, outData, w, h, params) {
+  const seg = Math.max(2, params.segments | 0)
+  const rot = ((params.angle || 0) * Math.PI) / 180
+  const cx = w / 2
+  const cy = h / 2
+  const wedge = (Math.PI * 2) / seg
+  const half = wedge / 2
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const dx = x - cx
+      const dy = y - cy
+      const r = Math.sqrt(dx * dx + dy * dy)
+      let a = Math.atan2(dy, dx) - rot
+      a -= Math.floor(a / wedge) * wedge // → [0, wedge)
+      if (a > half) a = wedge - a // mirror within the wedge
+      a += rot
+      let sx = Math.round(cx + r * Math.cos(a))
+      let sy = Math.round(cy + r * Math.sin(a))
+      if (sx < 0) sx = 0; else if (sx >= w) sx = w - 1
+      if (sy < 0) sy = 0; else if (sy >= h) sy = h - 1
+      const si = (sy * w + sx) << 2
+      const di = (y * w + x) << 2
+      outData[di] = srcData[si]
+      outData[di + 1] = srcData[si + 1]
+      outData[di + 2] = srcData[si + 2]
+      outData[di + 3] = srcData[si + 3]
+    }
+  }
+}
+
 function fxThreshold(srcData, outData, w, h, params) {
   const level = (params.level / 100) * 255
   const len = srcData.length
@@ -247,6 +285,7 @@ const FX_PROCESSORS = {
   'posterize': fxPosterize,
   'pixel-sort': fxPixelSort,
   'mirror': fxMirror,
+  'kaleidoscope': fxKaleidoscope,
   'threshold': fxThreshold,
 }
 
@@ -270,9 +309,20 @@ export function applyCanvasFx(canvas, fxChain) {
   for (const fx of enabledFx) {
     const processor = FX_PROCESSORS[fx.type]
     const outImageData = ctx.createImageData(w, h)
-    processor(srcData, outImageData.data, w, h, fx.params)
+    const out = outImageData.data
+    processor(srcData, out, w, h, fx.params)
+    // amount = how much of the processed result mixes into the pre-FX pixels
+    // (0 = original, 100 = full). Default full when unset.
+    const amt = fx.params.amount == null ? 1 : Math.max(0, Math.min(1, fx.params.amount / 100))
+    if (amt < 1) {
+      for (let i = 0; i < out.length; i += 4) {
+        out[i]     = srcData[i]     + (out[i]     - srcData[i])     * amt
+        out[i + 1] = srcData[i + 1] + (out[i + 1] - srcData[i + 1]) * amt
+        out[i + 2] = srcData[i + 2] + (out[i + 2] - srcData[i + 2]) * amt
+      }
+    }
     imageData = outImageData
-    srcData = outImageData.data
+    srcData = out
   }
 
   ctx.putImageData(imageData, 0, 0)

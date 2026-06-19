@@ -77,7 +77,7 @@ function MainPage() {
   const [zoom, setZoom] = useState(1)
   const [objectScale, setObjectScale] = useState(1)
   const [pan, setPan] = useState({ x: 0, y: 0 })
-  const [showGrid, setShowGrid] = useState(true)
+  const [showGrid, setShowGrid] = useState(false)
 
   const preview = useSvgDistortion({
     svgSource,

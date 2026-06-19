@@ -32,6 +32,9 @@ function catmullRom(points, w, h) {
   return d
 }
 
+// Arrangement options = the instance's "type" (Layout tab). `array` is a special
+// non-path arrangement (a repeating grid) handled directly by the engine; the
+// rest are real SVG paths the glyphs ride along.
 export const PATH_OPTIONS = [
   { value: 'line', label: 'Line' },
   { value: 'arc', label: 'Arc' },
@@ -40,10 +43,14 @@ export const PATH_OPTIONS = [
   { value: 'sine', label: 'Sine wave' },
   { value: 'spiral', label: 'Spiral' },
   { value: 'zigzag', label: 'Zigzag' },
+  { value: 'array', label: 'Array (grid)' },
   { value: 'custom', label: 'Custom' },
 ]
 
-export const PATH_DEFAULTS = { amp: 0.4, freq: 2, turns: 3, radius: 0.72 }
+// arrangement type is 'array' when the glyphs tile a grid instead of riding a path.
+export const isArray = (type) => type === 'array'
+
+export const PATH_DEFAULTS = { amp: 0.4, freq: 2, turns: 3, radius: 0.72, rows: 2, cols: 3 }
 
 // → { d, closed }
 export function buildPath(type, w, h, p = {}) {
@@ -105,7 +112,11 @@ export function buildPath(type, w, h, p = {}) {
       return { d: catmullRom(pts, w, h), closed: false }
     }
     case 'line':
-    default:
-      return { d: `M ${r2(m)} ${r2(cy)} L ${r2(w - m)} ${r2(cy)}`, closed: false }
+    default: {
+      // optional vertical offset (−0.5..0.5 of height) so stacked line instances
+      // don't all collapse onto the centre.
+      const oy = cy + (p.offset || 0) * h
+      return { d: `M ${r2(m)} ${r2(oy)} L ${r2(w - m)} ${r2(oy)}`, closed: false }
+    }
   }
 }

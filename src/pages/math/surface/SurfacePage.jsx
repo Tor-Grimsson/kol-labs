@@ -4,13 +4,14 @@ import StylePanel from '../components/StylePanel'
 import { useMathStyle, AXIS_3D, hexToRgb } from '../style/mathStyle'
 import { compileVars } from '../lib/mathfn'
 import { resolveRate } from '../../../lib/exprParam.js'
-import { VIEW_ASPECTS, DEFAULT_ASPECT, DEFAULT_SCALE, ratioFor, dimsFor } from '../../_shared/exportSpecs.js'
-import ExportPanel from '../../_shared/ExportPanel.jsx'
-import { DEFAULT_THEME, resolveTheme } from '../../../lib/themes.js'
+import { VIEW_ASPECTS, DEFAULT_ASPECT, defaultAspectFor, DEFAULT_SCALE, ratioFor, dimsFor } from '../../_shared/exportSpecs.js'
+import { defaultTheme } from '../../../lib/appSettings.js'
+import { resolveTheme } from '../../../lib/themes.js'
 import { mulberry32, randomSeed, randomizeSchema } from '../../../lib/rng.js'
 import SettingsPanel from '../../../components/framework/SettingsPanel.jsx'
-import TransportBar from '../../../components/framework/TransportBar.jsx'
 import EditorRail, { RailHeader } from '../../../components/framework/EditorRail.jsx'
+import EditorFooter from '../../../components/framework/EditorFooter.jsx'
+import { LiveClock } from '../../../lib/liveClock.jsx'
 import Button from '../../../components/atoms/Button.jsx'
 import Input from '../../../components/atoms/Input.jsx'
 import Slider from '../../../components/atoms/Slider.jsx'
@@ -51,13 +52,14 @@ export default function SurfacePage() {
   const [low, setLow] = useState('#1b2b4a')
   const [high, setHigh] = useState('#ffd23f')
   const [style, patchStyle, applyTheme] = useMathStyle({ weight: 1 })
-  const [themeId, setThemeId] = useState(DEFAULT_THEME)
+  const [themeId, setThemeId] = useState(() => defaultTheme())
   const [invert, setInvert] = useState(false)
   const [seed, setSeed] = useState(1)
   const [playing, setPlaying] = useState(false)
   const [tempo, setTempo] = useState(120)
-  const [aspect, setAspect] = useState(DEFAULT_ASPECT)
+  const [aspect, setAspect] = useState(() => defaultAspectFor('view'))
   const [scale, setScale] = useState(DEFAULT_SCALE)
+  const [footTab, setFootTab] = useState('transport')
   const viewRef = useRef(null)
 
   useEffect(() => {
@@ -250,7 +252,7 @@ export default function SurfacePage() {
           render={render}
           ext={ext}
           paused={!playing}
-          speed={tempo / 120}
+          speed={tempo / 240}
           spin={spin}
           aspect={ratioFor(aspect)}
           bg={style.bg}
@@ -262,10 +264,32 @@ export default function SurfacePage() {
         </div>
       </div>
 
-      <EditorRail>
-        <RailHeader>surface</RailHeader>
-
-        <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-5">
+      <LiveClock getT={() => viewRef.current?.now()}>
+      <EditorRail
+        footerBare
+        header={<RailHeader>Surface</RailHeader>}
+        footer={
+          <EditorFooter
+            tab={footTab}
+            onTab={setFootTab}
+            transport={{
+              playing,
+              onPlay: () => setPlaying(true),
+              onPause: () => setPlaying(false),
+              onStop: () => { setPlaying(false); viewRef.current?.resetTime() },
+              onRewind: () => viewRef.current?.resetTime(),
+              tempo,
+              onTempo: setTempo,
+              tempoMax: 600,
+            }}
+            exportProps={{ aspect, onAspect: setAspect, aspects: VIEW_ASPECTS, scale, onScale: setScale }}
+            exportActions={<Button variant="primary" size="sm" className="w-full" iconLeft="download" onClick={exportPng}>Export PNG</Button>}
+            settingsPage="math-surface"
+            getSettings={getSettings}
+            applySettings={applySettings}
+          />
+        }
+      >
           <Section label="z = f(x, y, t)">
             <Input
               size="sm"
@@ -285,9 +309,9 @@ export default function SurfacePage() {
           </Section>
 
           <Section label="Mesh">
-            <Slider label="Domain" min={1} max={8} step={0.2} value={domain} onChange={setDomain} variant="default" />
-            <Slider label="Resolution" min={12} max={80} step={2} value={res} onChange={setRes} variant="default" noExpr />
-            <Slider label="Height" min={0.1} max={4} step={0.1} value={height} onChange={setHeight} variant="default" />
+            <Slider labeled label="Domain" min={1} max={8} step={0.2} value={domain} onChange={setDomain} variant="default" />
+            <Slider labeled label="Resolution" min={12} max={80} step={2} value={res} onChange={setRes} variant="default" noExpr />
+            <Slider labeled label="Height" min={0.1} max={4} step={0.1} value={height} onChange={setHeight} variant="default" />
           </Section>
 
           <Section label="Render">
@@ -308,6 +332,7 @@ export default function SurfacePage() {
 
           <SettingsPanel
             page="math-surface"
+            showIO={false}
             theme={themeId}
             onTheme={setThemeId}
             invert={invert}
@@ -320,28 +345,11 @@ export default function SurfacePage() {
           />
 
           <Section label="Camera">
-            <Slider label="Auto-spin" min={0} max={40} step={1} value={spin} onChange={setSpin} variant="default" />
+            <Slider labeled label="Auto-spin" min={0} max={40} step={1} value={spin} onChange={setSpin} variant="default" />
             <Button variant="primary" size="sm" onClick={() => viewRef.current?.resetCamera()}>Cam reset</Button>
           </Section>
-
-          <ExportPanel aspect={aspect} onAspect={setAspect} aspects={VIEW_ASPECTS} scale={scale} onScale={setScale}>
-            <Button variant="primary" size="sm" className="w-full" iconLeft="download" onClick={exportPng}>Export PNG</Button>
-          </ExportPanel>
-        </div>
-
-        <div className="border-t border-fg-08 pt-3">
-          <TransportBar
-            playing={playing}
-            onPlay={() => setPlaying(true)}
-            onPause={() => setPlaying(false)}
-            onStop={() => { setPlaying(false); viewRef.current?.resetTime() }}
-            onRewind={() => viewRef.current?.resetTime()}
-            tempo={tempo}
-            onTempo={setTempo}
-            tempoMax={300}
-          />
-        </div>
       </EditorRail>
+      </LiveClock>
     </div>
   )
 }

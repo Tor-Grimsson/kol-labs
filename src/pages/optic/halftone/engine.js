@@ -1,0 +1,141 @@
+// Halftone dot-matrix engine — a scalar field sampled on a grid of cells, each
+// drawn as a dot/square/ring sized + coloured by the field value. The signature
+// moodboard look (Drekker "Degrees" dot-sphere, naumann bead spirals). Canvas2D.
+// Field flows over time for the animated feed loop.
+
+const TAU = Math.PI * 2
+const clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v)
+
+export const FIELD_OPTIONS = [
+  { value: 'radial', label: 'Radial' },
+  { value: 'linear', label: 'Linear' },
+  { value: 'waves', label: 'Waves' },
+  { value: 'noise', label: 'Noise' },
+]
+export const LAYOUT_OPTIONS = [
+  { value: 'square', label: 'Square' },
+  { value: 'hex', label: 'Hex' },
+  { value: 'phyllotaxis', label: 'Phyllotaxis' },
+]
+export const SHAPE_OPTIONS = [
+  { value: 'dot', label: 'Dot' },
+  { value: 'square', label: 'Square' },
+  { value: 'ring', label: 'Ring' },
+]
+export const PALETTES = [
+  { value: 'drekker', label: 'Drekker', stops: ['#ff6b35', '#f7c59f', '#2ec4b6', '#2541b2'] },
+  { value: 'sunset', label: 'Sunset', stops: ['#0d0221', '#ff3864', '#ffd23f'] },
+  { value: 'ice', label: 'Ice', stops: ['#011627', '#2ec4b6', '#e0fbfc'] },
+  { value: 'mono', label: 'Mono', stops: ['#000000', '#ffffff'] },
+]
+
+function hash2(x, y) {
+  const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5453
+  return s - Math.floor(s)
+}
+function vnoise(x, y) {
+  const xi = Math.floor(x), yi = Math.floor(y)
+  const xf = x - xi, yf = y - yi
+  const u = xf * xf * (3 - 2 * xf)
+  const v = yf * yf * (3 - 2 * yf)
+  const a = hash2(xi, yi), b = hash2(xi + 1, yi)
+  const c = hash2(xi, yi + 1), d = hash2(xi + 1, yi + 1)
+  return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v
+}
+function fbm(x, y) {
+  let v = 0, amp = 0.5, f = 1
+  for (let o = 0; o < 4; o++) { v += amp * vnoise(x * f, y * f); f *= 2; amp *= 0.5 }
+  return v
+}
+
+// Scalar field 0..1 at normalized (nx,ny), time t.
+function sampleField(type, nx, ny, t, freq) {
+  const cx = nx - 0.5, cy = ny - 0.5
+  switch (type) {
+    case 'linear':
+      return clamp01(0.5 + 0.5 * Math.sin((nx * freq - t) * TAU))
+    case 'waves': {
+      const r = Math.sqrt(cx * cx + cy * cy)
+      return 0.5 + 0.5 * Math.sin((r * freq * 8 - t * 2))
+    }
+    case 'noise':
+      return clamp01(fbm(nx * freq + t * 0.3, ny * freq))
+    case 'radial':
+    default: {
+      const r = Math.sqrt(cx * cx + cy * cy) * 2
+      return clamp01((1 - r) * (0.7 + 0.3 * Math.sin(t)))
+    }
+  }
+}
+
+const rgbStops = (hexes) => hexes.map((h) => {
+  const n = parseInt(h.slice(1), 16)
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255]
+})
+function paletteColor(stops, t) {
+  t = clamp01(t)
+  const n = stops.length - 1
+  const i = Math.min(n - 1, Math.floor(t * n))
+  const f = t * n - i
+  const a = stops[i], b = stops[i + 1]
+  return `rgb(${(a[0] + (b[0] - a[0]) * f) | 0},${(a[1] + (b[1] - a[1]) * f) | 0},${(a[2] + (b[2] - a[2]) * f) | 0})`
+}
+
+// Cell centres in normalized [0,1]², for the chosen layout + density.
+function cells(layout, density, w, h) {
+  const out = []
+  const ar = w / h
+  if (layout === 'phyllotaxis') {
+    const N = Math.round(200 + density * 36) // density → point count
+    for (let i = 0; i < N; i++) {
+      const r = Math.sqrt(i / N) * 0.5
+      const a = i * 2.399963229 // golden angle
+      out.push([0.5 + (r * Math.cos(a)) / ar * ar, 0.5 + r * Math.sin(a), r * 2])
+    }
+    return out
+  }
+  const step = 1 / (8 + density) // density → spacing
+  const stepX = step
+  const stepY = step * ar
+  let row = 0
+  for (let ny = stepY / 2; ny < 1; ny += stepY, row++) {
+    const off = layout === 'hex' && row % 2 ? stepX / 2 : 0
+    for (let nx = stepX / 2 + off; nx < 1; nx += stepX) {
+      const cx = nx - 0.5, cy = ny - 0.5
+      out.push([nx, ny, Math.sqrt(cx * cx + cy * cy) * 2])
+    }
+  }
+  return out
+}
+
+export function renderHalftone(canvas, params, t) {
+  const { field, layout, shape, density, dotScale, palette, bg, invert } = params
+  const ctx = canvas.getContext('2d')
+  const w = canvas.width, h = canvas.height
+  ctx.fillStyle = bg
+  ctx.fillRect(0, 0, w, h)
+
+  const pal = rgbStops((PALETTES.find((p) => p.value === palette) || PALETTES[0]).stops)
+  const freq = 1 + density * 0.15
+  const cellPx = (Math.min(w, h)) / (8 + density) // base cell footprint
+  const list = cells(layout, density, w, h)
+
+  for (let k = 0; k < list.length; k++) {
+    const [nx, ny] = list[k]
+    let v = sampleField(field, nx, ny, t, freq)
+    if (invert) v = 1 - v
+    const size = v * cellPx * 0.62 * dotScale
+    if (size < 0.4) continue
+    const x = nx * w, y = ny * h
+    ctx.fillStyle = paletteColor(pal, v)
+    if (shape === 'square') {
+      ctx.fillRect(x - size, y - size, size * 2, size * 2)
+    } else if (shape === 'ring') {
+      ctx.lineWidth = Math.max(1, size * 0.4)
+      ctx.strokeStyle = ctx.fillStyle
+      ctx.beginPath(); ctx.arc(x, y, size, 0, TAU); ctx.stroke()
+    } else {
+      ctx.beginPath(); ctx.arc(x, y, size, 0, TAU); ctx.fill()
+    }
+  }
+}

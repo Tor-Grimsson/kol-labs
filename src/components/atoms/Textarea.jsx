@@ -11,8 +11,9 @@ import Icon from '../loaders/Icon.jsx'
  *   size="sm" / "md" (default) / "lg" — padding + type class
  *
  * Default rows = 3 (kept short — long content gets scrollbars instead of
- * dominating the panel). No native resize handle — fixed size, scrollable
- * overflow. The kol resize-corner icon in the bottom-right is decorative.
+ * dominating the panel). `resize` defaults to 'none' (fixed size, scrollable
+ * overflow; the kol resize-corner icon is decorative). Pass resize="vertical" /
+ * "both" to make the corner an actual grab handle.
  *
  * Controlled OR uncontrolled:
  *   - pass `value` + `onChange` for controlled,
@@ -29,6 +30,7 @@ export default function Textarea({
   variant = 'filled',
   size = 'md',
   rows = 3,
+  resize = 'none',
   placeholder,
   disabled = false,
   className = '',
@@ -59,12 +61,16 @@ export default function Textarea({
         disabled={disabled}
         spellCheck={false}
         className="block w-full bg-transparent border-none outline-none text-auto"
-        style={{ resize: 'none' }}
+        style={{ resize }}
         {...props}
       />
-      <span aria-hidden="true" className="kol-textarea-resize-icon text-meta pointer-events-none">
-        <Icon name="resize-corner" size={12} />
-      </span>
+      {/* decorative corner only when not natively resizable — otherwise it just
+          doubles up with the browser's real grip. */}
+      {resize === 'none' && (
+        <span aria-hidden="true" className="kol-textarea-resize-icon text-meta pointer-events-none">
+          <Icon name="resize-corner" size={12} />
+        </span>
+      )}
     </label>
   )
 }

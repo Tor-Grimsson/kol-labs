@@ -1041,7 +1041,7 @@ code, pre {
 .kol-spectrum-grid--loading {
   min-height: 400px;
   background: var(--kol-fg-02);
-  border-radius: 6px;
+  border-radius: 4px;
 }
 
 .kol-spectrum-grid-head {

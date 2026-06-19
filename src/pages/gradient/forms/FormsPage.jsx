@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import FormsEngine from './engine/FormsEngine.js'
 import { FORMS } from './data/shapes.js'
-import { VIEW_ASPECTS, DEFAULT_ASPECT, DEFAULT_SCALE, ratioFor, dimsFor } from '../../_shared/exportSpecs.js'
-import ExportPanel from '../../_shared/ExportPanel.jsx'
+import { VIEW_ASPECTS, DEFAULT_ASPECT, defaultAspectFor, DEFAULT_SCALE, ratioFor, dimsFor } from '../../_shared/exportSpecs.js'
 import Button from '../../../components/atoms/Button.jsx'
 import ToggleSwitch from '../../../components/atoms/ToggleSwitch.jsx'
 import Slider from '../../../components/atoms/Slider.jsx'
@@ -10,11 +9,12 @@ import { roundIfNum } from '../../../lib/exprParam.js'
 import Divider from '../../../components/atoms/Divider.jsx'
 import Section from '../../../components/molecules/Section.jsx'
 import SegmentedToggle from '../../../components/molecules/SegmentedToggle.jsx'
-import TransportBar from '../../../components/framework/TransportBar.jsx'
 import Scrubber from '../../../components/framework/Scrubber.jsx'
 import EditorRail, { RailHeader } from '../../../components/framework/EditorRail.jsx'
+import EditorFooter from '../../../components/framework/EditorFooter.jsx'
 import SettingsPanel from '../../../components/framework/SettingsPanel.jsx'
-import { resolveTheme, DEFAULT_THEME } from '../../../lib/themes.js'
+import { resolveTheme } from '../../../lib/themes.js'
+import { defaultTheme } from '../../../lib/appSettings.js'
 import { mulberry32, randomSeed } from '../../../lib/rng.js'
 
 // 3D Scene · Forms — the helix + 7 parametric "creatures" as real 3D point
@@ -35,15 +35,16 @@ export default function FormsPage() {
   const [fov, setFov] = useState(40)
   const [loop, setLoop] = useState(true)
   const [duration, setDuration] = useState(8)
-  const [themeId, setThemeId] = useState(DEFAULT_THEME)
+  const [themeId, setThemeId] = useState(() => defaultTheme())
   const [invert, setInvert] = useState(false)
   const [seed, setSeed] = useState(1)
-  const [aspect, setAspect] = useState(DEFAULT_ASPECT)
+  const [aspect, setAspect] = useState(() => defaultAspectFor('view'))
   const [scale, setScale] = useState(DEFAULT_SCALE)
   const [recording, setRecording] = useState(false)
   const [playing, setPlaying] = useState(false)
   const [tempo, setTempo] = useState(120)
   const [panel, setPanel] = useState('scene')
+  const [footTab, setFootTab] = useState('transport')
 
   const wrapRef = useRef(null)
   const canvasRef = useRef(null)
@@ -56,7 +57,7 @@ export default function FormsPage() {
   const globals = useMemo(
     () => ({
       form, samples, cycles, amp, pointSize, turns, radius, height,
-      spin, spinSpeed, fov, loop, duration, paused: !playing, speed: tempo / 120,
+      spin, spinSpeed, fov, loop, duration, paused: !playing, speed: tempo / 240,
       color: theme.fg, accent: theme.accent,
     }),
     [form, samples, cycles, amp, pointSize, turns, radius, height, spin, spinSpeed, fov, loop, duration, playing, tempo, theme],
@@ -164,105 +165,110 @@ export default function FormsPage() {
         <Scrubber progressRef={progressRef} playerRef={engineRef} />
       </div>
 
-      <EditorRail>
-        <RailHeader>Forms</RailHeader>
-
+      <EditorRail
+        footerBare
+        header={<RailHeader>Forms</RailHeader>}
+        footer={
+          <EditorFooter
+            tab={footTab}
+            onTab={setFootTab}
+            transport={{
+              playing,
+              onPlay: () => setPlaying(true),
+              onPause: () => setPlaying(false),
+              onStop: () => { setPlaying(false); engineRef.current?.seek(0) },
+              onRewind: () => engineRef.current?.seek(0),
+              tempo,
+              onTempo: setTempo,
+              tempoMax: 600,
+            }}
+            exportProps={{ aspect, onAspect: setAspect, aspects: VIEW_ASPECTS, scale, onScale: setScale }}
+            exportActions={
+              <>
+                <Button variant="primary" size="sm" className="w-full" iconLeft="download" onClick={exportPng}>Export PNG</Button>
+                <Button variant="primary" size="sm" className="w-full" iconLeft="download" onClick={exportVideo} disabled={recording}>
+                  {recording ? 'Recording loop…' : 'Export loop (webm)'}
+                </Button>
+              </>
+            }
+            settingsPage="forms"
+            getSettings={getSettings}
+            applySettings={applySettings}
+          />
+        }
+      >
         <SegmentedToggle
           value={panel}
           onChange={setPanel}
           options={[
             { value: 'scene', label: 'Scene' },
             { value: 'camera', label: 'Camera' },
-            { value: 'view', label: 'View' },
           ]}
         />
 
-        <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-5">
-          {panel === 'scene' && (
-            <>
-              <SettingsPanel
-                page="forms"
-                theme={themeId}
-                onTheme={setThemeId}
-                invert={invert}
-                onInvert={setInvert}
-                onRandomize={onRandomize}
-                seed={seed}
-                onSeed={setSeed}
-                getSettings={getSettings}
-                applySettings={applySettings}
-              />
+        {panel === 'scene' && (
+          <>
+            <SettingsPanel
+              page="forms"
+              theme={themeId}
+              onTheme={setThemeId}
+              invert={invert}
+              onInvert={setInvert}
+              onRandomize={onRandomize}
+              seed={seed}
+              onSeed={setSeed}
+              showIO={false}
+              getSettings={getSettings}
+              applySettings={applySettings}
+            />
 
-              <Section label="Form">
-                <div className="flex flex-col gap-1">
-                  {FORMS.map((f) => (
-                    <Button key={f.id} variant="secondary" size="sm" selected={f.id === form} onClick={() => setForm(f.id)} className="w-full" style={{ justifyContent: 'flex-start' }}>
-                      {f.label}
-                    </Button>
-                  ))}
-                </div>
-              </Section>
-
-              <Section label="Cloud">
-                <Slider label="Density" min={8} max={64} step={1} value={samples} onChange={(v) => setSamples(roundIfNum(v))} variant="default" />
-                <Slider label="Point size" min={0.01} max={0.16} step={0.005} value={pointSize} onChange={setPointSize} variant="default" />
-                <Slider label="Flap amount" min={0} max={1} step={0.02} value={amp} onChange={setAmp} variant="default" />
-                <Slider label="Flap rate" min={1} max={6} step={1} value={cycles} onChange={(v) => setCycles(roundIfNum(v))} variant="default" />
-              </Section>
-
-              {form === 'helix' && (
-                <Section label="Helix">
-                  <Slider label="Turns" min={1} max={6} step={0.5} value={turns} onChange={setTurns} variant="default" />
-                  <Slider label="Radius" min={0.3} max={1.6} step={0.05} value={radius} onChange={setRadius} variant="default" />
-                  <Slider label="Height" min={1} max={4} step={0.1} value={height} onChange={setHeight} variant="default" />
-                </Section>
-              )}
-
-              <Section label="Loop">
-                <ToggleSwitch variant="plain" label="Loop animation" checked={loop} onChange={setLoop} />
-                <Slider label="Duration (s)" min={1} max={20} step={0.5} value={duration} onChange={setDuration} variant="default" />
-              </Section>
-            </>
-          )}
-
-          {panel === 'camera' && (
-            <Section label="Camera">
-              <ToggleSwitch variant="plain" label="Auto-rotate" checked={spin} onChange={setSpin} />
-              {spin && <Slider label="Orbit speed" min={0} max={4} step={0.1} value={spinSpeed} onChange={setSpinSpeed} variant="default" />}
-              <Slider label="Field of view" min={20} max={90} step={1} value={fov} onChange={(v) => setFov(roundIfNum(v))} variant="default" />
-              <Button variant="primary" size="sm" onClick={() => engineRef.current?.resetCamera()}>Cam reset</Button>
+            <Section label="Form">
+              <div className="flex flex-col gap-1">
+                {FORMS.map((f) => (
+                  <Button key={f.id} variant="secondary" size="sm" selected={f.id === form} onClick={() => setForm(f.id)} className="w-full" style={{ justifyContent: 'flex-start' }}>
+                    {f.label}
+                  </Button>
+                ))}
+              </div>
             </Section>
-          )}
 
-          {panel === 'view' && (
-            <ExportPanel aspect={aspect} onAspect={setAspect} aspects={VIEW_ASPECTS} scale={scale} onScale={setScale}>
-              <Button variant="primary" size="sm" className="w-full" iconLeft="download" onClick={exportPng}>Export PNG</Button>
-              <Button variant="primary" size="sm" className="w-full" iconLeft="download" onClick={exportVideo} disabled={recording}>
-                {recording ? 'Recording loop…' : 'Export loop (webm)'}
-              </Button>
-            </ExportPanel>
-          )}
+            <Section label="Cloud">
+              <Slider labeled label="Density" min={8} max={64} step={1} value={samples} onChange={(v) => setSamples(roundIfNum(v))} variant="default" />
+              <Slider labeled label="Point size" min={0.01} max={0.16} step={0.005} value={pointSize} onChange={setPointSize} variant="default" />
+              <Slider labeled label="Flap amount" min={0} max={1} step={0.02} value={amp} onChange={setAmp} variant="default" />
+              <Slider labeled label="Flap rate" min={1} max={6} step={1} value={cycles} onChange={(v) => setCycles(roundIfNum(v))} variant="default" />
+            </Section>
 
-          <Divider />
+            {form === 'helix' && (
+              <Section label="Helix">
+                <Slider labeled label="Turns" min={1} max={6} step={0.5} value={turns} onChange={setTurns} variant="default" />
+                <Slider labeled label="Radius" min={0.3} max={1.6} step={0.05} value={radius} onChange={setRadius} variant="default" />
+                <Slider labeled label="Height" min={1} max={4} step={0.1} value={height} onChange={setHeight} variant="default" />
+              </Section>
+            )}
 
-          <div className="kol-helper-10 text-body flex flex-col gap-1">
-            <div>space = play / pause</div>
-            <div>drag = orbit · wheel = zoom</div>
-            <div>C = reset cam · scrub below</div>
-          </div>
-        </div>
+            <Section label="Loop">
+              <ToggleSwitch variant="plain" label="Loop animation" checked={loop} onChange={setLoop} />
+              <Slider labeled label="Duration (s)" min={1} max={20} step={0.5} value={duration} onChange={setDuration} variant="default" />
+            </Section>
+          </>
+        )}
 
-        <div className="border-t border-fg-08 pt-3">
-          <TransportBar
-            playing={playing}
-            onPlay={() => setPlaying(true)}
-            onPause={() => setPlaying(false)}
-            onStop={() => { setPlaying(false); engineRef.current?.seek(0) }}
-            onRewind={() => engineRef.current?.seek(0)}
-            tempo={tempo}
-            onTempo={setTempo}
-            tempoMax={300}
-          />
+        {panel === 'camera' && (
+          <Section label="Camera">
+            <ToggleSwitch variant="plain" label="Auto-rotate" checked={spin} onChange={setSpin} />
+            {spin && <Slider labeled label="Orbit speed" min={0} max={4} step={0.1} value={spinSpeed} onChange={setSpinSpeed} variant="default" />}
+            <Slider labeled label="Field of view" min={20} max={90} step={1} value={fov} onChange={(v) => setFov(roundIfNum(v))} variant="default" />
+            <Button variant="primary" size="sm" onClick={() => engineRef.current?.resetCamera()}>Cam reset</Button>
+          </Section>
+        )}
+
+        <Divider />
+
+        <div className="kol-helper-10 text-body flex flex-col gap-1">
+          <div>space = play / pause</div>
+          <div>drag = orbit · wheel = zoom</div>
+          <div>C = reset cam · scrub below</div>
         </div>
       </EditorRail>
     </div>

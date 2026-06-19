@@ -57,6 +57,8 @@
     max-width: 86vw;
     max-height: 86vh;
     overflow: hidden;
+    /* Frame fill = the theme bg, distinct from the bg-surface-secondary stage so
+       the chosen aspect frame (4:5 etc.) reads as a defined artboard. */
     background: var(--bg);
     perspective: 1400px;
   }
@@ -90,15 +92,34 @@
     background-size: 40px 40px;
     background-position: center center;
   }
-  /* Center crosshair — a touch stronger than the field lines. */
-  .frame-grid::before,
-  .frame-grid::after {
+  /* Center crosshair — its own overlay so it toggles independently of the grid. */
+  .frame-cross {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+  .frame-cross::before,
+  .frame-cross::after {
     content: '';
     position: absolute;
     background: var(--grid);
   }
-  .frame-grid::before { left: 50%; top: 0; bottom: 0; width: 1px; transform: translateX(-0.5px); }
-  .frame-grid::after { top: 50%; left: 0; right: 0; height: 1px; transform: translateY(-0.5px); }
+  .frame-cross::before { left: 50%; top: 0; bottom: 0; width: 1px; transform: translateX(-0.5px); }
+  .frame-cross::after { top: 50%; left: 0; right: 0; height: 1px; transform: translateY(-0.5px); }
+
+  /* 3D XYZ axis gizmo — three axes through the frame centre, sharing the canvas's
+     perspective. The inline transform applies the live camera rotation so the
+     cross tumbles with the letterform (X = accent, Y = fg, Z = warm). */
+  .frame-axes {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    transform-style: preserve-3d;
+  }
+  .frame-axes .ax { position: absolute; top: 50%; left: 50%; }
+  .frame-axes .ax-x { width: 220px; height: 1.5px; margin: -0.75px 0 0 -110px; background: var(--accent); }
+  .frame-axes .ax-y { width: 1.5px; height: 220px; margin: -110px 0 0 -0.75px; background: var(--fg); }
+  .frame-axes .ax-z { width: 220px; height: 1.5px; margin: -0.75px 0 0 -110px; background: var(--warm); transform: rotateY(90deg); }
 
   /* ---- Gallery grid ---- */
   .grid {
@@ -113,90 +134,7 @@
   @media (max-width: 720px) {
     .grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
   }
-  .tile {
-    display: flex; flex-direction: column; gap: 4px;
-    cursor: pointer;
-    position: relative;
-  }
-  .tile canvas {
-    display: block;
-    background: var(--bg);
-    width: 100%;
-    height: auto;
-    aspect-ratio: 1 / 1;
-  }
-  /* Clean KOL-ish tile caption: number + name on one tidy line, never the
-     full description (that lives in the single-view rail). Name truncates
-     instead of wrapping/overflowing into the next tile. */
-  .tile .tile-label {
-    display: flex;
-    align-items: baseline;
-    gap: 8px;
-    min-width: 0;
-    font-size: 10px;
-    letter-spacing: 0.08em;
-    line-height: 1.4;
-  }
-  .tile .tile-label .n {
-    color: var(--accent);
-    font-variant-numeric: tabular-nums;
-    flex: none;
-  }
-  .tile .tile-label .nm {
-    color: var(--fg);
-    opacity: 0.78;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .tile:hover canvas {
-    outline: 1px solid var(--accent);
-    outline-offset: 2px;
-  }
-  .tile:hover .tile-label .nm { opacity: 1; }
-
-  /* ---- On-canvas navigation HUD (single view): zoom +/- + live x/y/zoom ---- */
-  .cam-hud {
-    position: absolute;
-    left: 10px;
-    bottom: 10px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    pointer-events: none;
-    z-index: 2;
-  }
-  .cam-zoom {
-    display: flex;
-    pointer-events: auto;
-  }
-  .cam-zoom button {
-    width: 26px;
-    height: 26px;
-    display: grid;
-    place-items: center;
-    font: inherit;
-    font-size: 14px;
-    line-height: 1;
-    color: var(--fg);
-    background: color-mix(in srgb, var(--bg) 70%, transparent);
-    border: 1px solid var(--grid);
-    border-right-width: 0;
-    cursor: pointer;
-    -webkit-backdrop-filter: blur(4px);
-    backdrop-filter: blur(4px);
-  }
-  .cam-zoom button:first-child { border-radius: 6px 0 0 6px; }
-  .cam-zoom button:last-child { border-radius: 0 6px 6px 0; border-right-width: 1px; }
-  .cam-zoom button:hover { color: var(--accent); border-color: var(--accent); }
-  .cam-xy {
-    display: flex;
-    gap: 8px;
-    font-size: 10px;
-    letter-spacing: 0.06em;
-    color: var(--dim);
-    font-variant-numeric: tabular-nums;
-    pointer-events: none;
-  }
+  /* Browse tiles are styled with KOL tokens inline (see Grid in PenrosePage) —
+     no lofi .tile chrome here, so the gallery reads on-brand. */
 
 }

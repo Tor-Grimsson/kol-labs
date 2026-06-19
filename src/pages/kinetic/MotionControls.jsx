@@ -2,22 +2,31 @@ import Slider from '../../components/atoms/Slider.jsx'
 import Dropdown from '../../components/molecules/Dropdown.jsx'
 import Section from '../../components/molecules/Section.jsx'
 import LabeledControl from '../../components/molecules/LabeledControl.jsx'
-import { MOTION_OPTIONS } from './engine/animations.js'
+import { MOTION_OPTIONS, FIELD_OPTIONS, isSweep } from './engine/animations.js'
 import { fontByKey, AXIS_LABELS } from './lib/vfAxes.js'
 
 // Animation mode + its parameters. (Transport play/tempo lives in the footer.)
 export default function MotionControls({ params, setMotion }) {
   const font = fontByKey(params.font)
-  const m = params.motion
+  const m = params.motion || {}
+  const sweep = isSweep(m.mode)
   return (
     <Section label="Motion">
       <LabeledControl inline label="Mode">
         <Dropdown variant="subtle" size="sm" className="w-full" options={MOTION_OPTIONS} value={m.mode} onChange={(v) => setMotion('mode', v)} />
       </LabeledControl>
-      <Slider label="Cycles" min={1} max={4} step={1} value={m.cycles} onChange={(v) => setMotion('cycles', Math.round(v))} variant="default" />
-      <Slider label="Phase" min={0} max={2} step={0.05} value={m.phase} onChange={(v) => setMotion('phase', v)} variant="default" />
+      {sweep && (
+        <LabeledControl inline label="Field">
+          <Dropdown variant="subtle" size="sm" className="w-full" options={FIELD_OPTIONS} value={m.field || 'x'} onChange={(v) => setMotion('field', v)} />
+        </LabeledControl>
+      )}
+      <Slider labeled noExpr label="Cycles" min={1} max={4} step={1} value={m.cycles ?? 1} onChange={(v) => setMotion('cycles', Math.round(v))} variant="default" />
+      {!sweep && <Slider labeled noExpr label="Phase" min={0} max={2} step={0.05} value={m.phase ?? 0.5} onChange={(v) => setMotion('phase', v)} variant="default" />}
+      {sweep && (
+        <Slider labeled noExpr label="Band" min={0.05} max={1} step={0.02} value={m.amp ?? 0.35} onChange={(v) => setMotion('amp', v)} variant="default" />
+      )}
       {m.mode === 'glyphwave' && (
-        <Slider label="Amount" min={0} max={1} step={0.02} value={m.amp} onChange={(v) => setMotion('amp', v)} variant="default" />
+        <Slider labeled noExpr label="Amount" min={0} max={1} step={0.02} value={m.amp ?? 0.3} onChange={(v) => setMotion('amp', v)} variant="default" />
       )}
       {m.mode === 'vfwave' && font.axes.length > 0 && (
         <LabeledControl inline label="Axis">

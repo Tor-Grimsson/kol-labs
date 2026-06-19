@@ -6,7 +6,7 @@
 
 
 import { num } from '../../knobs'
-import { clear, strokeOutline, wrapLoop } from '../common'
+import { clear, strokeOutline, wrapLoop, rampRGB, roleRGB } from '../common'
 
 // 4-channel μNCA kernel weights (hand-designed, inspired by Mordvintsev 2021).
 // Each channel has one 3×3 perception filter → 4×9 = 36 weights,
@@ -116,18 +116,19 @@ export const r2_nca_01_munca            = {
       const steps = Math.round(stepsF)
       for (let s = 0; s < steps; s++) step()
 
+      const [bgR, bgG, bgB] = roleRGB('bg')
       for (let i = 0; i < N; i++) {
         const j = i * 4
         if (!mask[i]) {
-          img.data[j] = 10; img.data[j + 1] = 11; img.data[j + 2] = 20; img.data[j + 3] = 255
+          img.data[j] = bgR; img.data[j + 1] = bgG; img.data[j + 2] = bgB; img.data[j + 3] = 255
           continue
         }
-        const r = Math.max(0, Math.min(1, (state[i * NC + 0] * bright + 1) * 0.5))
-        const g = Math.max(0, Math.min(1, (state[i * NC + 1] * bright + 1) * 0.5))
-        const b = Math.max(0, Math.min(1, (state[i * NC + 2] * bright + 1) * 0.5))
-        img.data[j]     = (r * 220 + 10) | 0
-        img.data[j + 1] = (g * 180 + 15) | 0
-        img.data[j + 2] = (b * 200 + 30) | 0
+        // Collapse the channel-0 state to a single 0..1 field intensity for the ramp.
+        const v = Math.max(0, Math.min(1, (state[i * NC + 0] * bright + 1) * 0.5))
+        const [r, g, b] = rampRGB(v)
+        img.data[j]     = r
+        img.data[j + 1] = g
+        img.data[j + 2] = b
         img.data[j + 3] = 255
       }
       clear(ctx, W2, H)

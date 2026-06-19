@@ -30,21 +30,31 @@ export const forceContainer            = {
     'd3-force simulation (collision + many-body) with a custom SDF-inward force. Nodes settle into a self-organizing pack that fills the glyph. Adding new nodes (additional layer) triggers a fresh settle. Perfect physics backbone for interactive layers.',
   helps:
     'The physics backbone. Add nodes on trigger → they settle; cross-layer rules become d3 forces (repel layer-A from layer-B, etc). This is the most composable foundation for the multi-layer vision.',
-  init({ ctx, sdf, W, H, rng }) {
+  params: [
+    { key: 'count', type: 'int', min: 50, max: 1200, step: 10, default: 380, label: 'nodes' },
+    { key: 'minR', type: 'range', min: 1, max: 20, step: 0.5, default: 4, label: 'min radius' },
+    { key: 'rJitter', type: 'range', min: 0, max: 30, step: 0.5, default: 10, label: 'radius range' },
+    { key: 'charge', type: 'range', min: -30, max: 0, step: 0.5, default: -6, label: 'repulsion' },
+    { key: 'chargeDist', type: 'int', min: 10, max: 120, step: 5, default: 40, label: 'repel reach' },
+    { key: 'margin', type: 'int', min: 0, max: 30, default: 6, label: 'wall margin' },
+  ],
+  init({ ctx, sdf, W, H, rng, params }) {
     const sx = W / sdf.w, sy = H / sdf.h
 
+    const { minR, rJitter } = params
+
     const nodes      = []
-    const count = 380
+    const count = params.count
     for (let i = 0; i < count; i++) {
       const [x, y] = sampleInside(sdf, rng)
       nodes.push({
         x, y, vx: 0, vy: 0,
-        r: 4 + rng() * 10,
+        r: minR + rng() * rJitter,
       })
     }
 
     const sdfForce = (alpha        ) => {
-      const margin = 6
+      const margin = params.margin
       for (const n of nodes) {
         const s = sdf.sample(n.x, n.y)
         if (s > -margin) {
@@ -62,7 +72,7 @@ export const forceContainer            = {
       .alphaDecay(0.004)
       .velocityDecay(0.35)
       .force('collide', forceCollide   ().radius((d) => d.r + 1))
-      .force('charge', forceManyBody   ().strength(-6).distanceMax(40))
+      .force('charge', forceManyBody   ().strength(params.charge).distanceMax(params.chargeDist))
       .force('sdf', sdfForce)
 
     return wrapLoop(() => {

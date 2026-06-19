@@ -1,7 +1,7 @@
 
 
 import { num } from '../../knobs'
-import { clear, strokeOutline, wrapLoop } from '../common'
+import { clear, strokeOutline, wrapLoop, rampRGB, roleRGB } from '../common'
 
 // Olami-Feder-Christensen earthquake model. Real-valued stress field; uniform
 // loading until some site hits threshold F_th=1; site relaxes to 0 and
@@ -93,15 +93,19 @@ export const r2_soc_04_ofc            = {
       for (let i = 0; i < N; i++) {
         const j = i * 4
         if (!isIn[i]) {
-          img.data[j] = 10; img.data[j + 1] = 11; img.data[j + 2] = 20; img.data[j + 3] = 255
+          const [br, bg, bb] = roleRGB('bg')
+          img.data[j] = br; img.data[j + 1] = bg; img.data[j + 2] = bb; img.data[j + 3] = 255
           continue
         }
         const s  = Math.max(0, Math.min(1, stress[i]))
-        const gl = glow_buf[i] * glow
-        const r  = Math.min(255, ((s * s * 200 + gl * 255)) | 0)
-        const g2 = Math.min(255, ((s * 180 + gl * 220)) | 0)
-        const b  = Math.min(255, ((20 + s * 235 + gl * 100)) | 0)
-        img.data[j] = r; img.data[j + 1] = g2; img.data[j + 2] = b; img.data[j + 3] = 255
+        const gl = Math.min(1, glow_buf[i] * glow)
+        // stress 0..1 along the ramp, then blend toward warm on rupture flash
+        const [sr, sg, sb] = rampRGB(s)
+        const [wr, wg, wb] = roleRGB('warm')
+        img.data[j]     = (sr + (wr - sr) * gl) | 0
+        img.data[j + 1] = (sg + (wg - sg) * gl) | 0
+        img.data[j + 2] = (sb + (wb - sb) * gl) | 0
+        img.data[j + 3] = 255
       }
 
       clear(ctx, W, H)

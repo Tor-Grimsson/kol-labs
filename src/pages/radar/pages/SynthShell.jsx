@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import Button from '../../../components/atoms/Button.jsx'
-import Divider from '../../../components/atoms/Divider.jsx'
 import Slider from '../../../components/atoms/Slider.jsx'
 import { roundIfNum } from '../../../lib/exprParam.js'
 import Section from '../../../components/molecules/Section.jsx'
-import SegmentedToggle from '../../../components/molecules/SegmentedToggle.jsx'
 import ButtonGroup from '../../../components/molecules/ButtonGroup.jsx'
-import TransportBar from '../../../components/framework/TransportBar.jsx'
+import LibrarySourceButton from '../components/LibrarySourceButton.jsx'
 import EditorRail, { RailHeader } from '../../../components/framework/EditorRail.jsx'
+import EditorFooter from '../../../components/framework/EditorFooter.jsx'
+import { LiveClock } from '../../../lib/liveClock.jsx'
 import { useImage } from '../state/ImageContext'
 
 /**
@@ -19,7 +19,7 @@ import { useImage } from '../state/ImageContext'
  * controls render-prop:
  *
  *   <SynthShell engineClass={TrailsEngine} title="Trails" name="trails" defaults={…}>
- *     {(params, update) => <Section label="…"><Slider …/></Section>}
+ *     {(params, update) => <Section label="…"><Slider labeled …/></Section>}
  *   </SynthShell>
  */
 export default function SynthShell({ engineClass, title, name, defaults, children }) {
@@ -35,14 +35,14 @@ export default function SynthShell({ engineClass, title, name, defaults, childre
   const [playing, setPlaying] = useState(true)
   const [tempo, setTempo] = useState(120)
   const [params, setParams] = useState(defaults)
-  const [tab, setTab] = useState('effect') // Effect | Output rail tabs
+  const [footTab, setFootTab] = useState('transport') // Transport · Output · File
 
   // Engine lifecycle — created once, disposed on unmount.
   useEffect(() => {
     if (!canvasRef.current || !wrapRef.current) return
     const engine = new engineClass(canvasRef.current)
     engineRef.current = engine
-    engine.setParams({ ...defaults, speed: tempo / 120 })
+    engine.setParams({ ...defaults, speed: tempo / 240 })
     engine.resize(wrapRef.current.clientWidth, wrapRef.current.clientHeight)
     engine.start()
     const ro = new ResizeObserver(() => {
@@ -60,7 +60,7 @@ export default function SynthShell({ engineClass, title, name, defaults, childre
     }
   }, [sourceImage])
   useEffect(() => { engineRef.current?.setParams(params) }, [params])
-  useEffect(() => { engineRef.current?.setParams({ speed: tempo / 120 }) }, [tempo])
+  useEffect(() => { engineRef.current?.setParams({ speed: tempo / 240 }) }, [tempo])
   useEffect(() => { engineRef.current?.setPaused(!playing) }, [playing])
 
   const update = (key, value) => setParams((p) => ({ ...p, [key]: value }))
@@ -116,61 +116,56 @@ export default function SynthShell({ engineClass, title, name, defaults, childre
         )}
       </div>
 
+      <LiveClock getT={() => engineRef.current?.time}>
       <EditorRail
-        header={
-          <>
-            <RailHeader>{title}</RailHeader>
-            <SegmentedToggle
-              value={tab}
-              onChange={setTab}
-              options={[{ value: 'effect', label: 'Effect' }, { value: 'output', label: 'Output' }]}
-            />
-          </>
-        }
+        footerBare
+        header={<RailHeader>{title}</RailHeader>}
         footer={
-          /* transport — play/pause the animation + source video, Tempo = speed */
-          <TransportBar
-            playing={playing}
-            onPlay={() => setPlaying(true)}
-            onPause={() => setPlaying(false)}
-            onStop={() => { setPlaying(false); engineRef.current?.reset() }}
-            onRewind={() => engineRef.current?.reset()}
-            tempo={tempo}
-            onTempo={setTempo}
-            tempoMax={300}
+          <EditorFooter
+            tab={footTab}
+            onTab={setFootTab}
+            // transport — play/pause the animation + source video, Tempo = speed
+            transport={{
+              playing,
+              onPlay: () => setPlaying(true),
+              onPause: () => setPlaying(false),
+              onStop: () => { setPlaying(false); engineRef.current?.reset() },
+              onRewind: () => engineRef.current?.reset(),
+              tempo,
+              onTempo: setTempo,
+              tempoMax: 600,
+            }}
+            // Output — Synth engines export at canvas resolution (no @Nx frame), so
+            // a custom Output panel instead of the aspect×scale ExportPanel.
+            output={
+              <>
+                {sourceImage ? (
+                  <Section label="Output">
+                    <Slider labeled label="Clip length (s)" min={2} max={20} step={1} value={clipLen} onChange={(v) => setClipLen(roundIfNum(v))} variant="default" />
+                    <Button variant="primary" size="sm" onClick={exportPng} iconLeft="download" className="w-full">Export PNG</Button>
+                    <Button variant={recording ? 'accent' : 'primary'} size="sm" onClick={exportWebm} iconLeft="video" className="w-full" disabled={recording}>
+                      {recording ? 'Recording…' : 'Export webm'}
+                    </Button>
+                  </Section>
+                ) : (
+                  <p className="kol-mono-10 text-fg-32">Load an image or video first.</p>
+                )}
+                <p className="kol-mono-10 text-fg-32">Works on image or video. Export PNG captures the current frame; Export webm records the live canvas for the clip length.</p>
+              </>
+            }
+            file={
+              <ButtonGroup orientation="vertical" className="w-full">
+                <Button variant="primary" size="sm" onClick={() => fileInputRef.current?.click()} iconLeft="upload" className="w-full">Upload Image</Button>
+                <Button variant="primary" size="sm" onClick={() => videoInputRef.current?.click()} iconLeft="video" className="w-full">Upload Video</Button>
+                <LibrarySourceButton />
+              </ButtonGroup>
+            }
           />
         }
       >
-        {tab === 'effect' && (
-          <>
-            {children(params, update)}
-
-            <Divider />
-
-            <ButtonGroup orientation="vertical" className="w-full">
-              <Button variant="primary" size="sm" onClick={() => fileInputRef.current?.click()} iconLeft="upload" className="w-full">Upload Image</Button>
-              <Button variant="primary" size="sm" onClick={() => videoInputRef.current?.click()} iconLeft="video" className="w-full">Upload Video</Button>
-            </ButtonGroup>
-          </>
-        )}
-
-        {tab === 'output' && (
-          <>
-            {sourceImage ? (
-              <Section label="Output">
-                <Slider label="Clip length (s)" min={2} max={20} step={1} value={clipLen} onChange={(v) => setClipLen(roundIfNum(v))} variant="default" />
-                <Button variant="primary" size="sm" onClick={exportPng} iconLeft="download" className="w-full">Export PNG</Button>
-                <Button variant={recording ? 'accent' : 'primary'} size="sm" onClick={exportWebm} iconLeft="video" className="w-full" disabled={recording}>
-                  {recording ? 'Recording…' : 'Export webm'}
-                </Button>
-              </Section>
-            ) : (
-              <p className="kol-mono-10 text-fg-32">Load an image or video first.</p>
-            )}
-            <p className="kol-mono-10 text-fg-32">Works on image or video. Export PNG captures the current frame; Export webm records the live canvas for the clip length.</p>
-          </>
-        )}
+        {children(params, update)}
       </EditorRail>
+      </LiveClock>
 
       <input ref={fileInputRef} type="file" accept="image/*,.svg" onChange={handleFileUpload} className="hidden" />
       <input ref={videoInputRef} type="file" accept="video/*" onChange={handleFileUpload} className="hidden" />

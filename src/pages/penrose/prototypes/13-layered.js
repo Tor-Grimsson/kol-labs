@@ -18,12 +18,23 @@ export const layered            = {
     'TWO LAYERS live on the same canvas. Layer A: packed circles (dart-throw, SDF-masked). Layer B: flow-field particles (simplex-noise angle field, SDF-respawn). Layer B READS Layer A — each particle is repelled by the nearest circle center within a radius. The brief\'s "additive / subtractive / life-death" rules plug in here as additional cross-layer forces.',
   helps:
     'The actual vision, in miniature. Two layers, one reading the other\'s positions. Everything we need to scale to N layers with named interaction contracts lives in this pattern.',
-  init({ ctx, sdf, W, H, rng }) {
+  params: [
+    { key: 'minR', type: 'int', min: 4, max: 24, default: 10, label: 'min radius' },
+    { key: 'maxR', type: 'int', min: 20, max: 80, default: 46, label: 'max radius' },
+    { key: 'attempts', type: 'int', min: 1000, max: 12000, step: 500, default: 5000, label: 'density' },
+    { key: 'particles', type: 'int', min: 100, max: 1500, step: 50, default: 500, label: 'particles' },
+    { key: 'noiseScale', type: 'range', min: 0.002, max: 0.04, step: 0.001, default: 0.01, label: 'flow scale' },
+    { key: 'repelR', type: 'int', min: 8, max: 60, default: 26, label: 'repel radius' },
+    { key: 'repelStrength', type: 'range', min: 0, max: 4, step: 0.1, default: 1.2, label: 'repel strength' },
+  ],
+  init({ ctx, sdf, W, H, rng, params }) {
     const sx = W / sdf.w, sy = H / sdf.h
+
+    const { minR, maxR, attempts, particles, repelR, repelStrength } = params
 
     // ---- Layer A: packed circles (static) ----
     const circles           = []
-    const minR = 10, maxR = 46, padding = 2, attempts = 5000
+    const padding = 2
     const cell = Math.max(minR, 2)
     const gw = Math.ceil(sdf.w / cell) + 1
     const gh = Math.ceil(sdf.h / cell) + 1
@@ -69,17 +80,14 @@ export const layered            = {
 
     // ---- Layer B: flow-field particles (animated, reads layer A) ----
     const noise2D = createNoise2D(rng)
-    const noiseScale = 0.01
+    const noiseScale = params.noiseScale
     const ps             = []
-    const N = 500
+    const N = particles
     const spawn = ()           => {
       const [x, y] = sampleInside(sdf, rng)
       return { x, y, px: x, py: y, life: (rng() * 160) | 0 }
     }
     for (let i = 0; i < N; i++) ps.push(spawn())
-
-    const repelR = 26
-    const repelStrength = 1.2
 
     clear(ctx, W, H)
 

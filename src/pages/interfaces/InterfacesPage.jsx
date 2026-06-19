@@ -10,11 +10,11 @@ import Dropdown from '../../components/molecules/Dropdown.jsx'
 import SegmentedToggle from '../../components/molecules/SegmentedToggle.jsx'
 import ButtonGroup from '../../components/molecules/ButtonGroup.jsx'
 import EditorRail from '../../components/framework/EditorRail.jsx'
+import EditorFooter from '../../components/framework/EditorFooter.jsx'
 import { usePublishShortcuts } from '../../components/framework/pageShortcuts.jsx'
 import RailNav from '../../components/framework/RailNav.jsx'
-import TransportBar from '../../components/framework/TransportBar.jsx'
 import './synth.css'
-import { SCREENS } from './screens'
+import { SCREENS, SCREEN_GROUPS, screenCat } from './screens'
 import { WIDGETS, CHROME, GROUPS, CATALOG, widgetFor } from './widgets/registry.js'
 import { generate, renderComposition, sectionForKey, ASPECTS, THEMES, aspectFor } from './generator.js'
 import { encode, encodeDom, setLiveEncode, CIPHER_MODES } from './widgets/cipher.js'
@@ -34,10 +34,15 @@ import { FONTS } from './lib/fonts.js'
 /* Section kind → inspector heading. */
 const SECTION_LABELS = { widgets: 'Widget', label: 'Label', statusbar: 'Status bar', transport: 'Transport', readouts: 'Readouts', strip: 'Hex strip', dual: 'Dual numbers' }
 
+/* Proper-case display labels for the theme + cipher ids (irregular casing — KOL,
+ * ROT13, Base64 — so authored explicitly rather than capitalize()'d). */
+const THEME_LABEL = { default: 'Default', blood: 'Blood', ice: 'Ice', mono: 'Mono', cream: 'Cream', kol: 'KOL' }
+const CIPHER_LABEL = { hex: 'Hex', binary: 'Binary', base64: 'Base64', morse: 'Morse', katakana: 'Katakana', rot13: 'ROT13', leet: 'Leet' }
+
 /* Mode ↔ route. Generate is the index (/interfaces); the rest nest under it.
  * The mode switcher lives in the sidebar (NAV_TREE children), not the rail. */
-const VIEW_PATHS = { generate: '/interfaces', player: '/interfaces/player', gallery: '/interfaces/gallery', library: '/interfaces/library' }
-const VIEWS = ['player', 'gallery', 'library']
+const VIEW_PATHS = { generate: '/interfaces/generate', player: '/interfaces/player', gallery: '/interfaces/gallery', library: '/interfaces/library' }
+const VIEWS = ['generate', 'player', 'gallery', 'library']
 
 // Per-view interaction hints, surfaced in the global `s` shortcuts overlay.
 const PAGE_HINTS = {
@@ -46,8 +51,19 @@ const PAGE_HINTS = {
     ['double-click', 'section info'],
     ['×', 'remove a section'],
     ['reroll', 'reset the composition'],
+    ['saved', 'live in the saved grid (Generate header → saved) — click one to load'],
+    ['drag', 'reorder how elements flow into the columns'],
+    ['eye', 'show / hide an element'],
+    ['hover', 'locate an element on the canvas'],
+    ['recording', 'needs Chrome or Edge (Region Capture)'],
   ],
-  player: [['← / →', 'step screens']],
+  player: [
+    ['space', 'play / pause'],
+    ['← / →', 'step screens'],
+    ['S', 'stop'],
+  ],
+  gallery: [['click', 'open a screen in the player']],
+  library: [['click', 'tweak + download a variant']],
 }
 const ALL = [...WIDGETS, ...CHROME]
 const SAVED_KEY = 'kol-interfaces:gen'
@@ -97,11 +113,12 @@ function useMount(buildFn, deps, playing, encodeMode) {
   return hostRef
 }
 
-function PlayerStage({ def, playing, stopNonce, encodeMode }) {
+function PlayerStage({ def, playing, stopNonce, encodeMode, stageHostRef }) {
   const hostRef = useMount((node) => def.build(node), [def, stopNonce], playing, encodeMode)
+  // surface the wrapper (holds .screen) so the Output tab can record the player too
   return (
     <ScaleToFit className="w-full h-[80vh]">
-      <div className="interfaces-page bare"><div className={`screen theme-${def.theme ?? 'default'}`} ref={hostRef} /></div>
+      <div className="interfaces-page bare" ref={stageHostRef}><div className={`screen theme-${def.theme ?? 'default'}`} ref={hostRef} /></div>
     </ScaleToFit>
   )
 }
@@ -212,9 +229,13 @@ export default function InterfacesPage() {
   const view = VIEWS.includes(modeParts[0]) ? modeParts[0] : 'generate'
   // Library can be filtered to one widget group: /interfaces/library/<group>.
   const libGroup = view === 'library' && GROUPS.some((g) => g.key === modeParts[1]) ? modeParts[1] : null
+  // Gallery can be filtered to one screen category: /interfaces/gallery/<cat>.
+  const galleryCat = view === 'gallery' && SCREEN_GROUPS.some((g) => g.key === modeParts[1]) ? modeParts[1] : null
   // CATALOG indices in the active group (all of them when unfiltered).
   const libFiltered = libGroup ? CATALOG.flatMap((v, i) => (v.widget.group === libGroup ? [i] : [])) : CATALOG.map((_, i) => i)
   usePublishShortcuts('Interfaces', PAGE_HINTS[view] || [])
+  // Generate's canonical slug is /interfaces/generate; bare /interfaces redirects.
+  useEffect(() => { if (!modeParts.length) navigate(VIEW_PATHS.generate, { replace: true }) }, [modeParts.length, navigate])
   // restore the autosaved working draft once per mount (reload-safe recall)
   const draftRef = useRef(undefined)
   if (draftRef.current === undefined) draftRef.current = readDraft()
@@ -248,7 +269,7 @@ export default function InterfacesPage() {
   const [bottomTab, setBottomTab] = useState('transport') // pinned bottom panel: transport | output
   const [infoSec, setInfoSec] = useState(null) // section id whose info overlay is open
   // global controls (persist across rerolls)
-  const [tempo, setTempo] = useState(draft.tempo ?? 120) // BPM; 120 = realtime baseline
+  const [tempo, setTempo] = useState(120) // BPM; 120 = realtime baseline (not drafted — always defaults to 120)
   const [genFont, setGenFont] = useState(draft.genFont ?? 'mono')
   const [encodeMode, setEncodeMode] = useState(draft.encodeMode ?? 'off') // global text-encode scheme
   setLiveEncode(encodeMode) // keep interval-driven painters (hex strip / dual numbers) in sync
@@ -303,11 +324,11 @@ export default function InterfacesPage() {
       .map((s) => (removed.has(s.id) ? { ...s, hidden: true } : s)),
   }), [spec, allSections, removed, showChrome, layout, genFont])
   const selectedSection = useMemo(() => visibleSpec.sections.find((s) => s.id === selSec) || null, [visibleSpec, selSec])
-  // Layout tab lists ALL sections incl. hidden. Status bar now flows as a normal
-  // body item; only transport stays pinned (footer in renderComposition).
+  // Layout tab lists ALL sections incl. hidden. Status bar AND transport both flow
+  // as normal body items now — reorderable, nothing pinned.
   // the Layout list mirrors what actually renders (post height-trim) + anything hidden
   const listSections = renderedIds ? allSections.filter((s) => renderedIds.has(s.id) || removed.has(s.id)) : allSections
-  const bodySections = listSections.filter((s) => s.kind !== 'transport')
+  const bodySections = listSections
   const dropRow = (to) => {
     const from = dragFrom.current; dragFrom.current = null
     if (from == null || from === to) return
@@ -315,7 +336,6 @@ export default function InterfacesPage() {
     const [moved] = ids.splice(from, 1); ids.splice(to, 0, moved)
     setOrder(ids)
   }
-  const layoutFooters = listSections.filter((s) => s.kind === 'transport')
   const toggleHidden = (id) => setRemoved((r) => { const n = new Set(r); n.has(id) ? n.delete(id) : n.add(id); return n })
   // the composition reports which sections survived its height-trim
   const handleRendered = useCallback((ids) => {
@@ -354,7 +374,7 @@ export default function InterfacesPage() {
   const resetAll = () => {
     setRemoved(new Set()); setDeleted(new Set()); setAdded([]); setEdits({}); setOrder([]); setSelSec(null); setAddPick('eqBars')
     setShowChrome(true); setAspectKey('9:16'); setThemeSel('random'); setGenFont('mono'); setEncodeMode('off'); setLayout(DEFAULT_LAYOUT)
-    setTempo(120)
+    setTempo(60)
   }
   const saveComposition = () => {
     setSaved((s) => {
@@ -415,13 +435,13 @@ export default function InterfacesPage() {
       idx, libIdx, playing, selKey, opts,
       genSeed, aspectKey, themeSel, genView, showChrome,
       removed: [...removed], deleted: [...deleted], added, edits, order, selSec, addPick,
-      tempo, genFont, encodeMode, layout,
+      genFont, encodeMode, layout,
     }
     try { localStorage.setItem(DRAFT_KEY, JSON.stringify(out)) } catch { /* */ }
   }, [idx, libIdx, playing, selKey, opts, genSeed, aspectKey, themeSel, genView, showChrome, removed, added, edits, order, selSec, addPick, tempo, genFont, encodeMode, layout, deleted])
 
   // tempo (BPM) → shared clock scale (120 = realtime, 0 = frozen, 240 = 2×)
-  useEffect(() => { setTempoScale(tempo / 120) }, [tempo])
+  useEffect(() => { setTempoScale(tempo / 240) }, [tempo])
 
   // release the mic when leaving interfaces
   useEffect(() => () => stopAudio(), [])
@@ -503,6 +523,120 @@ export default function InterfacesPage() {
     />
   )
 
+  // Shared Output panel — bespoke composition capture (not the aspect×scale
+  // ExportPanel). Used by both the generate and player footers. Recording needs
+  // Region Capture (Chrome/Edge) → button disabled otherwise; the why is in the
+  // `s` overlay, not inline noise.
+  const recordOutput = (
+    <>
+      <div className="flex gap-1.5">
+        {[5, 10, 20, 30, 60].map((s) => (
+          <button key={s} type="button" onClick={() => setRecLen(s)}
+            className={`flex-1 rounded kol-helper-10 py-1 border transition-colors ${recLen === s ? 'bg-surface-secondary text-emphasis border-fg-48' : 'text-meta border-fg-08 hover:text-emphasis hover:border-fg-24'}`}>
+            {s}s
+          </button>
+        ))}
+      </div>
+      <Slider labeled label="Length (s)" min={1} max={120} step={1} value={recLen} onChange={setRecLen} />
+      {audioActive() && audioIsFile() && audioDuration() > 0 && (
+        <button type="button" onClick={() => setRecLen(Math.ceil(audioDuration()))} className="kol-helper-10 text-meta hover:text-emphasis text-left">
+          audio track is {Math.ceil(audioDuration())}s · use track length
+        </button>
+      )}
+      {capturing && (
+        <div className="kol-mono-12 text-emphasis flex items-center gap-2">
+          <span className="inline-block w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+          Recording · {Math.floor(recElapsed)} / {recLen}s
+        </div>
+      )}
+      <Button variant={capturing ? 'accent' : 'primary'} size="sm" className="w-full" iconLeft="circle" disabled={!regionCaptureSupported()} onClick={capturing ? stopCapture : startCapture}>
+        {capturing ? 'Stop recording' : 'Record composition'}
+      </Button>
+    </>
+  )
+
+  // generate/current rail footer — Transport · Output · File. Output = aspect
+  // (export frame) + composition capture; File = audio source + save composition.
+  const generateFooter = (
+    <EditorFooter
+      tab={bottomTab}
+      onTab={setBottomTab}
+      transport={{
+        playing,
+        onPlay: () => setPlaying(true),
+        onPause: () => setPlaying(false),
+        onStop: () => setPlaying(false),
+        onRewind: () => resetClock(),
+        tempo,
+        onTempo: setTempo,
+        tempoMax: 600,
+      }}
+      output={(
+        <>
+          <LabeledControl label="Aspect">
+            <Dropdown size="sm" variant="subtle" className="w-full" openUp value={aspectKey} onChange={setAspectKey} options={ASPECTS.map((a) => ({ value: a.key, label: a.label }))} />
+          </LabeledControl>
+          {recordOutput}
+        </>
+      )}
+      file={(
+        <>
+          <AudioControls />
+          <Button variant="primary" size="sm" className="w-full" iconLeft="download" onClick={saveComposition}>Save composition</Button>
+        </>
+      )}
+    />
+  )
+
+  // player rail footer — the SAME EditorFooter shell. Output records the screen,
+  // File is the audio source; Transport drives the screen animation.
+  const playerFooter = (
+    <EditorFooter
+      tab={bottomTab}
+      onTab={setBottomTab}
+      transport={{
+        playing,
+        onPlay: () => setPlaying(true),
+        onPause: () => setPlaying(false),
+        onStop: doStop,
+        onRewind: () => { resetClock(); setStopNonce((n) => n + 1) },
+        tempo,
+        onTempo: setTempo,
+        tempoMax: 600,
+      }}
+      output={recordOutput}
+      file={<AudioControls />}
+    />
+  )
+
+  // library detail rail footer — the SAME EditorFooter shell. Transport drives
+  // the widget animation; Output is the per-widget PNG/webm (canvas-res, not the
+  // aspect×scale ExportPanel — themed elements have none); File is the audio
+  // source for the reactive widgets.
+  const libraryFooter = (
+    <EditorFooter
+      tab={bottomTab}
+      onTab={setBottomTab}
+      transport={{
+        playing,
+        onPlay: () => setPlaying(true),
+        onPause: () => setPlaying(false),
+        onStop: () => setPlaying(false),
+        onRewind: () => resetClock(),
+        tempo,
+        onTempo: setTempo,
+        tempoMax: 600,
+      }}
+      output={widget && !widget.themed ? (
+        <>
+          <Button variant="primary" size="sm" className="w-full" iconLeft="download" onClick={() => downloadPng(canvasRef.current, selKey)}>PNG ×4</Button>
+          <Button variant={recording ? 'accent' : 'primary'} size="sm" className="w-full" iconLeft="circle" onClick={toggleRec}>{recording ? 'Stop recording' : 'Record webm (5s)'}</Button>
+        </>
+      ) : null}
+      file={<AudioControls getCanvas={() => canvasRef.current} />}
+    />
+  )
+
   return (
     <div className="flex min-h-dvh">
       {/* ── stage ── */}
@@ -527,15 +661,25 @@ export default function InterfacesPage() {
           </div>
         )}
 
-        {view === 'player' && <div data-audio-stage className="h-full flex items-center justify-center"><PlayerStage def={def} playing={playing} stopNonce={stopNonce} encodeMode={encodeMode} /></div>}
+        {view === 'player' && <div data-audio-stage className="h-full flex items-center justify-center"><PlayerStage def={def} playing={playing} stopNonce={stopNonce} encodeMode={encodeMode} stageHostRef={stageHostRef} /></div>}
 
         {view === 'gallery' && (
-          <div className="h-full overflow-y-auto p-6">
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-4">
-              {SCREENS.map((s, i) => (
-                <ScreenTile key={s.id} def={s} playing focused={i === idx} onClick={() => openScreen(i)} />
-              ))}
-            </div>
+          <div className="h-full overflow-y-auto p-6 flex flex-col gap-6">
+            {(galleryCat ? SCREEN_GROUPS.filter((g) => g.key === galleryCat) : SCREEN_GROUPS).map((g) => {
+              const items = SCREENS.filter((s) => screenCat(s.id) === g.key)
+              if (!items.length) return null
+              return (
+                <section key={g.key}>
+                  <div className="kol-helper-10 uppercase tracking-widest text-meta mb-2">{g.label}</div>
+                  <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4">
+                    {items.map((s) => {
+                      const gi = SCREENS.indexOf(s)
+                      return <ScreenTile key={s.id} def={s} playing focused={gi === idx} onClick={() => openScreen(gi)} />
+                    })}
+                  </div>
+                </section>
+              )
+            })}
           </div>
         )}
 
@@ -547,7 +691,7 @@ export default function InterfacesPage() {
               return (
                 <section key={g.key}>
                   <div className="kol-helper-10 uppercase tracking-widest text-meta mb-2">{g.label}</div>
-                  <div className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-4">
+                  <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4">
                     {items.map((v) => (
                       <WidgetCard key={v.id} widget={v.widget} opts={v.opts} label={v.label} playing focused={focusVariant?.id === v.id} onClick={() => openVariant(CATALOG.indexOf(v))} />
                     ))}
@@ -568,12 +712,15 @@ export default function InterfacesPage() {
       </div>
 
       {/* ── rail ── */}
-      <EditorRail>
+      <EditorRail
+        footerBare={view === 'player' || (view === 'generate' && genView === 'current') || (view === 'library' && !!widget)}
+        footer={view === 'player' ? playerFooter : (view === 'generate' && genView === 'current' ? generateFooter : (view === 'library' && widget ? libraryFooter : null))}
+      >
         {view === 'generate' && (
           <>
             <RailNav
               title="Generate"
-              toggleLabel={genView === 'current' ? `saved (${saved.length})` : 'current'}
+              toggleLabel={genView === 'current' ? `Saved (${saved.length})` : 'Current'}
               onToggle={() => setGenView(genView === 'current' ? 'saved' : 'current')}
               index={savedIdx}
               total={genView === 'saved' ? saved.length : 0}
@@ -615,14 +762,14 @@ export default function InterfacesPage() {
                         )}
                         {selectedSection.kind === 'strip' && (
                           <Section label="Hex strip">
-                            <Slider label="groups" min={1} max={3} step={1} value={selectedSection.groups} onChange={(v) => editField(selSec, 'groups', v)} />
-                            <Slider label="per" min={4} max={16} step={1} value={selectedSection.per} onChange={(v) => editField(selSec, 'per', v)} />
+                            <Slider labeled label="groups" min={1} max={3} step={1} value={selectedSection.groups} onChange={(v) => editField(selSec, 'groups', v)} />
+                            <Slider labeled label="per" min={4} max={16} step={1} value={selectedSection.per} onChange={(v) => editField(selSec, 'per', v)} />
                           </Section>
                         )}
                         {selectedSection.kind === 'dual' && (
                           <Section label="Dual numbers">
-                            <Slider label="rows" min={3} max={10} step={1} value={selectedSection.rows} onChange={(v) => editField(selSec, 'rows', v)} />
-                            <Slider label="columns" min={1} max={4} step={1} value={selectedSection.cols ?? 2} onChange={(v) => editField(selSec, 'cols', v)} />
+                            <Slider labeled label="rows" min={3} max={10} step={1} value={selectedSection.rows} onChange={(v) => editField(selSec, 'rows', v)} />
+                            <Slider labeled label="columns" min={1} max={4} step={1} value={selectedSection.cols ?? 2} onChange={(v) => editField(selSec, 'cols', v)} />
                           </Section>
                         )}
                         {selectedSection.kind === 'readouts' && (
@@ -640,7 +787,7 @@ export default function InterfacesPage() {
                             onChange={(v) => editField(selSec, 'font', v === 'inherit' ? undefined : v)}
                             options={[{ value: 'inherit', label: 'Inherit (UI)' }, ...FONTS.map((f) => ({ value: f.key, label: f.label }))]} />
                         </LabeledControl>
-                        <Button variant="secondary" size="sm" className="w-full" onClick={() => removeSection(selSec)}>Remove element</Button>
+                        <Button variant="primary" size="sm" className="w-full" onClick={() => removeSection(selSec)}>Remove element</Button>
                         <Divider />
                       </>
                     )}
@@ -659,12 +806,9 @@ export default function InterfacesPage() {
 
                 {genTab === 'design' && (
                   <>
-                    <LabeledControl label="Aspect">
-                      <Dropdown size="sm" variant="subtle" className="w-full" value={aspectKey} onChange={setAspectKey} options={ASPECTS.map((a) => ({ value: a.key, label: a.label }))} />
-                    </LabeledControl>
                     <LabeledControl label="Theme">
                       <Dropdown size="sm" variant="subtle" className="w-full" value={themeSel} onChange={setThemeSel}
-                        options={[{ value: 'random', label: 'Random' }, ...THEMES.map((t) => ({ value: t, label: t }))]} />
+                        options={[{ value: 'random', label: 'Random' }, ...THEMES.map((t) => ({ value: t, label: THEME_LABEL[t] ?? t }))]} />
                     </LabeledControl>
                     <LabeledControl label="Status bars (top + bottom)">
                       <SegmentedToggle value={showChrome ? 'on' : 'off'} onChange={(v) => setShowChrome(v === 'on')} options={[{ value: 'on', label: 'On' }, { value: 'off', label: 'Off' }]} />
@@ -674,20 +818,21 @@ export default function InterfacesPage() {
                       <Dropdown size="sm" variant="subtle" className="w-full" value={genFont} onChange={setGenFont} options={FONTS.map((f) => ({ value: f.key, label: f.label }))} />
                     </LabeledControl>
                     <LabeledControl label="Encode">
-                      <Dropdown size="sm" variant="subtle" className="w-full" value={encodeMode} onChange={setEncodeMode} options={[{ value: 'off', label: 'Off' }, ...CIPHER_MODES.map((m) => ({ value: m, label: m }))]} />
+                      <Dropdown size="sm" variant="subtle" className="w-full" value={encodeMode} onChange={setEncodeMode} options={[{ value: 'off', label: 'Off' }, ...CIPHER_MODES.map((m) => ({ value: m, label: CIPHER_LABEL[m] ?? m }))]} />
                     </LabeledControl>
-                    <Slider label="Gap" min={0} max={32} step={1} value={layout.gap} onChange={(v) => setLay('gap', v)} />
-                    <Slider label="Scale" min={0.5} max={1.5} step={0.05} value={layout.scale} onChange={(v) => setLay('scale', v)} />
-                    <Slider label="Pad top" min={0} max={48} step={1} value={layout.padT} onChange={(v) => setLay('padT', v)} />
-                    <Slider label="Pad right" min={0} max={48} step={1} value={layout.padR} onChange={(v) => setLay('padR', v)} />
-                    <Slider label="Pad bottom" min={0} max={48} step={1} value={layout.padB} onChange={(v) => setLay('padB', v)} />
-                    <Slider label="Pad left" min={0} max={48} step={1} value={layout.padL} onChange={(v) => setLay('padL', v)} />
+                    <Section label="Spacing">
+                      <Slider labeled label="Gap" min={0} max={32} step={1} value={layout.gap} onChange={(v) => setLay('gap', v)} />
+                      <Slider labeled label="Scale" min={0.5} max={1.5} step={0.05} value={layout.scale} onChange={(v) => setLay('scale', v)} />
+                      <Slider labeled label="Pad top" min={0} max={48} step={1} value={layout.padT} onChange={(v) => setLay('padT', v)} />
+                      <Slider labeled label="Pad right" min={0} max={48} step={1} value={layout.padR} onChange={(v) => setLay('padR', v)} />
+                      <Slider labeled label="Pad bottom" min={0} max={48} step={1} value={layout.padB} onChange={(v) => setLay('padB', v)} />
+                      <Slider labeled label="Pad left" min={0} max={48} step={1} value={layout.padL} onChange={(v) => setLay('padL', v)} />
+                    </Section>
                   </>
                 )}
 
                 {genTab === 'layout' && (
                   <>
-                    <p className="kol-mono-10 text-body">Drag to reorder how elements flow into the columns · eye to show/hide · double-click to edit · hover to locate · transport stays pinned.</p>
                     <div className="flex flex-col gap-1">
                       {bodySections.map((s, i) => {
                         const hidden = removed.has(s.id)
@@ -711,79 +856,9 @@ export default function InterfacesPage() {
                           </div>
                         )
                       })}
-                      {layoutFooters.map((f) => {
-                        const hidden = removed.has(f.id)
-                        return (
-                          <div
-                            key={f.id}
-                            onMouseEnter={() => setHoverSec(f.id)} onMouseLeave={() => setHoverSec(null)}
-                            onDoubleClick={() => { setSelSec(f.id); setGenTab('edit') }}
-                            className={`flex items-center gap-2 px-2 py-1.5 rounded border-t-2 border-transparent kol-helper-12 cursor-default text-meta ${hidden ? 'opacity-50' : ''}`}
-                          >
-                            <span className="select-none">·</span>
-                            <span className="truncate">{SECTION_LABELS[f.kind] || f.kind}</span>
-                            <span className="ml-auto kol-helper-10">pinned</span>
-                            <Button variant="ghost" size="sm" quiet iconOnly={hidden ? 'eye-off' : 'eye-on'} iconSize={14} aria-label={hidden ? 'Show' : 'Hide'} onClick={(e) => { e.stopPropagation(); toggleHidden(f.id) }} />
-                            <Button variant="ghost" size="sm" quiet iconOnly="cross" iconSize={12} aria-label="Delete" onClick={(e) => { e.stopPropagation(); removeSection(f.id) }} />
-                          </div>
-                        )
-                      })}
                     </div>
                   </>
                 )}
-
-                {/* Output + Transport, tabbed, pinned to the rail bottom */}
-                <div className="mt-auto sticky bottom-0 -mx-5 -mb-5 px-5 pt-3 pb-5 bg-surface-primary border-t border-fg-08 flex flex-col gap-3 max-h-[60vh] overflow-y-auto">
-                  <SegmentedToggle value={bottomTab} onChange={setBottomTab} options={[{ value: 'transport', label: 'Transport' }, { value: 'output', label: 'Output' }]} />
-
-                  {bottomTab === 'transport' && (
-                    <>
-                      <TransportBar
-                        playing={playing}
-                        onPlay={() => setPlaying(true)}
-                        onPause={() => setPlaying(false)}
-                        onStop={() => setPlaying(false)}
-                        onRewind={() => resetClock()}
-                        tempo={tempo}
-                        onTempo={setTempo}
-                        tempoMax={300}
-                      />
-                      <AudioControls />
-                    </>
-                  )}
-
-                  {bottomTab === 'output' && (
-                    <>
-                      <div className="flex gap-1.5">
-                        {[5, 10, 20, 30, 60].map((s) => (
-                          <button key={s} type="button" onClick={() => setRecLen(s)}
-                            className={`flex-1 rounded kol-helper-10 py-1 border transition-colors ${recLen === s ? 'bg-surface-secondary text-emphasis border-fg-48' : 'text-meta border-fg-08 hover:text-emphasis hover:border-fg-24'}`}>
-                            {s}s
-                          </button>
-                        ))}
-                      </div>
-                      <Slider label="Length (s)" min={1} max={120} step={1} value={recLen} onChange={setRecLen} />
-                      {audioActive() && audioIsFile() && audioDuration() > 0 && (
-                        <button type="button" onClick={() => setRecLen(Math.ceil(audioDuration()))} className="kol-helper-10 text-meta hover:text-emphasis text-left">
-                          audio track is {Math.ceil(audioDuration())}s · use track length
-                        </button>
-                      )}
-                      {capturing && (
-                        <div className="kol-mono-12 text-emphasis flex items-center gap-2">
-                          <span className="inline-block w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                          Recording · {Math.floor(recElapsed)} / {recLen}s
-                        </div>
-                      )}
-                      {regionCaptureSupported() ? (
-                        <Button variant={capturing ? 'accent' : 'primary'} size="sm" className="w-full" iconLeft="circle" onClick={capturing ? stopCapture : startCapture}>
-                          {capturing ? 'Stop recording' : 'Record composition'}
-                        </Button>
-                      ) : (
-                        <div className="kol-mono-10 text-meta">Composition recording needs Chrome or Edge (Region Capture).</div>
-                      )}
-                    </>
-                  )}
-                </div>
               </>
             ) : (
               <div className="kol-mono-10 text-body">{saved.length} saved · click to load, × to remove.</div>
@@ -793,70 +868,41 @@ export default function InterfacesPage() {
 
         {view === 'player' && (
           <>
-            <RailNav title={def.title} toggleLabel="screens" onToggle={() => navigate(VIEW_PATHS.gallery)} index={idx} total={SCREENS.length} onPrev={() => go(-1)} onNext={() => go(1)} />
+            <RailNav title={def.title} toggleLabel="Screens" onToggle={() => navigate(VIEW_PATHS.gallery)} index={idx} total={SCREENS.length} onPrev={() => go(-1)} onNext={() => go(1)} />
             <LabeledControl label="Encode">
-              <Dropdown size="sm" variant="subtle" className="w-full" value={encodeMode} onChange={setEncodeMode} options={[{ value: 'off', label: 'Off' }, ...CIPHER_MODES.map((m) => ({ value: m, label: m }))]} />
+              <Dropdown size="sm" variant="subtle" className="w-full" value={encodeMode} onChange={setEncodeMode} options={[{ value: 'off', label: 'Off' }, ...CIPHER_MODES.map((m) => ({ value: m, label: CIPHER_LABEL[m] ?? m }))]} />
             </LabeledControl>
-            <div className="kol-helper-10 text-body flex flex-col gap-1">
-              <div>SPACE · PLAY/PAUSE</div>
-              <div>←/→ · SCREEN</div>
-              <div>S · STOP</div>
-            </div>
-            <div className="kol-mono-10 text-body">{def.subtitle}</div>
-            {/* transport + audio pinned to the rail bottom (matches Generate) */}
-            <div className="mt-auto sticky bottom-0 -mx-5 -mb-5 px-5 pt-3 pb-5 bg-surface-primary border-t border-fg-08 flex flex-col gap-3">
-              <TransportBar
-                playing={playing}
-                onPlay={() => setPlaying(true)}
-                onPause={() => setPlaying(false)}
-                onStop={doStop}
-                onRewind={() => { resetClock(); setStopNonce((n) => n + 1) }}
-                tempo={tempo}
-                onTempo={setTempo}
-                tempoMax={300}
-              />
-              <AudioControls />
-            </div>
           </>
         )}
 
         {view === 'gallery' && (
           <>
+            <div className="kol-helper-12 text-emphasis">{def.title}</div>
             {browseToggle}
-            <RailNav title={def.title} toggleLabel="single" onToggle={() => navigate(VIEW_PATHS.player)} index={idx} total={SCREENS.length} onPrev={() => go(-1)} onNext={() => go(1)} />
-            <div className="kol-mono-10 text-body">{SCREENS.length} screens · click one to open it in the player.</div>
+            <RailNav toggleLabel="Single" onToggle={() => navigate(VIEW_PATHS.player)} index={idx} total={SCREENS.length} onPrev={() => go(-1)} onNext={() => go(1)} />
           </>
         )}
 
         {view === 'library' && !widget && (
           <>
+            <div className="kol-helper-12 text-emphasis">{libGroup ? GROUPS.find((g) => g.key === libGroup)?.label : 'Elements'}</div>
             {browseToggle}
-            <RailNav title={libGroup ? GROUPS.find((g) => g.key === libGroup)?.label : 'Elements'} toggleLabel="single" onToggle={() => openVariant(libIdx)} index={Math.max(0, libFiltered.indexOf(libIdx))} total={libFiltered.length} onPrev={() => goLib(-1)} onNext={() => goLib(1)} />
-            <div className="kol-mono-10 text-body">{libFiltered.length} variants{libGroup ? ` · ${GROUPS.find((g) => g.key === libGroup)?.label}` : ` · ${ALL.length} elements across ${GROUPS.length} groups`} · click one to tweak + download.</div>
+            <RailNav toggleLabel="Single" onToggle={() => openVariant(libIdx)} index={Math.max(0, libFiltered.indexOf(libIdx))} total={libFiltered.length} onPrev={() => goLib(-1)} onNext={() => goLib(1)} />
           </>
         )}
 
         {view === 'library' && widget && (
           <>
+            <div className="kol-helper-12 text-emphasis">{widget.label}</div>
             {browseToggle}
-            <RailNav title={widget.label} toggleLabel="elements" onToggle={() => setSelKey(null)} index={Math.max(0, libFiltered.indexOf(libIdx))} total={libFiltered.length} onPrev={() => goLib(-1)} onNext={() => goLib(1)} />
+            <RailNav toggleLabel="Elements" onToggle={() => setSelKey(null)} index={Math.max(0, libFiltered.indexOf(libIdx))} total={libFiltered.length} onPrev={() => goLib(-1)} onNext={() => goLib(1)} />
             <Button variant="primary" size="sm" className="w-full" iconLeft="plus" onClick={() => addToGenerate(selKey, opts)}>Add to Generate</Button>
-            {['eqBars', 'hBars', 'vu'].includes(selKey) && <AudioControls getCanvas={() => canvasRef.current} />}
             {widget.params.length > 0 && (
               <Section label="Parameters">
                 <ParamControls params={widget.params} opts={opts} onChange={(k, v) => setOpts((o) => ({ ...o, [k]: v }))} />
               </Section>
             )}
-            {!widget.themed && (
-              <>
-                <Divider />
-                <Section label="Export">
-                  <Button variant="primary" size="sm" className="w-full" iconLeft="download" onClick={() => downloadPng(canvasRef.current, selKey)}>PNG ×4</Button>
-                  <Button variant={recording ? 'accent' : 'primary'} size="sm" className="w-full" iconLeft="circle" onClick={toggleRec}>{recording ? 'Stop recording' : 'Record webm (5s)'}</Button>
-                </Section>
-              </>
-            )}
-            {widget.params.length > 0 && <Button variant="secondary" size="sm" className="w-full" onClick={() => setOpts({ ...widget.defaults })}>Reset params</Button>}
+            {widget.params.length > 0 && <Button variant="primary" size="sm" className="w-full" onClick={() => setOpts({ ...widget.defaults })}>Reset params</Button>}
           </>
         )}
       </EditorRail>

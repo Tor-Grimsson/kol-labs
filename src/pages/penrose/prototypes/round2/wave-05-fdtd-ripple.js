@@ -9,7 +9,7 @@
 
 
 import { num } from '../../knobs'
-import { clear, strokeOutline, wrapLoop } from '../common'
+import { clear, strokeOutline, wrapLoop, rampRGB, roleRGB } from '../common'
 
 const PARAMS          = [
   { key: 'res',   type: 'int',   min: 80,  max: 180, default: 140, step: 20,   label: 'grid res' },
@@ -120,22 +120,16 @@ export const r2_wave_05_fdtd_ripple            = {
       for (let i = 0; i < N; i++) {
         const j = i * 4
         if (!mask[i]) {
-          img.data[j] = 10; img.data[j+1] = 11; img.data[j+2] = 20; img.data[j+3] = 255
+          const [br, bg, bb] = roleRGB('bg')
+          img.data[j] = br; img.data[j+1] = bg; img.data[j+2] = bb; img.data[j+3] = 255
           continue
         }
         const v = Math.max(-1, Math.min(1, uN[i] * 0.6))
-        if (v > 0) {
-          // crest: dark bg → warm highlight
-          img.data[j]   = (20 + 220 * v) | 0
-          img.data[j+1] = (15 + 170 * v) | 0
-          img.data[j+2] = (60 +  40 * v) | 0
-        } else {
-          // trough: dark bg → cool blue
-          const vn = -v
-          img.data[j]   = (20 +  20 * vn) | 0
-          img.data[j+1] = (15 +  80 * vn) | 0
-          img.data[j+2] = (60 + 170 * vn) | 0
-        }
+        // signed displacement → palette ramp: trough(−1)→0, rest(0)→0.5, crest(+1)→1
+        const [r, g, b] = rampRGB(v * 0.5 + 0.5)
+        img.data[j]   = r
+        img.data[j+1] = g
+        img.data[j+2] = b
         img.data[j+3] = 255
       }
 

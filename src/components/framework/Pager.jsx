@@ -24,8 +24,8 @@ export default function Pager({
   total,
   onPrev,
   onNext,
-  prevLabel = '← prev',
-  nextLabel = 'next →',
+  prevLabel = '← Prev',
+  nextLabel = 'Next →',
   className = '',
 }) {
   return (

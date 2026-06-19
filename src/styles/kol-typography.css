@@ -1033,7 +1033,7 @@
   margin: 24px 0;
   padding: 16px 20px;
   background: var(--kol-fg-04);
-  border-radius: 6px;
+  border-radius: 4px;
   overflow-x: auto;
 }
 

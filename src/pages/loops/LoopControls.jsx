@@ -35,7 +35,7 @@ export default function LoopControls({ schema = [], values = {}, onChange, label
         // 'range' (default)
         const isInt = (p.step ?? 1) >= 1
         return (
-          <Slider
+          <Slider labeled
             key={p.key}
             label={p.label}
             min={p.min}

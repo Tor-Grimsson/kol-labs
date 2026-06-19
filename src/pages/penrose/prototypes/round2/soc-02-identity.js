@@ -1,7 +1,7 @@
 
 
 import { num } from '../../knobs'
-import { clear, strokeOutline, wrapLoop } from '../common'
+import { clear, strokeOutline, wrapLoop, rampRGB, roleRGB } from '../common'
 
 // Abelian sandpile identity element. The identity of the sandpile group on the
 // glyph domain is a unique fractal that exactly fills the letterform silhouette.
@@ -18,12 +18,6 @@ const PARAMS          = [
   { key: 'maxRelax',   type: 'int',   min: 50,  max: 2000,default: 500, step: 50  },
   { key: 'palette',    type: 'select', options: ['classic', 'fire', 'ice'], default: 'classic' },
 ]
-
-const PALETTES                                                      = {
-  classic: [[10,11,20],[30,50,110],[100,160,240],[240,210,120]],
-  fire:    [[10,11,20],[100,20,10],[220,80,20],[255,210,80]],
-  ice:     [[10,11,20],[20,40,80],[60,140,200],[200,240,255]],
-}
 
 function relax(grid            , isIn            , G        , thresh        , maxIter        ) {
   for (let iter = 0; iter < maxIter; iter++) {
@@ -58,8 +52,6 @@ export const r2_soc_02_identity            = {
     const buildSt  = num(params, 'buildSteps', 300)
     const driveRate= num(params, 'driveRate', 8)
     const maxRelax = num(params, 'maxRelax', 500)
-    const palKey   = typeof params['palette'] === 'string' ? params['palette'] : 'classic'
-    const pal      = PALETTES[palKey] ?? PALETTES['classic']
     const thresh   = 4
 
     const N    = G * G
@@ -100,10 +92,11 @@ export const r2_soc_02_identity            = {
       for (let i = 0; i < N; i++) {
         const j = i * 4
         if (!isIn[i]) {
-          img.data[j] = 10; img.data[j + 1] = 11; img.data[j + 2] = 20; img.data[j + 3] = 255
+          const [br, bg, bb] = roleRGB('bg')
+          img.data[j] = br; img.data[j + 1] = bg; img.data[j + 2] = bb; img.data[j + 3] = 255
           continue
         }
-        const [r, g, b] = pal[Math.min(grid[i], 3)]
+        const [r, g, b] = rampRGB(Math.min(grid[i], 3) / 3)   // height 0..3 → palette ramp
         img.data[j] = r; img.data[j + 1] = g; img.data[j + 2] = b; img.data[j + 3] = 255
       }
 

@@ -4,13 +4,14 @@ import { resolveRate } from '../../../lib/exprParam.js'
 import StylePanel from '../components/StylePanel'
 import { drawAxes2D } from '../components/axes2d'
 import { useMathStyle, AXIS_2D, hexToRgb } from '../style/mathStyle'
-import { VIEW_ASPECTS, DEFAULT_ASPECT, DEFAULT_SCALE, ratioFor, dimsFor } from '../../_shared/exportSpecs.js'
-import ExportPanel from '../../_shared/ExportPanel.jsx'
-import { DEFAULT_THEME, resolveTheme } from '../../../lib/themes.js'
+import { VIEW_ASPECTS, DEFAULT_ASPECT, defaultAspectFor, DEFAULT_SCALE, ratioFor, dimsFor } from '../../_shared/exportSpecs.js'
+import { defaultTheme } from '../../../lib/appSettings.js'
+import { resolveTheme } from '../../../lib/themes.js'
 import { mulberry32, randomSeed, randomizeSchema } from '../../../lib/rng.js'
 import SettingsPanel from '../../../components/framework/SettingsPanel.jsx'
-import TransportBar from '../../../components/framework/TransportBar.jsx'
+import EditorFooter from '../../../components/framework/EditorFooter.jsx'
 import EditorRail, { RailHeader } from '../../../components/framework/EditorRail.jsx'
+import { LiveClock } from '../../../lib/liveClock.jsx'
 import Button from '../../../components/atoms/Button.jsx'
 import Input from '../../../components/atoms/Input.jsx'
 import Slider from '../../../components/atoms/Slider.jsx'
@@ -89,7 +90,7 @@ export default function FieldPage() {
   const [low, setLow] = useState('#0b1530')
   const [high, setHigh] = useState('#ffce54')
   const [style, patchStyle, applyTheme] = useMathStyle({ stroke: '#ffffff' })
-  const [themeId, setThemeId] = useState(DEFAULT_THEME)
+  const [themeId, setThemeId] = useState(() => defaultTheme())
   const [invert, setInvert] = useState(false)
   const [seed, setSeed] = useState(1)
   const [flow, setFlow] = useState(true)
@@ -98,8 +99,9 @@ export default function FieldPage() {
   const [flowSpeed, setFlowSpeed] = useState(1)
   const [playing, setPlaying] = useState(false)
   const [tempo, setTempo] = useState(120)
-  const [aspect, setAspect] = useState(DEFAULT_ASPECT)
+  const [aspect, setAspect] = useState(() => defaultAspectFor('view'))
   const [scale, setScale] = useState(DEFAULT_SCALE)
+  const [footTab, setFootTab] = useState('transport') // Transport · Output · File
 
   useEffect(() => {
     const t = resolveTheme(themeId, invert)
@@ -141,6 +143,7 @@ export default function FieldPage() {
   const partsRef = useRef([])
   const dragRef = useRef(null)
   const stateRef = useRef({})
+  const clockRef = useRef(0) // live playhead (seconds) for expr-bound Sliders
 
   const fn = useMemo(() => compileVars(expr, ['x', 'y', 't']), [expr])
   stateRef.current = { f: fn, cx: center.x, cy: center.y, range, low, high, playing, flow, dots, count, flowSpeed, tempo, aspect, style }
@@ -217,7 +220,8 @@ export default function FieldPage() {
       if (!last) last = now
       const dt = Math.min(0.05, (now - last) / 1000)
       last = now
-      if (st.playing) accum += dt * (st.tempo / 120)
+      if (st.playing) accum += dt * (st.tempo / 240)
+      clockRef.current = accum
       const W = cv.width
       const H = cv.height
       if (heatRef.current) ctx.drawImage(heatRef.current, 0, 0, W, H)
@@ -230,7 +234,7 @@ export default function FieldPage() {
         const sx = (x) => W / 2 + (x - st.cx) * ppwX
         const sy = (y) => H / 2 - (y - st.cy) * ppwY
         const eps = st.range * 0.003
-        const step = resolveRate(st.flowSpeed, accum, 1) * st.range * 0.06 * (st.tempo / 120) * dt
+        const step = resolveRate(st.flowSpeed, accum, 1) * st.range * 0.06 * (st.tempo / 240) * dt
         const halfH = (st.range * (H / W)) / 2
         const dotR = Math.max(1, W * 0.0016)
         ctx.lineWidth = Math.max(1, W * 0.0012)
@@ -325,10 +329,32 @@ export default function FieldPage() {
         </div>
       </div>
 
-      <EditorRail>
-        <RailHeader>field</RailHeader>
-
-        <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-5">
+      <LiveClock getT={() => clockRef.current}>
+      <EditorRail
+        footerBare
+        header={<RailHeader>Field</RailHeader>}
+        footer={
+          <EditorFooter
+            tab={footTab}
+            onTab={setFootTab}
+            transport={{
+              playing,
+              onPlay: () => setPlaying(true),
+              onPause: () => setPlaying(false),
+              onStop: () => { setPlaying(false); spawn() },
+              onRewind: () => spawn(),
+              tempo,
+              onTempo: setTempo,
+              tempoMax: 600,
+            }}
+            exportProps={{ aspect, onAspect: setAspect, aspects: VIEW_ASPECTS, scale, onScale: setScale }}
+            exportActions={<Button variant="primary" size="sm" className="w-full" iconLeft="download" onClick={exportPng}>Export PNG</Button>}
+            settingsPage="math-field"
+            getSettings={getSettings}
+            applySettings={applySettings}
+          />
+        }
+      >
           <Section label="f(x, y)">
             <Input
               size="sm"
@@ -350,8 +376,8 @@ export default function FieldPage() {
           <Section label="Flow">
             <ToggleSwitch variant="plain" label="Particles" checked={flow} onChange={setFlow} />
             <ToggleSwitch variant="plain" label="Dots" checked={dots} onChange={setDots} />
-            <Slider label="Count" min={100} max={3000} step={100} value={count} onChange={setCount} variant="default" noExpr />
-            <Slider label="Speed" min={0.1} max={4} step={0.1} value={flowSpeed} onChange={setFlowSpeed} variant="default" />
+            <Slider labeled label="Count" min={100} max={3000} step={100} value={count} onChange={setCount} variant="default" noExpr />
+            <Slider labeled label="Speed" min={0.1} max={4} step={0.1} value={flowSpeed} onChange={setFlowSpeed} variant="default" />
           </Section>
 
           <Section label="Color">
@@ -388,33 +414,17 @@ export default function FieldPage() {
             onSeed={(n) => { setSeed(n); rollFrom(n) }}
             getSettings={getSettings}
             applySettings={applySettings}
+            showIO={false}
           />
 
           <Section label="View">
-            <Slider label="Range" min={1} max={40} step={0.5} value={range} onChange={setRange} variant="default" noExpr />
+            <Slider labeled label="Range" min={1} max={40} step={0.5} value={range} onChange={setRange} variant="default" noExpr />
             <Button variant="primary" size="sm" onClick={() => { setCenter({ x: 0, y: 0 }); setRange(8) }}>Reset view</Button>
           </Section>
 
-          <ExportPanel aspect={aspect} onAspect={setAspect} aspects={VIEW_ASPECTS} scale={scale} onScale={setScale}>
-            <Button variant="primary" size="sm" className="w-full" iconLeft="download" onClick={exportPng}>Export PNG</Button>
-          </ExportPanel>
-
           <div className="kol-helper-10 text-body">flow ⟂∇f · export is the heatmap</div>
-        </div>
-
-        <div className="border-t border-fg-08 pt-3">
-          <TransportBar
-            playing={playing}
-            onPlay={() => setPlaying(true)}
-            onPause={() => setPlaying(false)}
-            onStop={() => { setPlaying(false); spawn() }}
-            onRewind={() => spawn()}
-            tempo={tempo}
-            onTempo={setTempo}
-            tempoMax={300}
-          />
-        </div>
       </EditorRail>
+      </LiveClock>
     </div>
   )
 }

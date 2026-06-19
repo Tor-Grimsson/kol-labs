@@ -7,7 +7,7 @@
 
 
 import { num } from '../../knobs'
-import { clear, strokeOutline, wrapLoop } from '../common'
+import { clear, strokeOutline, wrapLoop, rampRGB, roleRGB } from '../common'
 
 const PARAMS          = [
   { key: 'res',   type: 'int',   min: 80,  max: 200, default: 128, step: 16, label: 'grid res' },
@@ -128,13 +128,19 @@ export const r2_ca_04_flow_lenia            = {
       }
       A.set(An)
 
+      const [bgR, bgG, bgB] = roleRGB('bg')
       for (let i = 0; i < G * G; i++) {
         const j = i * 4
-        const v = isIn[i] ? A[i] : 0
+        if (!isIn[i]) {
+          img.data[j] = bgR; img.data[j + 1] = bgG; img.data[j + 2] = bgB; img.data[j + 3] = 255
+          continue
+        }
+        const v = Math.max(0, Math.min(1, A[i]))
         const t = v * v   // square for contrast
-        img.data[j]     = (10 + 200 * t) | 0
-        img.data[j + 1] = (10 + 100 * t) | 0
-        img.data[j + 2] = (20 + 240 * v) | 0
+        const [r, g, b] = rampRGB(t)
+        img.data[j]     = r
+        img.data[j + 1] = g
+        img.data[j + 2] = b
         img.data[j + 3] = 255
       }
       clear(ctx, W, H)

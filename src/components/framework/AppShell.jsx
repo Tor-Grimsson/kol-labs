@@ -4,6 +4,7 @@ import SideNav from './SideNav.jsx'
 import Icon from '../loaders/Icon.jsx'
 import { ModalProvider } from '../molecules/Modal.jsx'
 import ShortcutsOverlay from './ShortcutsOverlay.jsx'
+import InfoOverlay from './InfoOverlay.jsx'
 import { PageShortcutsProvider } from './pageShortcuts.jsx'
 
 export default function AppShell({ navTree = [], getActivePage }) {
@@ -44,6 +45,7 @@ export default function AppShell({ navTree = [], getActivePage }) {
           <Outlet />
         </div>
         <ShortcutsOverlay />
+        <InfoOverlay />
       </div>
      </PageShortcutsProvider>
     </ModalProvider>

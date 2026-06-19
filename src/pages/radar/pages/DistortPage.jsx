@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import Button from '../../../components/atoms/Button.jsx'
-import Divider from '../../../components/atoms/Divider.jsx'
 import Slider from '../../../components/atoms/Slider.jsx'
 import Section from '../../../components/molecules/Section.jsx'
 import SegmentedToggle from '../../../components/molecules/SegmentedToggle.jsx'
 import ButtonGroup from '../../../components/molecules/ButtonGroup.jsx'
 import EditorRail, { RailHeader } from '../../../components/framework/EditorRail.jsx'
-import TransportBar from '../../../components/framework/TransportBar.jsx'
+import EditorFooter from '../../../components/framework/EditorFooter.jsx'
+import { usePublishShortcuts } from '../../../components/framework/pageShortcuts.jsx'
+import { LiveClock } from '../../../lib/liveClock.jsx'
+import LibrarySourceButton from '../components/LibrarySourceButton.jsx'
 import { useImage } from '../state/ImageContext'
 import DistortionEngine from '../effects/distortion/distortionEngine'
 
@@ -35,7 +37,14 @@ export default function DistortPage() {
   const [params, setParams] = useState(DEFAULTS)
   const [paused, setPaused] = useState(false)
   const [tempo, setTempo] = useState(120)
-  const [tab, setTab] = useState('effect') // Effect | Output rail tabs
+  const [footTab, setFootTab] = useState('transport') // Transport | Output | File footer toggle
+
+  usePublishShortcuts('Chromatic', [
+    ['Move cursor', 'distort the image'],
+    ['Record', 'capture the cursor motion as keyframes'],
+    ['Play', 'loop the recorded motion hands-free'],
+    ['Export Video', 'render the canvas to a webm'],
+  ])
 
   // Engine lifecycle — created once for this page, disposed on unmount.
   useEffect(() => {
@@ -69,7 +78,7 @@ export default function DistortPage() {
   }, [params])
 
   useEffect(() => { engineRef.current?.setPaused(paused) }, [paused])
-  useEffect(() => { engineRef.current?.setTimeScale(tempo / 120) }, [tempo])
+  useEffect(() => { engineRef.current?.setTimeScale(tempo / 240) }, [tempo])
 
   const update = (key, value) => setParams((p) => ({ ...p, [key]: value }))
 
@@ -208,94 +217,53 @@ export default function DistortPage() {
       </div>
 
       {/* Controls panel */}
-      <EditorRail>
-        <RailHeader>kol-radar</RailHeader>
-
-        <SegmentedToggle
-          value={tab}
-          onChange={setTab}
-          options={[{ value: 'effect', label: 'Effect' }, { value: 'output', label: 'Output' }]}
-        />
-
-        {/* Scrolls: the active tab's controls. Transport (below) stays pinned. */}
-        <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-5">
-        {tab === 'effect' && (<>
-        <Section label="Chromatic Aberration">
-          <Slider label="Strength" min={0} max={0.6} step={0.005} value={params.strength} onChange={(v) => update('strength', v)} variant="default" />
-          <Slider label="Radius" min={0.02} max={0.5} step={0.005} value={params.radius} onChange={(v) => update('radius', v)} variant="default" />
-          <Slider label="Trail Decay" min={0.8} max={0.99} step={0.005} value={params.decay} onChange={(v) => update('decay', v)} variant="default" />
-          <Slider label="RGB Shift" min={0} max={0.1} step={0.002} value={params.rgbShift} onChange={(v) => update('rgbShift', v)} variant="default" />
-        </Section>
-
-        <Divider />
-
-        <ButtonGroup orientation="vertical" className="w-full">
-          <Button variant="primary" size="sm" onClick={() => fileInputRef.current?.click()} iconLeft="upload" className="w-full">
-            Upload Image
-          </Button>
-          <Button variant="primary" size="sm" onClick={() => videoInputRef.current?.click()} iconLeft="video" className="w-full">
-            Upload Video
-          </Button>
-        </ButtonGroup>
-        </>)}
-
-        {tab === 'output' && (<>
-        {sourceImage && (
-          <>
-            <Divider />
-            <Section label="Motion">
-            <div className="flex gap-2">
-              <Button
-                variant={recording ? 'accent' : 'primary'}
-                size="sm"
-                onClick={toggleRecord}
-                iconLeft={recording ? 'control-stop' : 'circle'}
-                className="flex-1"
-              >
-                {recording ? 'Stop' : 'Record'}
-              </Button>
-              <Button
-                variant={playing ? 'accent' : 'primary'}
-                size="sm"
-                onClick={togglePlay}
-                iconLeft={playing ? 'control-stop' : 'control-play'}
-                className="flex-1"
-                disabled={!hasMotion}
-              >
-                {playing ? 'Stop' : 'Play'}
-              </Button>
-            </div>
-            <Button
-              variant={exporting ? 'accent' : 'primary'}
-              size="sm"
-              onClick={toggleExport}
-              iconLeft={exporting ? 'control-stop' : 'video'}
-              className="w-full"
-            >
-              {exporting ? 'Stop Export' : 'Export Video'}
-            </Button>
-            </Section>
-          </>
-        )}
-
-        <p className="kol-mono-10 text-fg-32">Move the cursor to distort. Record captures the cursor motion as keyframes; Play loops it hands-free; Export Video renders the canvas to a webm.</p>
-        </>)}
-        </div>
-
-        {/* Fixed: transport — play/pause freezes the effect, stop/rewind clears the trail, Tempo = motion rate. */}
-        <div className="border-t border-fg-08 pt-3">
-          <TransportBar
-            playing={!paused}
-            onPlay={() => setPaused(false)}
-            onPause={() => setPaused(true)}
-            onStop={() => { setPaused(true); engineRef.current?.clearTrail() }}
-            onRewind={() => engineRef.current?.clearTrail()}
-            tempo={tempo}
-            onTempo={setTempo}
-            tempoMax={300}
+      <LiveClock getT={() => engineRef.current?.time}>
+      <EditorRail
+        footerBare
+        header={<RailHeader>Radar</RailHeader>}
+        footer={
+          <EditorFooter
+            tab={footTab}
+            onTab={setFootTab}
+            transport={{
+              playing: !paused,
+              onPlay: () => setPaused(false),
+              onPause: () => setPaused(true),
+              onStop: () => { setPaused(true); engineRef.current?.clearTrail() },
+              onRewind: () => engineRef.current?.clearTrail(),
+              tempo,
+              onTempo: setTempo,
+              tempoMax: 600,
+            }}
+            output={sourceImage ? (
+              <>
+                <div className="flex gap-2">
+                  <Button variant={recording ? 'accent' : 'primary'} size="sm" onClick={toggleRecord} iconLeft={recording ? 'control-stop' : 'circle'} className="flex-1">{recording ? 'Stop' : 'Record'}</Button>
+                  <Button variant={playing ? 'accent' : 'primary'} size="sm" onClick={togglePlay} iconLeft={playing ? 'control-stop' : 'control-play'} className="flex-1" disabled={!hasMotion}>{playing ? 'Stop' : 'Play'}</Button>
+                </div>
+                <Button variant={exporting ? 'accent' : 'primary'} size="sm" onClick={toggleExport} iconLeft={exporting ? 'control-stop' : 'video'} className="w-full">{exporting ? 'Stop Export' : 'Export Video'}</Button>
+              </>
+            ) : (
+              <p className="kol-mono-10 text-fg-32">Load a source to record motion and export.</p>
+            )}
+            file={
+              <ButtonGroup orientation="vertical" className="w-full">
+                <Button variant="primary" size="sm" onClick={() => fileInputRef.current?.click()} iconLeft="upload" className="w-full">Upload Image</Button>
+                <Button variant="primary" size="sm" onClick={() => videoInputRef.current?.click()} iconLeft="video" className="w-full">Upload Video</Button>
+                <LibrarySourceButton />
+              </ButtonGroup>
+            }
           />
-        </div>
+        }
+      >
+        <Section label="Chromatic Aberration">
+          <Slider labeled label="Strength" min={0} max={0.6} step={0.005} value={params.strength} onChange={(v) => update('strength', v)} variant="default" />
+          <Slider labeled label="Radius" min={0.02} max={0.5} step={0.005} value={params.radius} onChange={(v) => update('radius', v)} variant="default" />
+          <Slider labeled label="Trail Decay" min={0.8} max={0.99} step={0.005} value={params.decay} onChange={(v) => update('decay', v)} variant="default" />
+          <Slider labeled label="RGB Shift" min={0} max={0.1} step={0.002} value={params.rgbShift} onChange={(v) => update('rgbShift', v)} variant="default" />
+        </Section>
       </EditorRail>
+      </LiveClock>
 
       <input ref={fileInputRef} type="file" accept="image/*,.svg" onChange={handleFileUpload} className="hidden" />
       <input ref={videoInputRef} type="file" accept="video/*" onChange={handleFileUpload} className="hidden" />

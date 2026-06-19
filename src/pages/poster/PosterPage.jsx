@@ -238,7 +238,7 @@ export default function PosterPage() {
                   <div className="kol-helper-10 text-meta uppercase mb-2">Thumbnail — scrub + grab</div>
                   <div className="flex items-center gap-3 max-w-[520px]">
                     <div className="flex-1">
-                      <Slider min={0} max={Math.max(0.1, selected.duration - 0.05)} step={0.1} value={scrub} onChange={setScrub} label="time" />
+                      <Slider labeled min={0} max={Math.max(0.1, selected.duration - 0.05)} step={0.1} value={scrub} onChange={setScrub} label="time" />
                     </div>
                     <span className="kol-helper-10 text-meta w-12">{scrub.toFixed(1)}s</span>
                     <Button variant="secondary" size="sm" onClick={grabThumb}>Grab frame</Button>

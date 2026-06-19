@@ -6,7 +6,7 @@
 
 
 import { num } from '../../knobs'
-import { clear, strokeOutline, wrapLoop } from '../common'
+import { clear, strokeOutline, wrapLoop, rampRGB, roleRGB } from '../common'
 
 const PARAMS          = [
   { key: 'res',   type: 'int',   min: 80,  max: 220, default: 160, step: 20,  label: 'grid' },
@@ -94,16 +94,18 @@ export const r2_rd_03_le            = {
         V.set(V2)
       }
 
+      const [bgR, bgG, bgB] = roleRGB('bg')
       for (let i = 0; i < N; i++) {
         const j = i * 4
         if (!isIn[i]) {
-          img.data[j] = 10; img.data[j + 1] = 11; img.data[j + 2] = 20; img.data[j + 3] = 255
+          img.data[j] = bgR; img.data[j + 1] = bgG; img.data[j + 2] = bgB; img.data[j + 3] = 255
           continue
         }
         const t = Math.max(0, Math.min(1, (U[i] - (uss - 3)) / 6))
-        img.data[j]     = (255 * t  + 8  * (1 - t)) | 0
-        img.data[j + 1] = (200 * t  + 60 * (1 - t)) | 0
-        img.data[j + 2] = (80  * t  + 80 * (1 - t)) | 0
+        const [r, g, b] = rampRGB(t)
+        img.data[j]     = r
+        img.data[j + 1] = g
+        img.data[j + 2] = b
         img.data[j + 3] = 255
       }
       clear(ctx, W, H)

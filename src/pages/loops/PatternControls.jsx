@@ -36,22 +36,22 @@ export default function PatternControls({ values, onChange, tab = 'pattern' }) {
     return (
       <>
         <Section label="Camera">
-          <Slider label="Zoom" min={0.3} max={3} step={0.05} value={v.camZoom} onChange={(x) => onChange('camZoom', x)} variant="default" />
-          <Slider label="Flow" min={0} max={4} step={1} value={v.camFlow} onChange={(x) => onChange('camFlow', roundIfNum(x))} variant="default" />
-          <Slider label="Angle" min={0} max={360} step={1} value={v.camAngle} onChange={(x) => onChange('camAngle', roundIfNum(x))} variant="default" />
-          <Slider label="Spin" min={0} max={3} step={1} value={v.spin} onChange={(x) => onChange('spin', roundIfNum(x))} variant="default" />
+          <Slider labeled label="Zoom" min={0.3} max={3} step={0.05} value={v.camZoom} onChange={(x) => onChange('camZoom', x)} variant="default" />
+          <Slider labeled label="Flow" min={0} max={4} step={1} value={v.camFlow} onChange={(x) => onChange('camFlow', roundIfNum(x))} variant="default" />
+          <Slider labeled label="Angle" min={0} max={360} step={1} value={v.camAngle} onChange={(x) => onChange('camAngle', roundIfNum(x))} variant="default" />
+          <Slider labeled label="Spin" min={0} max={3} step={1} value={v.spin} onChange={(x) => onChange('spin', roundIfNum(x))} variant="default" />
         </Section>
 
         <Section label="Sweep">
           <LabeledControl inline label="Axis">
             <Dropdown variant="subtle" size="sm" className="w-full" options={SWEEP_AXES} value={v.animAxis ?? 'none'} onChange={(val) => onChange('animAxis', val)} />
           </LabeledControl>
-          <Slider label="Cycles" min={1} max={4} step={1} value={v.animCycles ?? 1} onChange={(x) => onChange('animCycles', roundIfNum(x))} variant="default" />
-          <Slider label="Waves" min={0} max={8} step={0.5} value={v.animWaves ?? 2} onChange={(x) => onChange('animWaves', x)} variant="default" />
-          <Slider label="Pulse" min={0} max={1} step={0.05} value={v.pulse ?? 0} onChange={(x) => onChange('pulse', x)} variant="default" />
-          <Slider label="Fade" min={0} max={1} step={0.05} value={v.fade ?? 0} onChange={(x) => onChange('fade', x)} variant="default" />
-          <Slider label="Swing" min={0} max={180} step={5} value={v.swing ?? 0} onChange={(x) => onChange('swing', roundIfNum(x))} variant="default" />
-          <Slider label="Colour mix" min={0} max={1} step={0.05} value={v.colorMix ?? 0} onChange={(x) => onChange('colorMix', x)} variant="default" />
+          <Slider labeled label="Cycles" min={1} max={4} step={1} value={v.animCycles ?? 1} onChange={(x) => onChange('animCycles', roundIfNum(x))} variant="default" />
+          <Slider labeled label="Waves" min={0} max={8} step={0.5} value={v.animWaves ?? 2} onChange={(x) => onChange('animWaves', x)} variant="default" />
+          <Slider labeled label="Pulse" min={0} max={1} step={0.05} value={v.pulse ?? 0} onChange={(x) => onChange('pulse', x)} variant="default" />
+          <Slider labeled label="Fade" min={0} max={1} step={0.05} value={v.fade ?? 0} onChange={(x) => onChange('fade', x)} variant="default" />
+          <Slider labeled label="Swing" min={0} max={180} step={5} value={v.swing ?? 0} onChange={(x) => onChange('swing', roundIfNum(x))} variant="default" />
+          <Slider labeled label="Colour mix" min={0} max={1} step={0.05} value={v.colorMix ?? 0} onChange={(x) => onChange('colorMix', x)} variant="default" />
           {colorCtl('Colour 2', 'color2')}
         </Section>
       </>
@@ -82,10 +82,10 @@ export default function PatternControls({ values, onChange, tab = 'pattern' }) {
       </Section>
 
       <Section label="Grid">
-        <Slider label="Columns" min={1} max={32} step={1} value={v.cols} onChange={(x) => onChange('cols', roundIfNum(x))} variant="default" />
-        <Slider label="Rows" min={1} max={32} step={1} value={v.rows} onChange={(x) => onChange('rows', roundIfNum(x))} variant="default" />
-        <Slider label="Cell size" min={40} max={280} step={1} value={v.cell} onChange={(x) => onChange('cell', roundIfNum(x))} variant="default" />
-        <Slider label="Gap" min={-40} max={80} step={1} value={v.gap} onChange={(x) => onChange('gap', roundIfNum(x))} variant="default" />
+        <Slider labeled label="Columns" min={1} max={32} step={1} value={v.cols} onChange={(x) => onChange('cols', roundIfNum(x))} variant="default" />
+        <Slider labeled label="Rows" min={1} max={32} step={1} value={v.rows} onChange={(x) => onChange('rows', roundIfNum(x))} variant="default" />
+        <Slider labeled label="Cell size" min={40} max={280} step={1} value={v.cell} onChange={(x) => onChange('cell', roundIfNum(x))} variant="default" />
+        <Slider labeled label="Gap" min={-40} max={80} step={1} value={v.gap} onChange={(x) => onChange('gap', roundIfNum(x))} variant="default" />
         <ToggleSwitch variant="plain" label="Stretch" checked={v.stretch} onChange={(c) => onChange('stretch', c)} />
         <ToggleSwitch variant="plain" label="Grid lines" checked={!!v.showGrid} onChange={(c) => onChange('showGrid', c)} />
       </Section>

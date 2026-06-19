@@ -1,19 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import LoopPlayer2D from '../../loops/LoopPlayer2D.js'
 import { presetsInGroup, presetById, loopById, presetParams, groupById } from '../../loops/registry.js'
-import { VIEW_ASPECTS, DEFAULT_ASPECT, DEFAULT_SCALE, ratioFor, dimsFor } from '../_shared/exportSpecs.js'
-import ExportPanel from '../_shared/ExportPanel.jsx'
+import { VIEW_ASPECTS, DEFAULT_ASPECT, defaultAspectFor, DEFAULT_SCALE, ratioFor, dimsFor } from '../_shared/exportSpecs.js'
 import LoopControls from './LoopControls.jsx'
 import PatternControls from './PatternControls.jsx'
 import Button from '../../components/atoms/Button.jsx'
 import Divider from '../../components/atoms/Divider.jsx'
 import Section from '../../components/molecules/Section.jsx'
 import SegmentedToggle from '../../components/molecules/SegmentedToggle.jsx'
-import TransportBar from '../../components/framework/TransportBar.jsx'
 import Scrubber from '../../components/framework/Scrubber.jsx'
+import { LiveClock } from '../../lib/liveClock.jsx'
 import EditorRail, { RailHeader } from '../../components/framework/EditorRail.jsx'
+import EditorFooter from '../../components/framework/EditorFooter.jsx'
 import SettingsPanel from '../../components/framework/SettingsPanel.jsx'
-import { DEFAULT_THEME } from '../../lib/themes.js'
+import { defaultTheme } from '../../lib/appSettings.js'
 import { mulberry32, randomSeed, randomizeSchema } from '../../lib/rng.js'
 import { themeParams } from '../../loops/theme.js'
 
@@ -35,10 +35,10 @@ export default function LoopsShell({ group }) {
   const [params, setParams] = useState(() => presetParams(activePreset))
   const [playing, setPlaying] = useState(false)
   const [tempo, setTempo] = useState(120)
-  const [aspect, setAspect] = useState(DEFAULT_ASPECT)
+  const [aspect, setAspect] = useState(() => defaultAspectFor('view'))
   const [scale, setScale] = useState(DEFAULT_SCALE)
   const [recording, setRecording] = useState(false)
-  const [themeId, setThemeId] = useState(DEFAULT_THEME)
+  const [themeId, setThemeId] = useState(() => defaultTheme())
   const [invert, setInvert] = useState(false)
   const [seed, setSeed] = useState(1)
   const [panel, setPanel] = useState('presets')
@@ -102,7 +102,7 @@ export default function LoopsShell({ group }) {
 
   useEffect(() => { sizeCanvas() }, [aspect, sizeCanvas])
   useEffect(() => { playerRef.current?.setParams(params) }, [params])
-  useEffect(() => { playerRef.current?.setTransport({ paused: !playing, speed: tempo / 120 }) }, [playing, tempo])
+  useEffect(() => { playerRef.current?.setTransport({ paused: !playing, speed: tempo / 240 }) }, [playing, tempo])
 
   // Theme → recolour the loop's role-tagged colour params. Keyed on the loop too
   // so switching preset re-applies the active theme on top of the preset's reset
@@ -187,7 +187,6 @@ export default function LoopsShell({ group }) {
     if (activeLoop.camera) tabs.push({ value: 'camera', label: 'Camera' })
   }
   tabs.push({ value: 'scene', label: 'Scene' })
-  const footTabs = [{ value: 'transport', label: 'Transport' }, { value: 'output', label: 'Output' }]
 
   return (
     <div className="min-h-dvh bg-surface-secondary flex">
@@ -200,7 +199,9 @@ export default function LoopsShell({ group }) {
         <Scrubber progressRef={progressRef} playerRef={playerRef} />
       </div>
 
+      <LiveClock getT={() => progressRef.current.t}>
       <EditorRail
+        footerBare
         header={
           <>
             <RailHeader>Loops · {groupLabel}</RailHeader>
@@ -208,28 +209,32 @@ export default function LoopsShell({ group }) {
           </>
         }
         footer={
-          <div className="flex flex-col gap-3">
-            <SegmentedToggle value={footTab} onChange={setFootTab} options={footTabs} />
-            {footTab === 'transport' ? (
-              <TransportBar
-                playing={playing}
-                onPlay={() => setPlaying(true)}
-                onPause={() => setPlaying(false)}
-                onStop={() => { setPlaying(false); playerRef.current?.seek(0) }}
-                onRewind={() => playerRef.current?.seek(0)}
-                tempo={tempo}
-                onTempo={setTempo}
-                tempoMax={300}
-              />
-            ) : (
-              <ExportPanel aspect={aspect} onAspect={setAspect} aspects={VIEW_ASPECTS} scale={scale} onScale={setScale}>
+          <EditorFooter
+            tab={footTab}
+            onTab={setFootTab}
+            transport={{
+              playing,
+              onPlay: () => setPlaying(true),
+              onPause: () => setPlaying(false),
+              onStop: () => { setPlaying(false); playerRef.current?.seek(0) },
+              onRewind: () => playerRef.current?.seek(0),
+              tempo,
+              onTempo: setTempo,
+              tempoMax: 600,
+            }}
+            exportProps={{ aspect, onAspect: setAspect, aspects: VIEW_ASPECTS, scale, onScale: setScale }}
+            exportActions={
+              <>
                 <Button variant="primary" size="sm" className="w-full" iconLeft="download" onClick={exportPng}>Export PNG</Button>
                 <Button variant="primary" size="sm" className="w-full" iconLeft="download" onClick={exportVideo} disabled={recording}>
                   {recording ? 'Recording loop…' : 'Export loop (webm)'}
                 </Button>
-              </ExportPanel>
-            )}
-          </div>
+              </>
+            }
+            settingsPage="loops"
+            getSettings={getSettings}
+            applySettings={applySettings}
+          />
         }
       >
         {panel === 'presets' && subs.map((s) => (
@@ -264,6 +269,7 @@ export default function LoopsShell({ group }) {
         {panel === 'scene' && (
           <SettingsPanel
             page="loops"
+            showIO={false}
             theme={themeId}
             onTheme={setThemeId}
             invert={invert}
@@ -283,6 +289,7 @@ export default function LoopsShell({ group }) {
           <div>scrub the timeline below</div>
         </div>
       </EditorRail>
+      </LiveClock>
     </div>
   )
 }

@@ -26,7 +26,7 @@ import { clampHex } from './hsv'
  *   swatchSize  — chip size in px (default 24).
  *   className   — extra classes on the row wrapper.
  */
-export default function ColorField({ value, onChange, presets, swatchSize = 24, className = '' }) {
+export default function ColorField({ value, onChange, label, labeled = false, presets, swatchSize = 24, className = '' }) {
   const hex = clampHex(value)
   const [open, setOpen] = useState(false)
   const popover = usePopover({ open, onOpenChange: setOpen, placement: 'bottom-start', offset: 6 })
@@ -46,7 +46,10 @@ export default function ColorField({ value, onChange, presets, swatchSize = 24, 
   }
 
   return (
-    <div className={`flex items-center gap-2 ${className}`}>
+    <div
+      className={`${label ? 'grid' : 'flex'} items-center gap-2 ${className}`}
+      style={label ? { gridTemplateColumns: `${swatchSize}px 1fr auto` } : undefined}
+    >
       <button
         type="button"
         ref={popover.refs.setReference}
@@ -57,6 +60,16 @@ export default function ColorField({ value, onChange, presets, swatchSize = 24, 
       >
         <ColorSwatch hex={hex} size={swatchSize} radius="tight" />
       </button>
+
+      {/* Optional in-row label — gives the SwatchRow layout [swatch] [label]
+          [hex] (the reference compose Palette inspector). Omit it and the field
+          is the plain [swatch] [hex] pair, label supplied by the call site. */}
+      {label && (
+        <span
+          className={labeled ? 'kol-helper-10 truncate uppercase tracking-widest' : 'kol-helper-12 truncate text-emphasis'}
+          style={labeled ? { color: 'var(--kol-fg-meta)' } : undefined}
+        >{label}</span>
+      )}
 
       <Input
         variant="filled"
@@ -69,7 +82,7 @@ export default function ColorField({ value, onChange, presets, swatchSize = 24, 
         onFocus={() => { focused.current = true }}
         onBlur={() => { focused.current = false; setText(hex.replace(/^#/, '')) }}
         maxLength={6}
-        className="flex-1"
+        className={label ? '' : 'flex-1'}
       />
 
       <PopoverPanel popover={popover}>

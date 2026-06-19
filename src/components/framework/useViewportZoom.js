@@ -7,9 +7,10 @@ const isTyping = (el) =>
  * useViewportZoom — the standard viewport-navigation bindings, matching the
  * Expression scope:
  *
- *   = / +  → zoom in        ( zoom(step) )
- *   -      → zoom out        ( zoom(1/step) )
- *   0      → reset framing   ( reset() )
+ *   = / +  → zoom in         ( zoom(step) )
+ *   -      → zoom out         ( zoom(1/step) )
+ *   0 / r  → reset framing    ( reset() )
+ *   f      → fit (optional)   ( fit() — only bound when a fit handler is passed )
  *   wheel / two-finger over targetRef → zoom (deltaY < 0 = in)
  *
  * Keys are global (window, ignored while a form field is focused). The wheel is
@@ -19,9 +20,9 @@ const isTyping = (el) =>
  *
  * `zoom(factor)` multiplies the current zoom; factor > 1 zooms in.
  */
-export function useViewportZoom({ zoom, reset, targetRef = null, step = 1.15, wheelStep = 1.1 }) {
+export function useViewportZoom({ zoom, reset, fit, targetRef = null, step = 1.15, wheelStep = 1.1 }) {
   const h = useRef({})
-  h.current = { zoom, reset, step, wheelStep }
+  h.current = { zoom, reset, fit, step, wheelStep }
 
   useEffect(() => {
     const onKey = (e) => {
@@ -30,7 +31,8 @@ export function useViewportZoom({ zoom, reset, targetRef = null, step = 1.15, wh
       const c = h.current
       if (e.key === '=' || e.key === '+') { e.preventDefault(); c.zoom?.(c.step) }
       else if (e.key === '-' || e.key === '_') { e.preventDefault(); c.zoom?.(1 / c.step) }
-      else if (e.key === '0') { e.preventDefault(); c.reset?.() }
+      else if (e.key === '0' || e.key === 'r' || e.key === 'R') { e.preventDefault(); c.reset?.() }
+      else if ((e.key === 'f' || e.key === 'F') && c.fit) { e.preventDefault(); c.fit() }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)

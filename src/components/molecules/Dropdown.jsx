@@ -17,25 +17,34 @@ const Dropdown = ({
   onChange,
   size,
   variant = 'default',
+  openUp = false,
+  raised = false,
   className = ''
 }) => {
   const [isOpen, setIsOpen] = useState(false)
   const [resolvedSize, setResolvedSize] = useState('md')
   const [dropdownWidth, setDropdownWidth] = useState('100px')
 
-  /* Floating-ui popover. `flip: false` keeps the panel below the button
-   * — the seamless border-radius edge between button and panel assumes
-   * the panel sits below; flipping above would visually disconnect them.
-   * `matchReferenceWidth: true` pins panel min-width to the button. */
+  /* Floating-ui popover. `flip: false` keeps the panel on the chosen side
+   * — the seamless border-radius edge between button and panel assumes the
+   * panel sits flush against the button; `openUp` opens above instead of
+   * below (for controls pinned at the bottom of the rail) and inverts the
+   * square edge + divider accordingly. `matchReferenceWidth: true` pins
+   * panel min-width to the button. */
   const popover = usePopover({
     open: isOpen,
     onOpenChange: setIsOpen,
-    placement: 'bottom-start',
+    placement: openUp ? 'top-start' : 'bottom-start',
     offset: variant === 'minimal' ? 0 : -1,
     flip: false,
     matchReferenceWidth: true,
     role: 'listbox',
   })
+
+  // The square edge is where the panel attaches: bottom when opening down,
+  // top when opening up. Same rule for the button and the panel (mirrored).
+  const btnOpenRadius = (r) => (openUp ? `0 0 ${r}px ${r}px` : `${r}px ${r}px 0 0`)
+  const panelOpenRadius = (r) => (openUp ? `${r}px ${r}px 0 0` : `0 0 ${r}px ${r}px`)
 
   useEffect(() => {
     const determineSize = () => {
@@ -96,9 +105,7 @@ const Dropdown = ({
   const variantStyles = {
     default: {
       border: '1px solid var(--kol-border-default)',
-      borderRadius: isOpen
-        ? `${metrics.radius}px ${metrics.radius}px 0 0`
-        : `${metrics.radius}px`,
+      borderRadius: isOpen ? btnOpenRadius(metrics.radius) : `${metrics.radius}px`,
       backgroundColor: 'var(--kol-surface-primary)',
       padding: `${metrics.paddingY}px ${metrics.paddingX}px`
     },
@@ -116,13 +123,16 @@ const Dropdown = ({
        * other shared-control atoms (which have a transparent 1px border for
        * hover/focus consistency). Without this, subtle is 2px shorter. */
       border: '1px solid transparent',
-      borderRadius: isOpen ? '4px 4px 0 0' : '4px',
+      borderRadius: isOpen ? btnOpenRadius(4) : '4px',
       backgroundColor: 'var(--kol-surface-secondary)',
       padding: `${metrics.paddingY}px ${metrics.paddingX}px`
     }
   }
 
   const styles = variantStyles[variant] || variantStyles.default
+  // `raised` = sitting on a raised bg-fg-04 card: use the darker surface-primary
+  // so the control reads as an input instead of blending into the card.
+  const bg = raised ? 'var(--kol-surface-primary)' : styles.backgroundColor
 
   const handleSelect = (option) => {
     onChange?.(option.value)
@@ -149,7 +159,7 @@ const Dropdown = ({
         style={{
           border: styles.border,
           borderRadius: styles.borderRadius,
-          backgroundColor: styles.backgroundColor,
+          backgroundColor: bg,
           color: 'var(--kol-surface-on-primary)',
           padding: styles.padding,
           transition: 'background-color 0.2s, color 0.2s, border-color 0.2s',
@@ -180,24 +190,21 @@ const Dropdown = ({
         style={{
           backgroundColor: variant === 'minimal'
             ? 'var(--kol-surface-primary)'
-            : styles.backgroundColor,
+            : bg,
           color: 'var(--kol-surface-on-primary)',
           border: variant === 'subtle' ? 'none' : styles.border,
           borderRadius: variant === 'minimal'
             ? '0'
             : (variant === 'subtle'
-                ? '0 0 4px 4px'
-                : `0 0 ${metrics.panelRadius}px ${metrics.panelRadius}px`),
+                ? panelOpenRadius(4)
+                : panelOpenRadius(metrics.panelRadius)),
         }}
       >
-        {variant !== 'minimal' && (
+        {/* divider sits on the seam (between button + list) — top when opening
+            down, bottom when opening up */}
+        {variant !== 'minimal' && !openUp && (
           <div style={{ padding: `0 ${metrics.paddingX}px` }}>
-            <div
-              style={{
-                height: '1px',
-                backgroundColor: 'var(--kol-border-default)'
-              }}
-            />
+            <div style={{ height: '1px', backgroundColor: 'var(--kol-border-default)' }} />
           </div>
         )}
 
@@ -215,6 +222,12 @@ const Dropdown = ({
             )
           })}
         </div>
+
+        {variant !== 'minimal' && openUp && (
+          <div style={{ padding: `0 ${metrics.paddingX}px` }}>
+            <div style={{ height: '1px', backgroundColor: 'var(--kol-border-default)' }} />
+          </div>
+        )}
       </PopoverPanel>
     </div>
   )

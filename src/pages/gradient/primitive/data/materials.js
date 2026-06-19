@@ -8,4 +8,5 @@ export const MATERIAL_TYPES = [
   { value: 'toon', label: 'Toon' },
   { value: 'normal', label: 'Normal' },
   { value: 'glass', label: 'Glass' },
+  { value: 'dispersion', label: 'Dispersion' },
 ]

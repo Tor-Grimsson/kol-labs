@@ -88,11 +88,11 @@ export default function CameraTimeline({ timeline, onChange, selected = 0, onSel
       </div>
 
       <Field label="At · s" numeric value={kf.at} onCommit={setAt} />
-      <Slider label="Reveal" min={0} max={1} step={0.01} value={kf.draw ?? 1} onChange={(v) => setKf({ draw: v })} variant="default" />
-      <Slider label="Yaw" min={-180} max={180} step={1} value={cam.yaw ?? 0} onChange={(v) => setCam({ yaw: v })} variant="default" />
-      <Slider label="Pitch" min={-89} max={89} step={1} value={cam.pitch ?? 0} onChange={(v) => setCam({ pitch: v })} variant="default" />
-      <Slider label="Zoom" min={0.3} max={3} step={0.05} value={cam.zoom ?? 1} onChange={(v) => setCam({ zoom: v })} variant="default" />
-      <Slider label="Distance" min={1} max={8} step={0.1} value={cam.dist ?? 3} onChange={(v) => setCam({ dist: v })} variant="default" />
+      <Slider labeled label="Reveal" min={0} max={1} step={0.01} value={kf.draw ?? 1} onChange={(v) => setKf({ draw: v })} variant="default" />
+      <Slider labeled label="Yaw" min={-180} max={180} step={1} value={cam.yaw ?? 0} onChange={(v) => setCam({ yaw: v })} variant="default" />
+      <Slider labeled label="Pitch" min={-89} max={89} step={1} value={cam.pitch ?? 0} onChange={(v) => setCam({ pitch: v })} variant="default" />
+      <Slider labeled label="Zoom" min={0.3} max={3} step={0.05} value={cam.zoom ?? 1} onChange={(v) => setCam({ zoom: v })} variant="default" />
+      <Slider labeled label="Distance" min={1} max={8} step={0.1} value={cam.dist ?? 3} onChange={(v) => setCam({ dist: v })} variant="default" />
       <LabeledControl label="Ease">
         <Dropdown options={EASE_OPTIONS} value={kf.ease || 'inout'} onChange={(v) => setKf({ ease: v })} variant="subtle" className="w-full" />
       </LabeledControl>

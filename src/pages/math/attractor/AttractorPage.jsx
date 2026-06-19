@@ -4,13 +4,14 @@ import StylePanel from '../components/StylePanel'
 import { useMathStyle, AXIS_3D } from '../style/mathStyle'
 import { ATTRACTORS, DEFAULT_ATTRACTOR, integrate } from './data/attractors'
 import { resolveRate } from '../../../lib/exprParam.js'
-import { VIEW_ASPECTS, DEFAULT_ASPECT, DEFAULT_SCALE, ratioFor, dimsFor } from '../../_shared/exportSpecs.js'
-import ExportPanel from '../../_shared/ExportPanel.jsx'
-import { DEFAULT_THEME, resolveTheme } from '../../../lib/themes.js'
+import { VIEW_ASPECTS, DEFAULT_ASPECT, defaultAspectFor, DEFAULT_SCALE, ratioFor, dimsFor } from '../../_shared/exportSpecs.js'
+import EditorFooter from '../../../components/framework/EditorFooter.jsx'
+import { resolveTheme } from '../../../lib/themes.js'
+import { defaultTheme } from '../../../lib/appSettings.js'
 import { mulberry32, randomSeed, randomizeSchema } from '../../../lib/rng.js'
 import SettingsPanel from '../../../components/framework/SettingsPanel.jsx'
-import TransportBar from '../../../components/framework/TransportBar.jsx'
 import EditorRail, { RailHeader } from '../../../components/framework/EditorRail.jsx'
+import { LiveClock } from '../../../lib/liveClock.jsx'
 import Button from '../../../components/atoms/Button.jsx'
 import Slider from '../../../components/atoms/Slider.jsx'
 import ToggleSwitch from '../../../components/atoms/ToggleSwitch.jsx'
@@ -30,13 +31,14 @@ export default function AttractorPage() {
   const [gradient, setGradient] = useState(false)
   const [glow, setGlow] = useState(0)
   const [style, patchStyle, applyTheme] = useMathStyle({ stroke: DEFAULT_ATTRACTOR.color, weight: 1.1 })
-  const [themeId, setThemeId] = useState(DEFAULT_THEME)
+  const [themeId, setThemeId] = useState(() => defaultTheme())
   const [invert, setInvert] = useState(false)
   const [seed, setSeed] = useState(1)
   const [playing, setPlaying] = useState(false)
   const [tempo, setTempo] = useState(120)
-  const [aspect, setAspect] = useState(DEFAULT_ASPECT)
+  const [aspect, setAspect] = useState(() => defaultAspectFor('view'))
   const [scale, setScale] = useState(DEFAULT_SCALE)
+  const [footTab, setFootTab] = useState('transport') // Transport · Output · File
   const viewRef = useRef(null)
 
   const att = ATTRACTORS.find((a) => a.id === id) || DEFAULT_ATTRACTOR
@@ -146,7 +148,7 @@ export default function AttractorPage() {
           render={render}
           ext={ext}
           paused={!playing}
-          speed={tempo / 120}
+          speed={tempo / 240}
           spin={spin}
           dur={DRAW_SECONDS}
           aspect={ratioFor(aspect)}
@@ -159,10 +161,32 @@ export default function AttractorPage() {
         </div>
       </div>
 
-      <EditorRail>
-        <RailHeader>attractor</RailHeader>
-
-        <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-5">
+      <LiveClock getT={() => viewRef.current?.now()}>
+      <EditorRail
+        footerBare
+        header={<RailHeader>Attractor</RailHeader>}
+        footer={
+          <EditorFooter
+            tab={footTab}
+            onTab={setFootTab}
+            transport={{
+              playing,
+              onPlay: () => setPlaying(true),
+              onPause: () => setPlaying(false),
+              onStop: () => { setPlaying(false); viewRef.current?.resetTime() },
+              onRewind: () => viewRef.current?.resetTime(),
+              tempo,
+              onTempo: setTempo,
+              tempoMax: 600,
+            }}
+            exportProps={{ aspect, onAspect: setAspect, aspects: VIEW_ASPECTS, scale, onScale: setScale }}
+            exportActions={<Button variant="primary" size="sm" className="w-full" iconLeft="download" onClick={exportPng}>Export PNG</Button>}
+            settingsPage="math-attractor"
+            getSettings={getSettings}
+            applySettings={applySettings}
+          />
+        }
+      >
           <Section label="Attractor">
             <div className="flex flex-col gap-1">
               {ATTRACTORS.map((a) => (
@@ -182,7 +206,7 @@ export default function AttractorPage() {
           </Section>
 
           <Section label="Trajectory">
-            <Slider label="Points" min={1000} max={20000} step={500} value={steps} onChange={setSteps} variant="default" noExpr />
+            <Slider labeled label="Points" min={1000} max={20000} step={500} value={steps} onChange={setSteps} variant="default" noExpr />
           </Section>
 
           <StylePanel style={style} onPatch={patchStyle} onTheme={applyTheme} axisOptions={AXIS_3D} showTheme={false} />
@@ -198,38 +222,22 @@ export default function AttractorPage() {
             onSeed={(n) => { setSeed(n); rollFrom(n) }}
             getSettings={getSettings}
             applySettings={applySettings}
+            showIO={false}
           />
 
           <Section label="Render">
             <ToggleSwitch variant="plain" label="Gradient" checked={gradient} onChange={setGradient} />
-            <Slider label="Glow" min={0} max={30} step={1} value={glow} onChange={setGlow} variant="default" />
+            <Slider labeled label="Glow" min={0} max={30} step={1} value={glow} onChange={setGlow} variant="default" />
           </Section>
 
           <Section label="Camera">
-            <Slider label="Auto-spin" min={0} max={40} step={1} value={spin} onChange={setSpin} variant="default" />
+            <Slider labeled label="Auto-spin" min={0} max={40} step={1} value={spin} onChange={setSpin} variant="default" />
             <Button variant="primary" size="sm" onClick={() => viewRef.current?.resetCamera()}>Cam reset</Button>
           </Section>
 
-          <ExportPanel aspect={aspect} onAspect={setAspect} aspects={VIEW_ASPECTS} scale={scale} onScale={setScale}>
-            <Button variant="primary" size="sm" className="w-full" iconLeft="download" onClick={exportPng}>Export PNG</Button>
-          </ExportPanel>
-
           <div className="kol-helper-10 text-body">{ATTRACTORS.length} attractors · RK4 integrated · paused = full figure</div>
-        </div>
-
-        <div className="border-t border-fg-08 pt-3">
-          <TransportBar
-            playing={playing}
-            onPlay={() => setPlaying(true)}
-            onPause={() => setPlaying(false)}
-            onStop={() => { setPlaying(false); viewRef.current?.resetTime() }}
-            onRewind={() => viewRef.current?.resetTime()}
-            tempo={tempo}
-            onTempo={setTempo}
-            tempoMax={300}
-          />
-        </div>
       </EditorRail>
+      </LiveClock>
     </div>
   )
 }

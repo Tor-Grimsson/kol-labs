@@ -55,18 +55,18 @@ function ControlsPanel({
       </Section>
 
       <Section label="Distortion">
-        <Slider label="Amount" min={0} max={50} step={1} value={amount} onChange={setAmount} className="w-full" />
-        <Slider label="Frequency" min={1} max={50} step={1} value={frequency} onChange={setFrequency} className="w-full" />
-        <Slider label="Smoothness" min={0} max={300} step={1} value={smoothness} onChange={setSmoothness} className="w-full" />
-        <Slider label="Seed" min={0} max={1000} step={1} value={seed} onChange={setSeed} className="w-full" />
+        <Slider labeled label="Amount" min={0} max={50} step={1} value={amount} onChange={setAmount} className="w-full" />
+        <Slider labeled label="Frequency" min={1} max={50} step={1} value={frequency} onChange={setFrequency} className="w-full" />
+        <Slider labeled label="Smoothness" min={0} max={300} step={1} value={smoothness} onChange={setSmoothness} className="w-full" />
+        <Slider labeled label="Seed" min={0} max={1000} step={1} value={seed} onChange={setSeed} className="w-full" />
       </Section>
 
       <Section label="View">
         {typeof zoom === 'number' && typeof setZoom === 'function' ? (
-          <Slider label="Zoom" min={0.2} max={3} step={0.05} value={zoom} onChange={setZoom} formatValue={(v) => `${v.toFixed(2)}×`} className="w-full" />
+          <Slider labeled label="Zoom" min={0.2} max={3} step={0.05} value={zoom} onChange={setZoom} formatValue={(v) => `${v.toFixed(2)}×`} className="w-full" />
         ) : null}
         {typeof objectScale === 'number' && typeof setObjectScale === 'function' ? (
-          <Slider label="Scale" min={0.2} max={3} step={0.05} value={objectScale} onChange={setObjectScale} formatValue={(v) => `${v.toFixed(2)}×`} className="w-full" />
+          <Slider labeled label="Scale" min={0.2} max={3} step={0.05} value={objectScale} onChange={setObjectScale} formatValue={(v) => `${v.toFixed(2)}×`} className="w-full" />
         ) : null}
         <ToggleCheckbox label="grid overlay" checked={showGrid} onChange={setShowGrid} />
       </Section>

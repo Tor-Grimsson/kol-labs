@@ -1,7 +1,7 @@
 
 
 import { num } from '../../knobs'
-import { clear, strokeOutline, wrapLoop } from '../common'
+import { clear, strokeOutline, wrapLoop, rampRGB, roleRGB } from '../common'
 
 // Manna stochastic sandpile. Threshold=2; when a site topples it sends its 2
 // grains to two *randomly chosen* neighbors (uniform, with replacement).
@@ -104,28 +104,20 @@ export const r2_soc_05_manna            = {
       for (let i = 0; i < N; i++) {
         const j = i * 4
         if (!isIn[i]) {
-          img.data[j] = 10; img.data[j + 1] = 11; img.data[j + 2] = 20; img.data[j + 3] = 255
+          const [br, bg, bb] = roleRGB('bg')
+          img.data[j] = br; img.data[j + 1] = bg; img.data[j + 2] = bb; img.data[j + 3] = 255
           continue
         }
 
-        let r = 0, g = 0, b = 0
-        if (colorMode === 'activity') {
-          const a = Math.min(1, activity[i])
-          r = (20  + a * 220 * bright) | 0
-          g = (15  + a * 120 * bright) | 0
-          b = (40  + a * 30  * bright) | 0
-        } else {
-          // height mode: 0=bg, 1=teal, >=2=amber
-          const h = Math.min(grid[i], 2)
-          const t = h / 2
-          r = (10  + t * 230 * bright) | 0
-          g = (40  + t * 160 * bright) | 0
-          b = (60  + t * 30  * bright) | 0
-        }
+        // both modes are continuous 0..1 fields → palette ramp
+        const intensity = colorMode === 'activity'
+          ? Math.min(1, activity[i])
+          : Math.min(grid[i], 2) / 2   // height 0..2
+        const [r, g, b] = rampRGB(intensity * bright)
 
-        img.data[j]     = Math.min(255, r)
-        img.data[j + 1] = Math.min(255, g)
-        img.data[j + 2] = Math.min(255, b)
+        img.data[j]     = r
+        img.data[j + 1] = g
+        img.data[j + 2] = b
         img.data[j + 3] = 255
       }
 

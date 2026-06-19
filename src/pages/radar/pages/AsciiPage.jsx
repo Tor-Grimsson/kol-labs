@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { renderAscii, ALGORITHM_OPTIONS, CHARSET_OPTIONS, DEFAULT_ASCII_PARAMS } from '../effects/asciiEngine'
 import { makeSweep } from '../effects/sweeps'
-import { ASPECT_SPECS, SOURCE_DEFAULT as DEFAULT_ASPECT, DEFAULT_SCALE, dimsFor } from '../../_shared/exportSpecs.js'
-import ExportPanel from '../../_shared/ExportPanel.jsx'
+import { ASPECT_SPECS, SOURCE_DEFAULT as DEFAULT_ASPECT, defaultAspectFor, DEFAULT_SCALE, dimsFor, ratioFor } from '../../_shared/exportSpecs.js'
 import SegmentedToggle from '../../../components/molecules/SegmentedToggle.jsx'
 import ButtonGroup from '../../../components/molecules/ButtonGroup.jsx'
+import LibrarySourceButton from '../components/LibrarySourceButton.jsx'
+import SourcePlaceholder from '../components/SourcePlaceholder.jsx'
 import { fitSourceToFrame } from '../utils/fitFrame'
 import Button from '../../../components/atoms/Button.jsx'
 import Divider from '../../../components/atoms/Divider.jsx'
@@ -14,64 +15,83 @@ import ToggleSwitch from '../../../components/atoms/ToggleSwitch.jsx'
 import Dropdown from '../../../components/molecules/Dropdown.jsx'
 import Section from '../../../components/molecules/Section.jsx'
 import EditorRail, { RailHeader } from '../../../components/framework/EditorRail.jsx'
-import TransportBar from '../../../components/framework/TransportBar.jsx'
+import EditorFooter from '../../../components/framework/EditorFooter.jsx'
 import ColorPicker from '../components/ColorPicker'
 import SweepControls from '../components/SweepControls'
 import VideoTransport from '../components/VideoTransport'
 import { useImage } from '../state/ImageContext'
+import { resolveParams, hasExpr } from '../../../lib/exprParam.js'
+import { LiveClock } from '../../../lib/liveClock.jsx'
 
 export default function AsciiPage() {
-  const { sourceImage, isVideo, loadImageFromFile } = useImage()
+  const { sourceImage, isVideo, loadImageFromFile, clearImage } = useImage()
   const canvasRef = useRef(null)
   const fileInputRef = useRef(null)
   const videoInputRef = useRef(null)
-  const [effectApplied, setEffectApplied] = useState(false)
+  const [amount, setAmount] = useState(0) // 0 = raw, 100 = full effect — dial it in
   const [params, setParams] = useState({ ...DEFAULT_ASCII_PARAMS })
   const [dragging, setDragging] = useState(false)
   const [sweeps, setSweeps] = useState([])
   const [animating, setAnimating] = useState(false)
-  const [motionSpeed, setMotionSpeed] = useState(1)
+  const [motionSpeed, setMotionSpeed] = useState(0.5)
   const [playing, setPlaying] = useState(true)
   const timeRef = useRef(0)
   const recorderRef = useRef(null)
   const chunksRef = useRef([])
   const [exporting, setExporting] = useState(false)
-  const [exportAspect, setExportAspect] = useState(DEFAULT_ASPECT)
+  const [exportAspect, setExportAspect] = useState(() => defaultAspectFor('source'))
   const [exportScale, setExportScale] = useState(DEFAULT_SCALE)
-  const [tab, setTab] = useState('effect') // Effect | Motion | Output rail tabs
+  const [tab, setTab] = useState('effect') // Effect | Motion rail tabs
+  const [footTab, setFootTab] = useState('transport') // Transport | Output footer toggle
   const [exportFit, setExportFit] = useState('cover')
 
-  // Draw raw image to canvas
-  const drawRawImage = useCallback(() => {
-    if (!canvasRef.current || !sourceImage) return
-    const ctx = canvasRef.current.getContext('2d')
-    const maxDisplay = 1600
-    const aspect = sourceImage.width / sourceImage.height
-    let dw = sourceImage.width
-    let dh = sourceImage.height
-    if (dw > maxDisplay) { dw = maxDisplay; dh = dw / aspect }
-    canvasRef.current.width = dw
-    canvasRef.current.height = dh
-    ctx.drawImage(sourceImage, 0, 0, dw, dh)
-  }, [sourceImage])
+  // Draw a source (image / framed canvas) to the visible canvas, longest side capped.
+  const drawSource = useCallback((src) => {
+    const cv = canvasRef.current
+    if (!cv || !src) return
+    let dw = src.width || src.videoWidth || 1
+    let dh = src.height || src.videoHeight || 1
+    const cap = 1600
+    if (dw > cap) { dh = Math.round(cap * dh / dw); dw = cap }
+    cv.width = dw
+    cv.height = dh
+    cv.getContext('2d').drawImage(src, 0, 0, dw, dh)
+  }, [])
 
-  // When a source loads, drop back to the raw view
+  // When a source loads, reset the motion clock (amount/effect persists).
   useEffect(() => {
-    setEffectApplied(false)
     timeRef.current = 0
   }, [sourceImage, isVideo])
 
   // Render: stills draw once; video (or an Animate'd still with sweeps) runs a
   // per-frame loop at a capped processing width (same pattern as DitherPage).
-  const animated = isVideo || (animating && effectApplied)
+  // Animate on video, an Animate'd still with sweeps, OR any time-expression param.
+  const animated = isVideo || (amount > 0 && (animating || hasExpr(params)))
   useEffect(() => {
     if (!sourceImage || !canvasRef.current) return
     const draw = () => {
-      if (!canvasRef.current) return
-      if (effectApplied) {
-        const p = { ...params, sweeps, time: timeRef.current * motionSpeed, ...(animated ? { maxDisplay: 960 } : {}) }
-        renderAscii(canvasRef.current, sourceImage, p)
-      } else drawRawImage()
+      const cv = canvasRef.current
+      if (!cv) return
+      const a = amount / 100 // 0 = raw, 1 = full effect; in between crossfades
+      // Frame the source into the chosen export aspect (cover/fit); 'source' = native.
+      const r = ratioFor(exportAspect)
+      let src = sourceImage
+      if (r) {
+        const base = animated ? 960 : 1400
+        const fw = r >= 1 ? base : Math.round(base * r)
+        const fh = r >= 1 ? Math.round(base / r) : base
+        src = fitSourceToFrame(sourceImage, fw, fh, exportFit, params.bgColor)
+      }
+      if (a <= 0) { drawSource(src); return }
+      const t = timeRef.current * motionSpeed
+      const p = { ...resolveParams(params, t), sweeps, time: t, ...(animated ? { maxDisplay: 960 } : {}) }
+      renderAscii(cv, src, p)
+      if (a < 1) { // dial: paint the framed source back over the effect at (1 - amount)
+        const ctx = cv.getContext('2d')
+        ctx.save(); ctx.globalAlpha = 1 - a
+        ctx.drawImage(src, 0, 0, cv.width, cv.height)
+        ctx.restore()
+      }
     }
     if (!animated) { draw(); return }
     let alive = true
@@ -95,7 +115,7 @@ export default function AsciiPage() {
       if (isVideo && sourceImage.cancelVideoFrameCallback) sourceImage.cancelVideoFrameCallback(handle)
       else cancelAnimationFrame(handle)
     }
-  }, [params, sweeps, motionSpeed, animated, effectApplied, sourceImage, isVideo, drawRawImage, playing])
+  }, [params, sweeps, motionSpeed, animated, amount, sourceImage, isVideo, drawSource, exportAspect, exportFit, playing])
 
   // Transport play/pause also drives the source video.
   useEffect(() => {
@@ -114,13 +134,6 @@ export default function AsciiPage() {
   const updateSweep = (index, key, value) => {
     setSweeps(prev => prev.map((sw, i) => i === index ? { ...sw, [key]: value } : sw))
   }
-
-  const handleApplyEffect = () => {
-    if (!sourceImage) return
-    setEffectApplied(true)
-  }
-
-  const handleRemoveEffect = () => setEffectApplied(false)
 
   const toggleExport = () => {
     if (exporting) { recorderRef.current?.stop(); return }
@@ -170,8 +183,16 @@ export default function AsciiPage() {
     const dims = dimsFor(exportAspect, Number(exportScale))
     const src = dims ? fitSourceToFrame(sourceImage, dims.w, dims.h, exportFit, params.bgColor) : sourceImage
     const out = document.createElement('canvas')
-    if (effectApplied) {
-      renderAscii(out, src, { ...params, sweeps, time: timeRef.current * motionSpeed, maxDisplay: dims ? dims.w : Infinity })
+    const a = amount / 100
+    if (a > 0) {
+      const t = timeRef.current * motionSpeed
+      renderAscii(out, src, { ...resolveParams(params, t), sweeps, time: t, maxDisplay: dims ? dims.w : Infinity })
+      if (a < 1) {
+        const ctx = out.getContext('2d')
+        ctx.save(); ctx.globalAlpha = 1 - a
+        ctx.drawImage(src, 0, 0, out.width, out.height)
+        ctx.restore()
+      }
     } else if (dims) {
       out.width = dims.w
       out.height = dims.h
@@ -198,7 +219,7 @@ export default function AsciiPage() {
       cellSize: 5 + Math.floor(Math.random() * 20),
       contrast: Math.floor(Math.random() * 80) - 20,
     }))
-    if (sourceImage) setEffectApplied(true)
+    setAmount((a) => (a > 0 ? a : 100)) // dial the effect in so the reroll is visible
   }
 
   return (
@@ -212,19 +233,17 @@ export default function AsciiPage() {
       >
         {!sourceImage ? (
           <div
-            className="flex flex-col items-center justify-center gap-3 border-2 border-dashed rounded-lg cursor-pointer"
+            className="flex border border-dashed overflow-hidden"
             style={{
-              width: '80%',
-              height: '60vh',
+              aspectRatio: ratioFor(exportAspect) || 4 / 5,
+              width: `min(100%, calc(85vh * ${ratioFor(exportAspect) || 4 / 5}))`,
+              borderRadius: 'var(--kol-radius-sm)',
               borderColor: dragging ? 'var(--kol-accent-primary)' : 'var(--kol-border-default)',
-              backgroundColor: dragging ? 'color-mix(in srgb, var(--kol-accent-primary) 5%, transparent)' : 'transparent',
+              backgroundColor: dragging ? 'color-mix(in srgb, var(--kol-accent-primary) 8%, var(--kol-fg-04))' : 'var(--kol-fg-04)',
               transition: 'border-color 0.2s, background-color 0.2s',
             }}
-            onClick={() => fileInputRef.current?.click()}
           >
-            <span className="kol-mono-12 text-fg-32 uppercase">
-              {dragging ? 'Drop image here' : 'Drag image here or click to upload'}
-            </span>
+            <SourcePlaceholder onUpload={() => fileInputRef.current?.click()} />
           </div>
         ) : (
           <canvas ref={canvasRef} className="max-w-full max-h-[90vh] object-contain" />
@@ -232,20 +251,75 @@ export default function AsciiPage() {
       </div>
 
       {/* Controls panel */}
-      <EditorRail>
-        <RailHeader>kol-radar</RailHeader>
-
-        {isVideo && sourceImage && <VideoTransport video={sourceImage} />}
-
-        <SegmentedToggle
-          value={tab}
-          onChange={setTab}
-          options={[{ value: 'effect', label: 'Effect' }, { value: 'motion', label: 'Motion' }, { value: 'output', label: 'Output' }]}
-        />
-
-        {/* Scrolls: the active tab's controls. Transport (below) stays pinned. */}
-        <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-5">
+      <LiveClock getT={() => timeRef.current * motionSpeed}>
+      <EditorRail
+        footerBare
+        header={
+          <>
+            <RailHeader>Radar</RailHeader>
+            {isVideo && sourceImage && <VideoTransport video={sourceImage} />}
+            <SegmentedToggle
+              value={tab}
+              onChange={setTab}
+              options={[{ value: 'effect', label: 'Effect' }, { value: 'motion', label: 'Motion' }]}
+            />
+          </>
+        }
+        footer={
+          <EditorFooter
+            tab={footTab}
+            onTab={setFootTab}
+            transport={{
+              playing,
+              onPlay: () => setPlaying(true),
+              onPause: () => setPlaying(false),
+              onStop: () => { setPlaying(false); timeRef.current = 0 },
+              onRewind: () => { timeRef.current = 0 },
+              tempo: Math.round(motionSpeed * 240),
+              onTempo: (v) => setMotionSpeed(v / 240),
+              tempoMax: 600,
+            }}
+            exportProps={{
+              aspect: exportAspect,
+              onAspect: setExportAspect,
+              aspects: ASPECT_SPECS,
+              scale: exportScale,
+              onScale: setExportScale,
+              fit: exportFit,
+              onFit: setExportFit,
+            }}
+            exportActions={<>
+              {sourceImage && (
+                <Button variant="primary" size="sm" onClick={handleDownload} iconLeft="download" className="w-full">Download</Button>
+              )}
+              {sourceImage && (isVideo || (animating && amount > 0)) && (
+                <Button variant={exporting ? 'accent' : 'primary'} size="sm" onClick={toggleExport} iconLeft={exporting ? 'control-stop' : 'video'} className="w-full">
+                  {exporting ? 'Stop Export' : 'Export Video'}
+                </Button>
+              )}
+            </>}
+            file={
+              <div className="flex flex-col gap-2">
+                <ButtonGroup orientation="vertical" className="w-full">
+                  <Button variant="primary" size="sm" onClick={() => fileInputRef.current?.click()} iconLeft="upload" className="w-full">Upload Image</Button>
+                  <Button variant="primary" size="sm" onClick={() => videoInputRef.current?.click()} iconLeft="video" className="w-full">Upload Video</Button>
+                  <LibrarySourceButton />
+                </ButtonGroup>
+                {sourceImage && (
+                  <Button variant="secondary" size="sm" onClick={clearImage} iconLeft="cross" className="w-full">Clear image</Button>
+                )}
+              </div>
+            }
+          />
+        }
+      >
         {tab === 'effect' && (<>
+        <Section label="Effect">
+          <Slider labeled label="Amount" min={0} max={100} step={1} value={amount} onChange={setAmount} variant="default" />
+        </Section>
+
+        <Divider />
+
         <Section label="Algorithm">
           <Dropdown size="sm" options={ALGORITHM_OPTIONS} value={params.algorithm} onChange={(v) => updateParam('algorithm', v)} variant="subtle" className="w-full" />
           {params.algorithm === 'density' && (
@@ -271,35 +345,34 @@ export default function AsciiPage() {
               placeholder=" .:-=+*#%@"
             />
           )}
-          <ToggleSwitch variant="plain" label="Invert" checked={params.invert} onChange={(v) => updateParam('invert', v)} />
-          <Slider label="Glyph Scale" min={0.5} max={2} step={0.05} value={params.glyphScale} onChange={(v) => updateParam('glyphScale', v)} variant="default" />
+          <ToggleSwitch labeled variant="plain" label="Invert" checked={params.invert} onChange={(v) => updateParam('invert', v)} />
+          <Slider labeled label="Glyph Scale" min={0.5} max={2} step={0.05} value={params.glyphScale} onChange={(v) => updateParam('glyphScale', v)} variant="default" />
         </Section>
 
         <Divider />
 
         <Section label="Cells">
-          <Slider label="Cell Size" min={4} max={40} step={1} value={params.cellSize} onChange={(v) => updateParam('cellSize', v)} variant="default" />
-          <Slider label="Contrast" min={-100} max={100} step={1} value={params.contrast} onChange={(v) => updateParam('contrast', v)} variant="default" />
+          <Slider labeled label="Cell Size" min={4} max={40} step={1} value={params.cellSize} onChange={(v) => updateParam('cellSize', v)} variant="default" />
+          <Slider labeled label="Contrast" min={-100} max={100} step={1} value={params.contrast} onChange={(v) => updateParam('contrast', v)} variant="default" />
         </Section>
 
         <Divider />
 
         <Section label="Color">
-          <ToggleSwitch variant="plain" label="Original Color" checked={params.useColor} onChange={(v) => updateParam('useColor', v)} />
+          <ToggleSwitch labeled variant="plain" label="Original Color" checked={params.useColor} onChange={(v) => updateParam('useColor', v)} />
 
           {!params.useColor && (
             <div className="flex items-center justify-between">
-              <span className="kol-helper-10 uppercase text-fg-32">Foreground</span>
+              <span className="kol-helper-10 uppercase tracking-widest text-meta">Foreground</span>
               <ColorPicker color={params.monoColor} onChange={(v) => updateParam('monoColor', v)} />
             </div>
           )}
 
           <div className="flex items-center justify-between">
-            <span className="kol-helper-10 uppercase text-fg-32">Background</span>
+            <span className="kol-helper-10 uppercase tracking-widest text-meta">Background</span>
             <ColorPicker color={params.bgColor} onChange={(v) => updateParam('bgColor', v)} />
           </div>
         </Section>
-
         </>)}
 
         {tab === 'motion' && (
@@ -316,69 +389,8 @@ export default function AsciiPage() {
         />
         )}
 
-        {tab === 'output' && (<>
-        <ExportPanel
-          aspect={exportAspect}
-          onAspect={setExportAspect}
-          aspects={ASPECT_SPECS}
-          scale={exportScale}
-          onScale={setExportScale}
-          fit={exportFit}
-          onFit={setExportFit}
-        />
-
-        <Divider />
-
-        {/* Actions */}
-        {sourceImage && !effectApplied && (
-          <Button variant="accent" size="sm" onClick={handleApplyEffect} className="w-full">
-            Apply Effect
-          </Button>
-        )}
-
-        {sourceImage && effectApplied && (
-          <Button variant="primary" size="sm" onClick={handleRemoveEffect} className="w-full">
-            Remove Effect
-          </Button>
-        )}
-
-        <ButtonGroup orientation="vertical" className="w-full">
-          <Button variant="primary" size="sm" onClick={() => fileInputRef.current?.click()} iconLeft="upload" className="w-full">
-            Upload Image
-          </Button>
-          <Button variant="primary" size="sm" onClick={() => videoInputRef.current?.click()} iconLeft="video" className="w-full">
-            Upload Video
-          </Button>
-        </ButtonGroup>
-
-        {sourceImage && (
-          <Button variant="primary" size="sm" onClick={handleDownload} iconLeft="download" className="w-full">
-            Download
-          </Button>
-        )}
-
-        {sourceImage && (isVideo || (animating && effectApplied)) && (
-          <Button variant={exporting ? 'accent' : 'primary'} size="sm" onClick={toggleExport} iconLeft={exporting ? 'control-stop' : 'video'} className="w-full">
-            {exporting ? 'Stop Export' : 'Export Video'}
-          </Button>
-        )}
-        </>)}
-        </div>
-
-        {/* Fixed: transport — play/pause the motion + video, Tempo = motion speed. */}
-        <div className="border-t border-fg-08 pt-3">
-          <TransportBar
-            playing={playing}
-            onPlay={() => setPlaying(true)}
-            onPause={() => setPlaying(false)}
-            onStop={() => { setPlaying(false); timeRef.current = 0 }}
-            onRewind={() => { timeRef.current = 0 }}
-            tempo={Math.round(motionSpeed * 120)}
-            onTempo={(v) => setMotionSpeed(v / 120)}
-            tempoMax={300}
-          />
-        </div>
       </EditorRail>
+      </LiveClock>
 
       <input ref={fileInputRef} type="file" accept="image/*,.svg" onChange={handleFileUpload} className="hidden" />
       <input ref={videoInputRef} type="file" accept="video/*" onChange={handleFileUpload} className="hidden" />

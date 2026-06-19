@@ -1,15 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { VIEW_ASPECTS, DEFAULT_ASPECT, DEFAULT_SCALE, ratioFor, dimsFor } from '../../_shared/exportSpecs.js'
-import ExportPanel from '../../_shared/ExportPanel.jsx'
-import { DEFAULT_THEME } from '../../../lib/themes.js'
+import { VIEW_ASPECTS, DEFAULT_ASPECT, defaultAspectFor, DEFAULT_SCALE, ratioFor, dimsFor } from '../../_shared/exportSpecs.js'
+import { defaultTheme } from '../../../lib/appSettings.js'
 import { mulberry32, randomSeed } from '../../../lib/rng.js'
 import SettingsPanel from '../../../components/framework/SettingsPanel.jsx'
 import { useViewportZoom } from '../../../components/framework/useViewportZoom.js'
 import StylePanel from '../components/StylePanel'
 import { drawAxes2D } from '../components/axes2d'
 import { useMathStyle, AXIS_2D } from '../style/mathStyle'
-import TransportBar from '../../../components/framework/TransportBar.jsx'
 import EditorRail, { RailHeader } from '../../../components/framework/EditorRail.jsx'
+import EditorFooter from '../../../components/framework/EditorFooter.jsx'
 import Button from '../../../components/atoms/Button.jsx'
 import Slider from '../../../components/atoms/Slider.jsx'
 import Dropdown from '../../../components/molecules/Dropdown.jsx'
@@ -141,12 +140,13 @@ export default function ComplexPage() {
   })
   const [coloring, setColoring] = useState('rings')
   const [quality, setQuality] = useState('1700')
-  const [aspect, setAspect] = useState(DEFAULT_ASPECT)
+  const [aspect, setAspect] = useState(() => defaultAspectFor('view'))
   const [scale, setScale] = useState(DEFAULT_SCALE)
   const [playing, setPlaying] = useState(false)
   const [tempo, setTempo] = useState(120)
+  const [footTab, setFootTab] = useState('transport') // Transport · Output · File
   const [style, patchStyle, applyTheme] = useMathStyle({ axis: 'none' })
-  const [themeId, setThemeId] = useState(DEFAULT_THEME)
+  const [themeId, setThemeId] = useState(() => defaultTheme())
   const [invert, setInvert] = useState(false)
   const [seed, setSeed] = useState(1)
 
@@ -263,7 +263,7 @@ export default function ComplexPage() {
       const dt = (now - last) / 1000
       last = now
       if (playingRef.current && fieldRef.current) {
-        const s = tempoRef.current / 120
+        const s = tempoRef.current / 240
         huePhaseRef.current = (huePhaseRef.current + dt * 0.08 * s) % 1
         ringPhaseRef.current -= dt * 0.25 * s // rings flow inward toward the zeros
         paintNow(cv.getContext('2d'))
@@ -324,11 +324,32 @@ export default function ComplexPage() {
         </div>
       </div>
 
-      <EditorRail>
-        <RailHeader>complex</RailHeader>
-
-        <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-5">
-          <Section label="Function">
+      <EditorRail
+        footerBare
+        header={<RailHeader>Complex</RailHeader>}
+        footer={
+          <EditorFooter
+            tab={footTab}
+            onTab={setFootTab}
+            transport={{
+              playing,
+              onPlay: () => setPlaying(true),
+              onPause: () => setPlaying(false),
+              onStop: stopPhase,
+              onRewind: stopPhase,
+              tempo,
+              onTempo: setTempo,
+              tempoMax: 600,
+            }}
+            exportProps={{ aspect, onAspect: setAspect, aspects: VIEW_ASPECTS, scale, onScale: setScale }}
+            exportActions={<Button variant="primary" size="sm" className="w-full" iconLeft="download" onClick={exportPng}>Export PNG</Button>}
+            settingsPage="math-complex"
+            getSettings={getSettings}
+            applySettings={applySettings}
+          />
+        }
+      >
+        <Section label="Function">
             <div className="flex flex-col gap-1">
               {FUNCS.map((f) => (
                 <Button key={f.id} variant="secondary" size="sm" selected={f.id === funcId} onClick={() => setFuncId(f.id)} className="w-full" style={{ justifyContent: 'flex-start' }}>
@@ -339,7 +360,7 @@ export default function ComplexPage() {
           </Section>
 
           <Section label="View">
-            <Slider label="Range" min={0.5} max={20} step={0.1} value={range} onChange={setRange} variant="default" noExpr />
+            <Slider labeled label="Range" min={0.5} max={20} step={0.1} value={range} onChange={setRange} variant="default" noExpr />
             <LabeledControl label="Coloring">
               <Dropdown size="sm" variant="subtle" className="w-full" options={COLORINGS} value={coloring} onChange={setColoring} />
             </LabeledControl>
@@ -353,6 +374,7 @@ export default function ComplexPage() {
 
           <SettingsPanel
             page="math-complex"
+            showIO={false}
             showTheme={false}
             theme={themeId}
             onTheme={setThemeId}
@@ -365,25 +387,7 @@ export default function ComplexPage() {
             applySettings={applySettings}
           />
 
-          <ExportPanel aspect={aspect} onAspect={setAspect} aspects={VIEW_ASPECTS} scale={scale} onScale={setScale}>
-            <Button variant="primary" size="sm" className="w-full" iconLeft="download" onClick={exportPng}>Export PNG</Button>
-          </ExportPanel>
-
           <div className="kol-helper-10 text-body">hue = arg f(z) · brightness = |f| rings · play = phase + ring flow</div>
-        </div>
-
-        <div className="border-t border-fg-08 pt-3">
-          <TransportBar
-            playing={playing}
-            onPlay={() => setPlaying(true)}
-            onPause={() => setPlaying(false)}
-            onStop={stopPhase}
-            onRewind={stopPhase}
-            tempo={tempo}
-            onTempo={setTempo}
-            tempoMax={300}
-          />
-        </div>
       </EditorRail>
     </div>
   )

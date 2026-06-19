@@ -266,9 +266,9 @@ export default function VideoPage() {
 
         {kind === 'aspect' && (
           <Section label="Window">
-            <Slider label="Zoom" min={1} max={5} step={0.05} value={win.zoom} onChange={(v) => setWin((w) => ({ ...w, zoom: v }))} />
-            <Slider label="X" min={0} max={1} step={0.01} value={win.ox} onChange={(v) => setWin((w) => ({ ...w, ox: v }))} />
-            <Slider label="Y" min={0} max={1} step={0.01} value={win.oy} onChange={(v) => setWin((w) => ({ ...w, oy: v }))} />
+            <Slider labeled label="Zoom" min={1} max={5} step={0.05} value={win.zoom} onChange={(v) => setWin((w) => ({ ...w, zoom: v }))} />
+            <Slider labeled label="X" min={0} max={1} step={0.01} value={win.ox} onChange={(v) => setWin((w) => ({ ...w, ox: v }))} />
+            <Slider labeled label="Y" min={0} max={1} step={0.01} value={win.oy} onChange={(v) => setWin((w) => ({ ...w, oy: v }))} />
             <Button variant="primary" size="sm" className="w-full" onClick={() => setWin(DEFAULT_WINDOW)}>Reset window</Button>
             <p className="kol-mono-10 text-meta">drag the window · scroll to zoom</p>
           </Section>

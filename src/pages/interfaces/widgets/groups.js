@@ -8,6 +8,6 @@ export const GROUPS = [
   { key: 'controls', label: 'Controls' },
   { key: 'grids', label: 'Grids' },
   { key: 'readouts', label: 'Readouts' },
-  { key: 'dimensional', label: '3D' },
+  { key: 'dimensional', label: '3D Shapes' },
   { key: 'chrome', label: 'Chrome' },
 ]

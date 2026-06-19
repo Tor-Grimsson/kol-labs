@@ -49,6 +49,7 @@ export default function Input({
   disabled = false,
   uppercase = false,
   width,
+  style,
   className = '',
   inputClassName = '',
   ...inputProps
@@ -91,7 +92,7 @@ export default function Input({
   return (
     <label
       className={shellCls}
-      style={width ? { width: typeof width === 'number' ? `${width}px` : width } : undefined}
+      style={{ ...(width ? { width: typeof width === 'number' ? `${width}px` : width } : {}), ...style }}
       aria-disabled={disabled || undefined}
     >
       {iconLeft && (

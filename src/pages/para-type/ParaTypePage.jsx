@@ -44,7 +44,7 @@ function ParamRow({ name, def, config, onChange, currentValue, onHover, isHovere
       className={`px-3 py-2 border-b border-fg-08 transition-colors ${isHovered ? 'bg-fg-04' : ''}`}
     >
       <LabeledControl label={def.label} hint={display}>
-        <Slider
+        <Slider labeled
           min={def.min}
           max={def.max}
           step={def.step || 1}

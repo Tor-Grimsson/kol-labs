@@ -25,8 +25,8 @@ export default function SlitscanPage() {
           <LabeledControl inline label="axis">
             <Dropdown size="sm" variant="subtle" className="w-full" options={AXES} value={p.axis} onChange={(v) => update('axis', v)} />
           </LabeledControl>
-          <Slider label="Time span" min={0.05} max={1} step={0.01} value={p.span} onChange={(v) => update('span', v)} variant="default" />
-          <Slider label="Ramp curve" min={0.2} max={4} step={0.05} value={p.curve} onChange={(v) => update('curve', v)} variant="default" />
+          <Slider labeled label="Time span" min={0.05} max={1} step={0.01} value={p.span} onChange={(v) => update('span', v)} variant="default" />
+          <Slider labeled label="Ramp curve" min={0.2} max={4} step={0.05} value={p.curve} onChange={(v) => update('curve', v)} variant="default" />
           <ToggleSwitch variant="plain" label="Invert direction" checked={p.invert} onChange={(v) => update('invert', v)} />
         </Section>
       )}

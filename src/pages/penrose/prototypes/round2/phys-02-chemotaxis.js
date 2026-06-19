@@ -7,7 +7,7 @@
 
 
 import { num } from '../../knobs'
-import { clear, strokeOutline, wrapLoop, sampleInside } from '../common'
+import { clear, strokeOutline, wrapLoop, sampleInside, rampRGB, roleRGB } from '../common'
 
 const PARAMS          = [
   { key: 'agents',   type: 'int',   min: 300,  max: 3000, default: 1000, step: 100,   label: 'agents' },
@@ -137,14 +137,18 @@ export const r2_phys_02_chemotaxis            = {
       for (let i = 0; i < GS * GS; i++) {
         const j = i * 4
         if (!isIn[i]) {
-          img.data[j] = 10; img.data[j+1] = 11; img.data[j+2] = 20; img.data[j+3] = 255
+          const [br, bg, bb] = roleRGB('bg')
+          img.data[j] = br; img.data[j+1] = bg; img.data[j+2] = bb; img.data[j+3] = 255
           continue
         }
         const t = Math.min(1, trail[i] * 2.5)
         const f = Math.min(1, food[i] * 1.2)
-        img.data[j]   = (15  + 220 * t + 40 * f) | 0
-        img.data[j+1] = (160 * t + 220 * f)       | 0
-        img.data[j+2] = (200 * t + 40  * f)       | 0
+        // trail along the ramp; food nodes blend toward accent
+        const [tr, tg, tb] = rampRGB(t)
+        const [fr, fg, fb] = roleRGB('accent')
+        img.data[j]   = (tr + (fr - tr) * f) | 0
+        img.data[j+1] = (tg + (fg - tg) * f) | 0
+        img.data[j+2] = (tb + (fb - tb) * f) | 0
         img.data[j+3] = 255
       }
       clear(ctx, W, H)

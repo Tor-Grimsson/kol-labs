@@ -7,7 +7,7 @@
 
 
 import { num } from '../../knobs'
-import { clear, strokeOutline, wrapLoop } from '../common'
+import { clear, strokeOutline, wrapLoop, rampRGB, roleRGB } from '../common'
 
 const PARAMS          = [
   { key: 'res',   type: 'int',   min: 80,   max: 220, default: 180,  step: 20,   label: 'grid' },
@@ -99,13 +99,15 @@ export const r2_rd_04_seashell            = {
           const i = y * res + x
           const j = i * 4
           if (!isIn[i]) {
-            img.data[j] = 10; img.data[j + 1] = 11; img.data[j + 2] = 20; img.data[j + 3] = 255
+            const [bgR, bgG, bgB] = roleRGB('bg')
+            img.data[j] = bgR; img.data[j + 1] = bgG; img.data[j + 2] = bgB; img.data[j + 3] = 255
             continue
           }
           const v = Math.max(0, Math.min(1, A[x] * 4))
-          img.data[j]     = (220 * v + 10 * (1 - v)) | 0
-          img.data[j + 1] = (200 * v + 15 * (1 - v)) | 0
-          img.data[j + 2] = (140 * v + 40 * (1 - v)) | 0
+          const [r, g, b] = rampRGB(v)
+          img.data[j]     = r
+          img.data[j + 1] = g
+          img.data[j + 2] = b
           img.data[j + 3] = 255
         }
       }

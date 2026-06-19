@@ -8,7 +8,7 @@
 
 
 import { num } from '../../knobs'
-import { clear, strokeOutline, wrapLoop, sampleInside } from '../common'
+import { clear, strokeOutline, wrapLoop, sampleInside, rampRGB, roleRGB } from '../common'
 
 const PARAMS          = [
   { key: 'dlaMax',   type: 'int',   min: 500,  max: 5000, default: 2500, step: 250,  label: 'DLA particles' },
@@ -204,18 +204,21 @@ export const r2_phys_04_dlahybrid            = {
       // Fade DLA scaffold
       for (let i = 0; i < GS * GS; i++) dlaMap[i] *= DLA_FADE
 
-      // Render: DLA in blue-white, physarum trail in warm amber
+      // Render: physarum trail along the ramp, DLA scaffold blended toward fg
+      const [fgr, fgg, fgb] = roleRGB('fg')
       for (let i = 0; i < GS * GS; i++) {
         const j = i * 4
         if (!isIn[i]) {
-          img.data[j] = 10; img.data[j+1] = 11; img.data[j+2] = 20; img.data[j+3] = 255
+          const [br, bg, bb] = roleRGB('bg')
+          img.data[j] = br; img.data[j+1] = bg; img.data[j+2] = bb; img.data[j+3] = 255
           continue
         }
         const t = Math.min(1, trail[i] * 2.5)
-        const d = dlaMap[i]
-        img.data[j]   = (220 * t + 160 * d) | 0
-        img.data[j+1] = (150 * t + 200 * d) | 0
-        img.data[j+2] = (20  * t + 240 * d) | 0
+        const d = Math.min(1, dlaMap[i])
+        const [tr, tg, tb] = rampRGB(t)
+        img.data[j]   = Math.min(255, (tr + (fgr - tr) * d)) | 0
+        img.data[j+1] = Math.min(255, (tg + (fgg - tg) * d)) | 0
+        img.data[j+2] = Math.min(255, (tb + (fgb - tb) * d)) | 0
         img.data[j+3] = 255
       }
       clear(ctx, W, H)

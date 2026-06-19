@@ -16,9 +16,15 @@ export const quadtree            = {
     'Split the canvas into quads; each quad checks SDF at its 4 corners. Outside → drop. Inside → inscribe circle. Straddle → subdivide. Produces the grid-of-circles-in-box look from the ref mood. Layerable: each depth tier is its own layer.',
   helps:
     'A rectilinear / rational counterpoint to the organic packers. Each depth tier IS a layer for free, with obvious life/death rules (cell splits → parent dies, children born).',
-  init({ ctx, sdf, W, H }) {
+  params: [
+    { key: 'minS', type: 'int', min: 4, max: 60, default: 18, label: 'min cell' },
+    { key: 'cadence', type: 'int', min: 1, max: 12, default: 3, label: 'cadence' },
+    { key: 'inscribe', type: 'range', min: 0.4, max: 1, step: 0.05, default: 0.85, label: 'inscribe' },
+    { key: 'dot', type: 'range', min: 0.4, max: 4, step: 0.1, default: 1.2, label: 'center dot' },
+  ],
+  init({ ctx, sdf, W, H, params }) {
     const sx = W / sdf.w, sy = H / sdf.h
-    const minS = 18
+    const { minS, cadence, inscribe, dot } = params
 
     const q         = [{ x: 0, y: 0, s: sdf.w, mode: 'wait' }]
     const filled         = []
@@ -44,7 +50,7 @@ export const quadtree            = {
     return wrapLoop(() => {
       tick++
       // One subdivision per frame → visible progression
-      if (tick % 3 === 0) {
+      if (tick % cadence === 0) {
         const next         = []
         for (const c of q) {
           const kind = classifyAll(c)
@@ -79,7 +85,7 @@ export const quadtree            = {
       for (const c of filled) {
         const cx = (c.x + c.s / 2) * sx
         const cy = (c.y + c.s / 2) * sy
-        const r = (c.s / 2) * Math.min(sx, sy) * 0.85
+        const r = (c.s / 2) * Math.min(sx, sy) * inscribe
         ctx.strokeStyle = 'rgba(210, 215, 235, 0.7)'
         ctx.lineWidth = 0.9
         ctx.beginPath()
@@ -87,7 +93,7 @@ export const quadtree            = {
         ctx.stroke()
         ctx.fillStyle = '#f3c9c4'
         ctx.beginPath()
-        ctx.arc(cx, cy, 1.2, 0, Math.PI * 2)
+        ctx.arc(cx, cy, dot, 0, Math.PI * 2)
         ctx.fill()
       }
     })

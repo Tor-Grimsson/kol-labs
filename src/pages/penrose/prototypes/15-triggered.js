@@ -17,14 +17,22 @@ export const triggered            = {
     'Empty on load — only the outline is visible. Click inside the letter to plant a DLA seed at that point and release 60 walkers. Each click adds another seed with its own color. Walkers stick to their own aggregate when they land nearby. Multi-click → multi-layer growth.',
   helps:
     'The literal form of the brief\'s "trigger an expression" flow. User authors growth spatially; multiple triggers build up layered geometry. The scaffold everyone else plugs into.',
-  init({ canvas, ctx, sdf, W, H, rng }) {
+  params: [
+    { key: 'walkers', type: 'int', min: 10, max: 300, step: 10, default: 60, label: 'walkers' },
+    { key: 'cellSize', type: 'int', min: 4, max: 40, default: 14, label: 'cell size' },
+    { key: 'step', type: 'range', min: 0.5, max: 5, step: 0.1, default: 1.5, label: 'step' },
+    { key: 'stickDist', type: 'range', min: 1, max: 10, step: 0.5, default: 3, label: 'stick dist' },
+  ],
+  init({ canvas, ctx, sdf, W, H, rng, params }) {
     const sx = W / sdf.w, sy = H / sdf.h
+
+    const { walkers: walkersPerClick, cellSize, step, stickDist } = params
 
     const stuck          = []
     const walkers           = []
     let seedCounter = 0
 
-    const cs = 14
+    const cs = cellSize
     const gw = Math.ceil(sdf.w / cs) + 1
     const gh = Math.ceil(sdf.h / cs) + 1
     const grid             = new Array(gw * gh)
@@ -44,15 +52,12 @@ export const triggered            = {
       const idx = stuck.length
       stuck.push({ x: cx, y: cy, parent: -1, seed: sid })
       grid[gi(cx, cy)].push(idx)
-      for (let i = 0; i < 60; i++) {
+      for (let i = 0; i < walkersPerClick; i++) {
         const [x, y] = sampleInside(sdf, rng)
         walkers.push({ x, y, seed: sid })
       }
     }
     canvas.addEventListener('click', onClick)
-
-    const step = 1.5
-    const stickDist = 3
 
     const rafCleanup = wrapLoop(() => {
       // simulate

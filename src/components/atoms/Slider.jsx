@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import Input from './Input.jsx'
-import { isExpr, isValidExpr } from '../../lib/exprParam.js'
+import { isExpr, isValidExpr, evalExpr } from '../../lib/exprParam.js'
+import { useLiveClock } from '../../lib/liveClock.jsx'
 
 /**
  * Slider — range slider with label and an editable value readout.
@@ -26,6 +27,12 @@ import { isExpr, isValidExpr } from '../../lib/exprParam.js'
  *
  * @param {Object} props
  * @param {string} props.label - Slider label text
+ * @param {boolean} props.labeled - "Labeled slider": render the label as a fixed-width
+ *   kol-helper-10 META column so it matches the DS row labels (THEME / AXIS / a Dropdown
+ *   in a LabeledControl). Without it the label is the bare kol-helper-12 / fg-80 inline
+ *   style. This is the label axis; it's independent of `variant` (the track/value chrome).
+ * @param {number} props.labelWidth - Label column width in px for `labeled` (default 96).
+ *   Passing labelWidth alone also turns on the labeled style.
  * @param {number} props.min - Minimum value
  * @param {number} props.max - Maximum value
  * @param {number|string} props.value - Current value (number, or expression string)
@@ -41,6 +48,8 @@ import { isExpr, isValidExpr } from '../../lib/exprParam.js'
  */
 const Slider = ({
   label,
+  labeled = false,
+  labelWidth,
   min = 0,
   max = 100,
   value = 0,
@@ -52,11 +61,31 @@ const Slider = ({
   step = 1,
   formatValue,
   noExpr = false,
-  liveValue
+  liveValue,
+  raised = false // value box on a raised surface → use surface-primary so it reads as an input
 }) => {
   const exprBound = !noExpr && isExpr(value)
   const exprBad   = exprBound && !isValidExpr(value)
-  const hasLive   = Number.isFinite(liveValue)
+
+  // Self-animate: when bound to a (valid) expression and the page provides a
+  // playhead clock, evaluate this slider's own expression each frame so the
+  // thumb + readout track the motion. An explicit `liveValue` prop still wins.
+  const getClock = useLiveClock()
+  const [autoLive, setAutoLive] = useState(undefined)
+  useEffect(() => {
+    if (!exprBound || exprBad || !getClock) { setAutoLive(undefined); return }
+    let raf
+    const tick = () => {
+      raf = requestAnimationFrame(tick)
+      const t = getClock()
+      if (typeof t === 'number') setAutoLive(evalExpr(value, t))
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [exprBound, exprBad, getClock, value])
+
+  const effLive = Number.isFinite(liveValue) ? liveValue : autoLive
+  const hasLive  = Number.isFinite(effLive)
 
   const handleChange = (e) => {
     // Dragging the track always commits a plain number — overriding any expression.
@@ -94,7 +123,7 @@ const Slider = ({
   // The native range input needs a finite number. While expression-bound, track
   // the live resolved value if present, else park at min (the ghosted track).
   const rangeValue = exprBound
-    ? (hasLive ? Math.max(min, Math.min(max, liveValue)) : min)
+    ? (hasLive ? Math.max(min, Math.min(max, effLive)) : min)
     : value
 
   /* Editable readout — local string state lets the user type intermediate
@@ -130,12 +159,18 @@ const Slider = ({
 
   // While expression-bound and not editing, show the live resolved number in the
   // box (so it visibly animates); the expression itself is shown on focus.
-  const boxValue = (exprBound && hasLive && !editing) ? fmtNum(liveValue) : draft
+  const boxValue = (exprBound && hasLive && !editing) ? fmtNum(effLive) : draft
 
   return (
     <div className={`${variantClass} gap-3 shadow-none ${className}`}>
       {label && (
-        <label className="kol-helper-12 uppercase tracking-widest whitespace-nowrap shrink-0 w-fit" style={fontSize ? { fontSize } : undefined}>
+        <label
+          /* `labeled` = the DS meta text style; the label hugs (w-fit) unless an
+             explicit `labelWidth` is passed to reserve a fixed alignment column.
+             Inline colour beats `.control-slider label { color: fg-80 }`. */
+          className={`uppercase tracking-widest whitespace-nowrap shrink-0 ${labeled || labelWidth != null ? 'kol-helper-10' : 'kol-helper-12'} ${labelWidth == null ? 'w-fit' : ''}`}
+          style={{ ...(labeled || labelWidth != null ? { color: 'var(--kol-fg-meta)' } : null), ...(labelWidth != null ? { width: labelWidth } : null), ...(fontSize ? { fontSize } : null) }}
+        >
           {label}
         </label>
       )}
@@ -157,6 +192,7 @@ const Slider = ({
         size="sm"
         chars={exprBound ? Math.max(displayWidth, 10) : displayWidth}
         value={boxValue}
+        style={raised ? { backgroundColor: 'var(--kol-surface-primary)' } : undefined}
         onFocus={(e) => { setEditing(true); setDraft(displayValue); e.target.select() }}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={commit}

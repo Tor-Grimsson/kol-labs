@@ -2,10 +2,11 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { renderDither, MODE_OPTIONS, SHAPE_OPTIONS, DEFAULT_PARAMS } from '../effects/ditherEngine'
 import { makeSweep } from '../effects/sweeps'
 import { CANVAS_FX_DEFS, getDefaultCanvasFxParams, applyCanvasFx } from '../hooks/useCanvasFx'
-import { ASPECT_SPECS, SOURCE_DEFAULT as DEFAULT_ASPECT, DEFAULT_SCALE, dimsFor } from '../../_shared/exportSpecs.js'
-import ExportPanel from '../../_shared/ExportPanel.jsx'
+import { ASPECT_SPECS, SOURCE_DEFAULT as DEFAULT_ASPECT, defaultAspectFor, DEFAULT_SCALE, dimsFor, ratioFor } from '../../_shared/exportSpecs.js'
 import SegmentedToggle from '../../../components/molecules/SegmentedToggle.jsx'
 import ButtonGroup from '../../../components/molecules/ButtonGroup.jsx'
+import LibrarySourceButton from '../components/LibrarySourceButton.jsx'
+import SourcePlaceholder from '../components/SourcePlaceholder.jsx'
 import { fitSourceToFrame } from '../utils/fitFrame'
 import Button from '../../../components/atoms/Button.jsx'
 import Divider from '../../../components/atoms/Divider.jsx'
@@ -14,51 +15,55 @@ import ToggleSwitch from '../../../components/atoms/ToggleSwitch.jsx'
 import Dropdown from '../../../components/molecules/Dropdown.jsx'
 import Section from '../../../components/molecules/Section.jsx'
 import EditorRail, { RailHeader } from '../../../components/framework/EditorRail.jsx'
-import TransportBar from '../../../components/framework/TransportBar.jsx'
+import EditorFooter from '../../../components/framework/EditorFooter.jsx'
 import ColorPicker from '../components/ColorPicker'
 import SweepControls from '../components/SweepControls'
+import FxParamControl from '../components/FxParamControl.jsx'
 import VideoTransport from '../components/VideoTransport'
 import { useImage } from '../state/ImageContext'
+import { resolveParams, hasExpr } from '../../../lib/exprParam.js'
+import { LiveClock } from '../../../lib/liveClock.jsx'
+import { uploadToLibrary, saveToGallery } from '../../../lib/mediaLibrary.js'
 
 export default function DitherPage() {
-  const { sourceImage, isVideo, loadImageFromFile } = useImage()
+  const { sourceImage, isVideo, loadImageFromFile, clearImage } = useImage()
   const canvasRef = useRef(null)
   const fileInputRef = useRef(null)
   const videoInputRef = useRef(null)
-  const [effectApplied, setEffectApplied] = useState(false)
+  const [amount, setAmount] = useState(0) // 0 = raw, 100 = full effect — dial it in
   const [params, setParams] = useState({ ...DEFAULT_PARAMS })
   const [dragging, setDragging] = useState(false)
   const [fxChain, setFxChain] = useState([])
   const [sweeps, setSweeps] = useState([])
   const [animating, setAnimating] = useState(false)
-  const [motionSpeed, setMotionSpeed] = useState(1)
+  const [motionSpeed, setMotionSpeed] = useState(0.5)
   const [playing, setPlaying] = useState(true)
   const timeRef = useRef(0)
   const recorderRef = useRef(null)
   const chunksRef = useRef([])
   const [exporting, setExporting] = useState(false)
-  const [exportAspect, setExportAspect] = useState(DEFAULT_ASPECT)
+  const [exportAspect, setExportAspect] = useState(() => defaultAspectFor('source'))
   const [exportScale, setExportScale] = useState(DEFAULT_SCALE)
-  const [tab, setTab] = useState('effect') // Effect | Motion | Output rail tabs
+  const [tab, setTab] = useState('effect') // Effect | Motion rail tabs
+  const [footTab, setFootTab] = useState('transport') // Transport | Output footer toggle
   const [exportFit, setExportFit] = useState('cover')
+  const [saving, setSaving] = useState(null) // 'library' | 'gallery' | null
 
-  // Draw raw image to canvas
-  const drawRawImage = useCallback(() => {
-    if (!canvasRef.current || !sourceImage) return
-    const ctx = canvasRef.current.getContext('2d')
-    const maxDisplay = 1600
-    const aspect = sourceImage.width / sourceImage.height
-    let dw = sourceImage.width
-    let dh = sourceImage.height
-    if (dw > maxDisplay) { dw = maxDisplay; dh = dw / aspect }
-    canvasRef.current.width = dw
-    canvasRef.current.height = dh
-    ctx.drawImage(sourceImage, 0, 0, dw, dh)
-  }, [sourceImage])
+  // Draw a source (image / framed canvas) to the visible canvas, longest side capped.
+  const drawSource = useCallback((src) => {
+    const cv = canvasRef.current
+    if (!cv || !src) return
+    let dw = src.width || src.videoWidth || 1
+    let dh = src.height || src.videoHeight || 1
+    const cap = 1600
+    if (dw > cap) { dh = Math.round(cap * dh / dw); dw = cap }
+    cv.width = dw
+    cv.height = dh
+    cv.getContext('2d').drawImage(src, 0, 0, dw, dh)
+  }, [])
 
-  // When a source loads, drop back to the raw view
+  // When a source loads, reset the motion clock (amount/effect persists).
   useEffect(() => {
-    setEffectApplied(false)
     timeRef.current = 0
   }, [sourceImage, isVideo])
 
@@ -66,17 +71,34 @@ export default function DitherPage() {
   // with sweeps) runs a per-frame loop — requestVideoFrameCallback paces video,
   // rAF drives still-animation. Animated frames process at a capped width
   // (per-frame getImageData at full res is the cliff); the snapshot stays full.
-  const animated = isVideo || (animating && effectApplied)
+  // Animate when it's video, an Animate'd still with sweeps, OR any param is a
+  // time-expression (sin(t) etc.) — the latter needs a running clock to move.
+  const animated = isVideo || (amount > 0 && (animating || hasExpr(params)))
   useEffect(() => {
     if (!sourceImage || !canvasRef.current) return
     const draw = () => {
-      if (!canvasRef.current) return
-      if (effectApplied) {
-        const p = { ...params, sweeps, time: timeRef.current * motionSpeed, ...(animated ? { maxDisplay: 960 } : {}) }
-        renderDither(canvasRef.current, sourceImage, p)
-        if (fxChain.length > 0) applyCanvasFx(canvasRef.current, fxChain)
-      } else {
-        drawRawImage()
+      const cv = canvasRef.current
+      if (!cv) return
+      const a = amount / 100 // 0 = raw, 1 = full effect; in between crossfades
+      // Frame the source into the chosen export aspect (cover/fit); 'source' = native.
+      const r = ratioFor(exportAspect)
+      let src = sourceImage
+      if (r) {
+        const base = animated ? 960 : 1400
+        const fw = r >= 1 ? base : Math.round(base * r)
+        const fh = r >= 1 ? Math.round(base / r) : base
+        src = fitSourceToFrame(sourceImage, fw, fh, exportFit, params.bgColor)
+      }
+      if (a <= 0) { drawSource(src); return }
+      const t = timeRef.current * motionSpeed
+      const p = { ...resolveParams(params, t), sweeps, time: t, ...(animated ? { maxDisplay: 960 } : {}) }
+      renderDither(cv, src, p)
+      if (fxChain.length > 0) applyCanvasFx(cv, fxChain)
+      if (a < 1) { // dial: paint the framed source back over the effect at (1 - amount)
+        const ctx = cv.getContext('2d')
+        ctx.save(); ctx.globalAlpha = 1 - a
+        ctx.drawImage(src, 0, 0, cv.width, cv.height)
+        ctx.restore()
       }
     }
     if (!animated) { draw(); return }
@@ -101,7 +123,7 @@ export default function DitherPage() {
       if (isVideo && sourceImage.cancelVideoFrameCallback) sourceImage.cancelVideoFrameCallback(handle)
       else cancelAnimationFrame(handle)
     }
-  }, [params, sweeps, motionSpeed, animated, fxChain, effectApplied, sourceImage, isVideo, drawRawImage, playing])
+  }, [params, sweeps, motionSpeed, animated, fxChain, amount, sourceImage, isVideo, drawSource, exportAspect, exportFit, playing])
 
   // Transport play/pause also drives the source video.
   useEffect(() => {
@@ -113,14 +135,6 @@ export default function DitherPage() {
   const updateParam = (key, value) => {
     setParams(prev => ({ ...prev, [key]: value }))
   }
-
-  // The render effect above reacts to effectApplied — these are pure state flips.
-  const handleApplyEffect = () => {
-    if (!sourceImage) return
-    setEffectApplied(true)
-  }
-
-  const handleRemoveEffect = () => setEffectApplied(false)
 
   // Export the processed canvas to webm while the video plays (same
   // MediaRecorder pattern as the distort page).
@@ -163,18 +177,24 @@ export default function DitherPage() {
     loadImageFromFile(e.dataTransfer.files[0])
   }
 
-  // Re-render to an offscreen canvas at the chosen output standard (crisp at
-  // any size) rather than scaling the display canvas.
-  const handleDownload = () => {
-    if (!sourceImage) return
-    // 'source' → native res, source aspect; otherwise crop/fit into the target
-    // aspect frame and render the effect across it.
+  // Render the export at the chosen output standard (crisp at any size) — the
+  // dialed amount + FX baked in. Shared by Download + Save to library/gallery.
+  // 'source' → native res/aspect; otherwise crop/fit into the target frame.
+  const buildExportCanvas = () => {
     const dims = dimsFor(exportAspect, Number(exportScale))
     const src = dims ? fitSourceToFrame(sourceImage, dims.w, dims.h, exportFit, params.bgColor) : sourceImage
     const out = document.createElement('canvas')
-    if (effectApplied) {
-      renderDither(out, src, { ...params, sweeps, time: timeRef.current * motionSpeed, maxDisplay: dims ? dims.w : Infinity })
+    const a = amount / 100
+    if (a > 0) {
+      const t = timeRef.current * motionSpeed
+      renderDither(out, src, { ...resolveParams(params, t), sweeps, time: t, maxDisplay: dims ? dims.w : Infinity })
       if (fxChain.length > 0) applyCanvasFx(out, fxChain)
+      if (a < 1) {
+        const ctx = out.getContext('2d')
+        ctx.save(); ctx.globalAlpha = 1 - a
+        ctx.drawImage(src, 0, 0, out.width, out.height)
+        ctx.restore()
+      }
     } else if (dims) {
       out.width = dims.w
       out.height = dims.h
@@ -184,10 +204,33 @@ export default function DitherPage() {
       out.height = sourceImage.height
       out.getContext('2d').drawImage(sourceImage, 0, 0)
     }
+    return out
+  }
+
+  const handleDownload = () => {
+    if (!sourceImage) return
     const link = document.createElement('a')
     link.download = `kol-radar-${Date.now()}.png`
-    link.href = out.toDataURL()
+    link.href = buildExportCanvas().toDataURL()
     link.click()
+  }
+
+  // Save the PNG export straight to the CDN library (any env) or the local
+  // gallery (dev only) — no file download.
+  const saveExport = (dest) => {
+    if (!sourceImage || saving) return
+    setSaving(dest)
+    const name = `dither-${Date.now()}.png`
+    buildExportCanvas().toBlob(async (blob) => {
+      try {
+        if (dest === 'library') await uploadToLibrary(blob, `radar/${name}`)
+        else await saveToGallery(blob, 'radar', name)
+      } catch (e) {
+        console.error('save failed', e) // eslint-disable-line no-console
+      } finally {
+        setSaving(null)
+      }
+    }, 'image/png')
   }
 
   const randomize = () => {
@@ -202,7 +245,7 @@ export default function DitherPage() {
       contrast: Math.floor(Math.random() * 80) - 20,
       intensity: Math.round((0.5 + Math.random() * 1.5) * 20) / 20,
     }))
-    if (sourceImage) setEffectApplied(true)
+    setAmount((a) => (a > 0 ? a : 100)) // dial the effect in so the reroll is visible
   }
 
   // FX chain
@@ -241,19 +284,17 @@ export default function DitherPage() {
       >
         {!sourceImage ? (
           <div
-            className="flex flex-col items-center justify-center gap-3 border-2 border-dashed rounded-lg cursor-pointer"
+            className="flex border border-dashed overflow-hidden"
             style={{
-              width: '80%',
-              height: '60vh',
+              aspectRatio: ratioFor(exportAspect) || 4 / 5,
+              width: `min(100%, calc(85vh * ${ratioFor(exportAspect) || 4 / 5}))`,
+              borderRadius: 'var(--kol-radius-sm)',
               borderColor: dragging ? 'var(--kol-accent-primary)' : 'var(--kol-border-default)',
-              backgroundColor: dragging ? 'color-mix(in srgb, var(--kol-accent-primary) 5%, transparent)' : 'transparent',
+              backgroundColor: dragging ? 'color-mix(in srgb, var(--kol-accent-primary) 8%, var(--kol-fg-04))' : 'var(--kol-fg-04)',
               transition: 'border-color 0.2s, background-color 0.2s',
             }}
-            onClick={() => fileInputRef.current?.click()}
           >
-            <span className="kol-mono-12 text-fg-32 uppercase">
-              {dragging ? 'Drop image here' : 'Drag image here or click to upload'}
-            </span>
+            <SourcePlaceholder onUpload={() => fileInputRef.current?.click()} />
           </div>
         ) : (
           <canvas ref={canvasRef} className="max-w-full max-h-[90vh] object-contain" />
@@ -261,20 +302,85 @@ export default function DitherPage() {
       </div>
 
       {/* Controls panel */}
-      <EditorRail>
-        <RailHeader>kol-radar</RailHeader>
-
-        {isVideo && sourceImage && <VideoTransport video={sourceImage} />}
-
-        <SegmentedToggle
-          value={tab}
-          onChange={setTab}
-          options={[{ value: 'effect', label: 'Effect' }, { value: 'motion', label: 'Motion' }, { value: 'output', label: 'Output' }]}
-        />
-
-        {/* Scrolls: the active tab's controls. Transport (below) stays pinned. */}
-        <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-5">
+      <LiveClock getT={() => timeRef.current * motionSpeed}>
+      <EditorRail
+        footerBare
+        header={
+          <>
+            <RailHeader>Radar</RailHeader>
+            {isVideo && sourceImage && <VideoTransport video={sourceImage} />}
+            <SegmentedToggle
+              value={tab}
+              onChange={setTab}
+              options={[{ value: 'effect', label: 'Effect' }, { value: 'motion', label: 'Motion' }]}
+            />
+          </>
+        }
+        footer={
+          <EditorFooter
+            tab={footTab}
+            onTab={setFootTab}
+            transport={{
+              playing,
+              onPlay: () => setPlaying(true),
+              onPause: () => setPlaying(false),
+              onStop: () => { setPlaying(false); timeRef.current = 0 },
+              onRewind: () => { timeRef.current = 0 },
+              tempo: Math.round(motionSpeed * 240),
+              onTempo: (v) => setMotionSpeed(v / 240),
+              tempoMax: 600,
+            }}
+            exportProps={{
+              aspect: exportAspect,
+              onAspect: setExportAspect,
+              aspects: ASPECT_SPECS,
+              scale: exportScale,
+              onScale: setExportScale,
+              fit: exportFit,
+              onFit: setExportFit,
+            }}
+            exportActions={<>
+              {sourceImage && (
+                <Button variant="primary" size="sm" onClick={handleDownload} iconLeft="download" className="w-full">Download</Button>
+              )}
+              {sourceImage && (
+                <Button variant="primary" size="sm" onClick={() => saveExport('library')} iconLeft="upload" className="w-full" disabled={!!saving}>
+                  {saving === 'library' ? 'Saving…' : 'Save to library'}
+                </Button>
+              )}
+              {sourceImage && import.meta.env.DEV && (
+                <Button variant="primary" size="sm" onClick={() => saveExport('gallery')} iconLeft="image" className="w-full" disabled={!!saving}>
+                  {saving === 'gallery' ? 'Saving…' : 'Save to gallery'}
+                </Button>
+              )}
+              {sourceImage && (isVideo || (animating && amount > 0)) && (
+                <Button variant={exporting ? 'accent' : 'primary'} size="sm" onClick={toggleExport} iconLeft={exporting ? 'control-stop' : 'video'} className="w-full">
+                  {exporting ? 'Stop Export' : 'Export Video'}
+                </Button>
+              )}
+            </>}
+            file={
+              <div className="flex flex-col gap-2">
+                <ButtonGroup orientation="vertical" className="w-full">
+                  <Button variant="primary" size="sm" onClick={() => fileInputRef.current?.click()} iconLeft="upload" className="w-full">Upload Image</Button>
+                  <Button variant="primary" size="sm" onClick={() => videoInputRef.current?.click()} iconLeft="video" className="w-full">Upload Video</Button>
+                  <LibrarySourceButton />
+                </ButtonGroup>
+                {sourceImage && (
+                  <Button variant="secondary" size="sm" onClick={clearImage} iconLeft="cross" className="w-full">Clear image</Button>
+                )}
+              </div>
+            }
+          />
+        }
+      >
         {tab === 'effect' && (<>
+        <Section label="Effect">
+          <Slider labeled label="Amount" min={0} max={100} step={1} value={amount} onChange={setAmount} variant="default" />
+        </Section>
+
+        <Divider />
+
         <Section label="Mode">
           <Dropdown size="sm" options={MODE_OPTIONS} value={params.mode} onChange={(v) => updateParam('mode', v)} variant="subtle" className="w-full" />
         </Section>
@@ -287,27 +393,27 @@ export default function DitherPage() {
         <Divider />
 
         <Section label="Dither">
-          <Slider label="Cell Size" min={4} max={40} step={1} value={params.cellSize} onChange={(v) => updateParam('cellSize', v)} variant="default" />
-          <Slider label="Scale" min={0.1} max={3} step={0.025} value={params.baseScale} onChange={(v) => updateParam('baseScale', v)} variant="default" />
-          <Slider label="Gap" min={0} max={20} step={0.25} value={params.gap} onChange={(v) => updateParam('gap', v)} variant="default" />
-          <Slider label="Contrast" min={-100} max={100} step={1} value={params.contrast} onChange={(v) => updateParam('contrast', v)} variant="default" />
-          <Slider label="Intensity" min={0} max={5} step={0.05} value={params.intensity} onChange={(v) => updateParam('intensity', v)} variant="default" />
+          <Slider labeled label="Cell Size" min={4} max={40} step={1} value={params.cellSize} onChange={(v) => updateParam('cellSize', v)} variant="default" />
+          <Slider labeled label="Scale" min={0.1} max={3} step={0.025} value={params.baseScale} onChange={(v) => updateParam('baseScale', v)} variant="default" />
+          <Slider labeled label="Gap" min={0} max={20} step={0.25} value={params.gap} onChange={(v) => updateParam('gap', v)} variant="default" />
+          <Slider labeled label="Contrast" min={-100} max={100} step={1} value={params.contrast} onChange={(v) => updateParam('contrast', v)} variant="default" />
+          <Slider labeled label="Intensity" min={0} max={5} step={0.05} value={params.intensity} onChange={(v) => updateParam('intensity', v)} variant="default" />
         </Section>
 
         <Divider />
 
         <Section label="Color">
-          <ToggleSwitch variant="plain" label="Original Color" checked={params.useColor} onChange={(v) => updateParam('useColor', v)} />
+          <ToggleSwitch labeled variant="plain" label="Original Color" checked={params.useColor} onChange={(v) => updateParam('useColor', v)} />
 
           {!params.useColor && (
             <div className="flex items-center justify-between">
-              <span className="kol-helper-10 uppercase text-fg-32">Foreground</span>
+              <span className="kol-helper-10 uppercase tracking-widest text-meta">Foreground</span>
               <ColorPicker color={params.monoColor} onChange={(v) => updateParam('monoColor', v)} />
             </div>
           )}
 
           <div className="flex items-center justify-between">
-            <span className="kol-helper-10 uppercase text-fg-32">Background</span>
+            <span className="kol-helper-10 uppercase tracking-widest text-meta">Background</span>
             <ColorPicker color={params.bgColor} onChange={(v) => updateParam('bgColor', v)} />
           </div>
         </Section>
@@ -321,20 +427,11 @@ export default function DitherPage() {
           return (
             <div key={i} className="flex flex-col gap-2 p-2 rounded bg-fg-04">
               <div className="flex items-center gap-2">
-                <ToggleSwitch variant="plain" label={def.label} checked={fx.enabled} onChange={() => toggleFx(i)} />
+                <ToggleSwitch labeled variant="plain" label={def.label} checked={fx.enabled} onChange={() => toggleFx(i)} />
                 <Button variant="ghost" size="sm" quiet iconOnly="cross" iconSize={12} className="ml-auto" aria-label="Remove effect" onClick={() => removeFx(i)} />
               </div>
               {fx.enabled && Object.entries(def.params).map(([key, spec]) => (
-                <Slider
-                  key={key}
-                  label={key}
-                  min={spec.min}
-                  max={spec.max}
-                  step={spec.step}
-                  value={fx.params[key]}
-                  onChange={(v) => updateFxParam(i, key, v)}
-                  variant="default"
-                />
+                <FxParamControl key={key} name={key} spec={spec} value={fx.params[key]} onChange={(v) => updateFxParam(i, key, v)} />
               ))}
             </div>
           )
@@ -349,7 +446,6 @@ export default function DitherPage() {
           className="w-full"
         />
         </Section>
-
         </>)}
 
         {tab === 'motion' && (
@@ -366,69 +462,8 @@ export default function DitherPage() {
         />
         )}
 
-        {tab === 'output' && (<>
-        <ExportPanel
-          aspect={exportAspect}
-          onAspect={setExportAspect}
-          aspects={ASPECT_SPECS}
-          scale={exportScale}
-          onScale={setExportScale}
-          fit={exportFit}
-          onFit={setExportFit}
-        />
-
-        <Divider />
-
-        {/* Actions */}
-        {sourceImage && !effectApplied && (
-          <Button variant="accent" size="sm" onClick={handleApplyEffect} className="w-full">
-            Apply Effect
-          </Button>
-        )}
-
-        {sourceImage && effectApplied && (
-          <Button variant="primary" size="sm" onClick={handleRemoveEffect} className="w-full">
-            Remove Effect
-          </Button>
-        )}
-
-        <ButtonGroup orientation="vertical" className="w-full">
-          <Button variant="primary" size="sm" onClick={() => fileInputRef.current?.click()} iconLeft="upload" className="w-full">
-            Upload Image
-          </Button>
-          <Button variant="primary" size="sm" onClick={() => videoInputRef.current?.click()} iconLeft="video" className="w-full">
-            Upload Video
-          </Button>
-        </ButtonGroup>
-
-        {sourceImage && (
-          <Button variant="primary" size="sm" onClick={handleDownload} iconLeft="download" className="w-full">
-            Download
-          </Button>
-        )}
-
-        {sourceImage && (isVideo || (animating && effectApplied)) && (
-          <Button variant={exporting ? 'accent' : 'primary'} size="sm" onClick={toggleExport} iconLeft={exporting ? 'control-stop' : 'video'} className="w-full">
-            {exporting ? 'Stop Export' : 'Export Video'}
-          </Button>
-        )}
-        </>)}
-        </div>
-
-        {/* Fixed: transport — play/pause the motion + video, Tempo = motion speed. */}
-        <div className="border-t border-fg-08 pt-3">
-          <TransportBar
-            playing={playing}
-            onPlay={() => setPlaying(true)}
-            onPause={() => setPlaying(false)}
-            onStop={() => { setPlaying(false); timeRef.current = 0 }}
-            onRewind={() => { timeRef.current = 0 }}
-            tempo={Math.round(motionSpeed * 120)}
-            onTempo={(v) => setMotionSpeed(v / 120)}
-            tempoMax={300}
-          />
-        </div>
       </EditorRail>
+      </LiveClock>
 
       <input ref={fileInputRef} type="file" accept="image/*,.svg" onChange={handleFileUpload} className="hidden" />
       <input ref={videoInputRef} type="file" accept="video/*" onChange={handleFileUpload} className="hidden" />

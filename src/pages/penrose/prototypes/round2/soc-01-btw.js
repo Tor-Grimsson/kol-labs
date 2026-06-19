@@ -1,7 +1,7 @@
 
 
 import { num } from '../../knobs'
-import { clear, strokeOutline, wrapLoop } from '../common'
+import { clear, strokeOutline, wrapLoop, rampRGB, roleRGB } from '../common'
 
 // Bak-Tang-Wiesenfeld abelian sandpile. Grains dropped randomly inside the
 // glyph; sites topple when grain count >= threshold (default 4), distributing
@@ -55,14 +55,6 @@ export const r2_soc_01_btw            = {
     tmp.width = G; tmp.height = G
     const tc  = tmp.getContext('2d')
 
-    // 4-color BTW palette: 0=bg, 1=dim, 2=mid, 3=bright
-    const PALETTE = [
-      [10, 11, 20],
-      [40, 60, 120],
-      [80, 140, 220],
-      [230, 200, 120],
-    ]
-
     return wrapLoop(() => {
       // Drop grains
       for (let d = 0; d < drops; d++) {
@@ -98,14 +90,15 @@ export const r2_soc_01_btw            = {
       for (let i = 0; i < N; i++) {
         const j = i * 4
         if (!isIn[i]) {
-          img.data[j] = 10; img.data[j + 1] = 11; img.data[j + 2] = 20; img.data[j + 3] = 255
+          const [br, bg, bb] = roleRGB('bg')
+          img.data[j] = br; img.data[j + 1] = bg; img.data[j + 2] = bb; img.data[j + 3] = 255
           continue
         }
-        const v = Math.min(grid[i], 3)
-        const [r, g, b] = PALETTE[v]
-        img.data[j]     = Math.min(255, (r * bright) | 0)
-        img.data[j + 1] = Math.min(255, (g * bright) | 0)
-        img.data[j + 2] = Math.min(255, (b * bright) | 0)
+        const v = Math.min(grid[i], 3) / 3   // height 0..3 → 0..1
+        const [r, g, b] = rampRGB(v * bright)
+        img.data[j]     = r
+        img.data[j + 1] = g
+        img.data[j + 2] = b
         img.data[j + 3] = 255
       }
 

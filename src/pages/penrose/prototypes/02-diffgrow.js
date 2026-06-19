@@ -17,27 +17,31 @@ export const diffgrow            = {
     'One closed curve that folds and branches as it fills the glyph. Per-node: repulsion from neighbors (radius), spring to adjacent chain neighbors, inward SDF force. Edges subdivide when stretched → length increases exponentially → organic folded fill.',
   helps:
     'Closest to the "alive, growing, trapped" vision from the brief. Natural exponential growth over time. Can be a single triggered "expression" that fills the letter.',
-  init({ ctx, sdf, W, H, rng }) {
+  params: [
+    { key: 'seedN', type: 'int', min: 6, max: 48, default: 18, label: 'seed nodes' },
+    { key: 'repulRadius', type: 'range', min: 4, max: 20, step: 0.5, default: 9, label: 'repel radius' },
+    { key: 'repulStrength', type: 'range', min: 0.05, max: 1, step: 0.01, default: 0.42, label: 'repel strength' },
+    { key: 'springTarget', type: 'range', min: 2, max: 14, step: 0.5, default: 6, label: 'spring length' },
+    { key: 'springStrength', type: 'range', min: 0.02, max: 0.6, step: 0.01, default: 0.2, label: 'spring strength' },
+    { key: 'splitAt', type: 'range', min: 4, max: 24, step: 0.5, default: 10, label: 'split length' },
+    { key: 'maxNodes', type: 'int', min: 1000, max: 12000, step: 500, default: 6000, label: 'max nodes' },
+  ],
+  init({ ctx, sdf, W, H, rng, params }) {
     const sx = W / sdf.w, sy = H / sdf.h
+
+    const { seedN, repulRadius, repulStrength, springTarget, springStrength, splitAt, maxNodes } = params
 
     // seed with a small circle at a random interior point
     const [cx, cy] = sampleInside(sdf, rng)
     const seedR = 14
-    const seedN = 18
     const nodes         = []
     for (let i = 0; i < seedN; i++) {
       const a = (i / seedN) * Math.PI * 2
       nodes.push({ x: cx + Math.cos(a) * seedR, y: cy + Math.sin(a) * seedR, vx: 0, vy: 0 })
     }
 
-    const repulRadius = 9
-    const repulStrength = 0.42
-    const springTarget = 6
-    const springStrength = 0.2
     const damping = 0.75
     const sdfMargin = 4
-    const splitAt = 10
-    const maxNodes = 6000
 
     return wrapLoop(() => {
       const n = nodes.length

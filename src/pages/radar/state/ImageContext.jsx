@@ -42,8 +42,42 @@ export function ImageProvider({ children }) {
     }
   }, [])
 
+  // Load a source straight from a URL (the kol-media CDN library). crossOrigin so
+  // the canvas stays untainted — effects read pixels + export, which a tainted
+  // canvas blocks. The CDN (media.kolkrabbi.io) sends NO CORS header, so route it
+  // through our same-origin /media proxy (vite dev + vercel rewrite) — same-origin
+  // never taints. Gallery URLs (/images/…) are already same-origin, untouched.
+  const loadImageFromUrl = useCallback((url, contentType) => {
+    if (!url) return
+    const u = url.replace(/^https:\/\/media\.kolkrabbi\.io\//, '/media/')
+    const isVid = contentType ? contentType.startsWith('video/') : /\.(mp4|webm|mov|m4v)$/i.test(u)
+    if (isVid) {
+      const video = document.createElement('video')
+      video.crossOrigin = 'anonymous'
+      video.muted = true
+      video.loop = true
+      video.playsInline = true
+      video.onloadedmetadata = () => {
+        video.width = video.videoWidth
+        video.height = video.videoHeight
+        setIsVideo(true)
+        setSourceImage(video)
+        void video.play()
+      }
+      video.src = u
+      return
+    }
+    const img = new Image()
+    img.crossOrigin = 'anonymous'
+    img.onload = () => { setIsVideo(false); setSourceImage(img) }
+    img.src = u
+  }, [])
+
+  // Clear the current source → back to the empty placeholder.
+  const clearImage = useCallback(() => { setIsVideo(false); setSourceImage(null) }, [])
+
   return (
-    <ImageContext.Provider value={{ sourceImage, isVideo, loadImageFromFile }}>
+    <ImageContext.Provider value={{ sourceImage, isVideo, loadImageFromFile, loadImageFromUrl, clearImage }}>
       {children}
     </ImageContext.Provider>
   )

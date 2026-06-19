@@ -22,9 +22,11 @@ export default function ExportPanel({
   scale, onScale,
   fit, onFit,
   frameLabel = 'Aspect',
+  hideScale = false, // native-res pages (e.g. Penrose) export at canvas size → no @Nx scale
+  openUp = true, // the export cluster always sits at the rail bottom → open upward so the menu never clips off-screen
   children,
 }) {
-  const native = ratioFor(aspect) == null
+  const native = ratioFor(aspect) == null || hideScale
   return (
     <>
       <Section label={frameLabel}>
@@ -32,7 +34,8 @@ export default function ExportPanel({
           size="sm"
           variant="subtle"
           className="w-full"
-          options={aspects.map((a) => ({ value: a.value, label: a.label }))}
+          openUp={openUp}
+          options={aspects.map((a) => ({ value: a.value ?? a.id, label: a.label }))}
           value={aspect}
           onChange={onAspect}
         />
@@ -41,12 +44,12 @@ export default function ExportPanel({
       <Section label="Export">
         {!native && (
           <LabeledControl inline label="scale">
-            <Dropdown size="sm" variant="subtle" className="w-full" options={SCALE_OPTIONS} value={scale} onChange={onScale} />
+            <Dropdown size="sm" variant="subtle" className="w-full" openUp={openUp} options={SCALE_OPTIONS} value={scale} onChange={onScale} />
           </LabeledControl>
         )}
         {!native && onFit && (
           <LabeledControl inline label="fit">
-            <Dropdown size="sm" variant="subtle" className="w-full" options={FIT_OPTIONS} value={fit} onChange={onFit} />
+            <Dropdown size="sm" variant="subtle" className="w-full" openUp={openUp} options={FIT_OPTIONS} value={fit} onChange={onFit} />
           </LabeledControl>
         )}
         {children}

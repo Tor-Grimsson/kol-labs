@@ -17,8 +17,16 @@ export const dla            = {
     'Random walkers step until they touch a stuck particle and join the aggregate. The boundary shape (SDF) bounces walkers inward. Output is organic dendritic branching — crystal-like fingers growing from a seed.',
   helps:
     'Slow, crystalline growth — most "fractal vector" of the candidates. Matches the "fractal vector points" language from the brief literally. Strong candidate for a triggered growth spell.',
-  init({ ctx, sdf, W, H, rng }) {
+  params: [
+    { key: 'nWalkers', type: 'int', min: 50, max: 800, step: 10, default: 200, label: 'walkers' },
+    { key: 'stickDist', type: 'range', min: 1, max: 12, step: 0.5, default: 3, label: 'stick dist' },
+    { key: 'step', type: 'range', min: 0.5, max: 6, step: 0.1, default: 1.5, label: 'step' },
+    { key: 'maxStuck', type: 'int', min: 500, max: 8000, step: 100, default: 4000, label: 'max stuck' },
+  ],
+  init({ ctx, sdf, W, H, rng, params }) {
     const sx = W / sdf.w, sy = H / sdf.h
+
+    const { nWalkers, stickDist, step, maxStuck } = params
 
     const stuck          = []
     const walkers           = []
@@ -26,10 +34,6 @@ export const dla            = {
     // seed: one particle at a random interior point
     const [sx0, sy0] = sampleInside(sdf, rng)
     stuck.push({ x: sx0, y: sy0, parent: -1 })
-
-    const nWalkers = 200
-    const stickDist = 3
-    const step = 1.5
 
     const spawnWalker = ()         => {
       const [x, y] = sampleInside(sdf, rng)
@@ -47,8 +51,6 @@ export const dla            = {
       Math.max(0, Math.min(gh - 1, Math.floor(y / cs))) * gw +
       Math.max(0, Math.min(gw - 1, Math.floor(x / cs)))
     grid[gi(stuck[0].x, stuck[0].y)].push(0)
-
-    const maxStuck = 4000
 
     return wrapLoop(() => {
       if (stuck.length >= maxStuck) return

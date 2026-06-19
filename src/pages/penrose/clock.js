@@ -7,7 +7,7 @@ export class SquishyClock {
   base = 0
   mark = performance.now()
   paused = false
-  speed = 1
+  speed = 0.5
 
   now() {
     if (this.paused) return this.base

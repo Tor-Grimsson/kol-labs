@@ -11,23 +11,15 @@
 import { WIDGETS, widgetFor } from './widgets/registry.js'
 import { statusbar, label, readouts, numericStrip, transport, dualNum, el, widgetHost } from './screens.js'
 import { fontStack } from './lib/fonts.js'
+import { RATIO_ASPECTS } from '../_shared/exportSpecs.js'
 
 const DESIGN = 360 // short-edge design px; ScaleToFit scales to the viewport
 
 export const THEMES = ['default', 'blood', 'ice', 'mono', 'cream', 'kol']
-// Export-specs aspect set (short side 1080 @1x), ordered portrait → landscape.
-// ratio = width / height.
-export const ASPECTS = [
-  { key: '9:16', label: '9:16', ratio: 9 / 16 },
-  { key: '3:5', label: '3:5', ratio: 3 / 5 },
-  { key: '2:3', label: '2:3', ratio: 2 / 3 },
-  { key: '4:5', label: '4:5', ratio: 4 / 5 },
-  { key: '1:1', label: '1:1', ratio: 1 },
-  { key: '5:4', label: '5:4', ratio: 5 / 4 },
-  { key: '3:2', label: '3:2', ratio: 3 / 2 },
-  { key: '5:3', label: '5:3', ratio: 5 / 3 },
-  { key: '16:9', label: '16:9', ratio: 16 / 9 },
-]
+// Aspect set — DERIVED from the single canonical /export-specs list so this
+// picker is identical to every other aspect picker in the app (no parallel copy
+// to drift). Just reshapes RATIO_ASPECTS's `value` → `key`. ratio = width/height.
+export const ASPECTS = RATIO_ASPECTS.map((a) => ({ key: a.value, label: a.label, ratio: a.ratio }))
 export const aspectFor = (key) => ASPECTS.find((a) => a.key === key) || ASPECTS[0]
 
 const CONTENT = WIDGETS // the animated widgets are the content pool
@@ -219,10 +211,9 @@ export function renderComposition(spec, node, { editable = false, onRendered } =
     return wrap
   }
 
-  // status bar is no longer pinned to the top — it flows as a normal body
-  // section (reorderable in the Layout tab). Only transport pins to the bottom.
-  const footers = spec.sections.filter((s) => s.kind === 'transport')
-  const body = spec.sections.filter((s) => !footers.includes(s))
+  // every section flows as a normal body section (incl. transport) — reorderable
+  // in the Layout tab; nothing is pinned to the top or bottom anymore.
+  const body = spec.sections
 
   const row = el('div', 'row'); row.style.alignItems = 'flex-start'; content.appendChild(row)
   const cols = []
@@ -236,7 +227,6 @@ export function renderComposition(spec, node, { editable = false, onRendered } =
     for (let c = 1; c < cols.length; c++) if (cols[c].h < cols[mi].h) mi = c
     const w = place(cols[mi].el, sec); cols[mi].wraps.push(w); cols[mi].h += w._h
   }
-  for (const f of footers) place(content, f)
 
   // trim trailing body sections (from the tallest column) until it fits the
   // frame at full width — fills width, never clips, no distortion. Re-runs as

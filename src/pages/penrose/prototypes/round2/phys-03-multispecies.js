@@ -8,7 +8,7 @@
 
 
 import { num } from '../../knobs'
-import { clear, strokeOutline, wrapLoop, sampleInside } from '../common'
+import { clear, strokeOutline, wrapLoop, sampleInside, roleRGB } from '../common'
 
 const PARAMS          = [
   { key: 'agents',   type: 'int',   min: 200,  max: 2000, default: 800,  step: 100,  label: 'agents/species' },
@@ -128,18 +128,22 @@ export const r2_phys_03_multispecies            = {
         }
       }
 
-      // Render: species 0 → warm, species 1 → cool
+      // Render: species 0 → warm, species 1 → accent (discrete roles)
+      const [bgr, bgg, bgb] = roleRGB('bg')
+      const [w0r, w0g, w0b] = roleRGB('warm')
+      const [a1r, a1g, a1b] = roleRGB('accent')
       for (let i = 0; i < GS * GS; i++) {
         const j = i * 4
         if (!isIn[i]) {
-          img.data[j] = 10; img.data[j+1] = 11; img.data[j+2] = 20; img.data[j+3] = 255
+          img.data[j] = bgr; img.data[j+1] = bgg; img.data[j+2] = bgb; img.data[j+3] = 255
           continue
         }
         const a = Math.min(1, trails[0][i] * 2.5)
         const b = Math.min(1, trails[1][i] * 2.5)
-        img.data[j]   = (220 * a + 20  * b) | 0
-        img.data[j+1] = (100 * a + 160 * b) | 0
-        img.data[j+2] = (20  * a + 220 * b) | 0
+        // additive blend from bg toward each species' role colour
+        img.data[j]   = Math.min(255, (bgr + (w0r - bgr) * a + (a1r - bgr) * b)) | 0
+        img.data[j+1] = Math.min(255, (bgg + (w0g - bgg) * a + (a1g - bgg) * b)) | 0
+        img.data[j+2] = Math.min(255, (bgb + (w0b - bgb) * a + (a1b - bgb) * b)) | 0
         img.data[j+3] = 255
       }
       clear(ctx, W, H)

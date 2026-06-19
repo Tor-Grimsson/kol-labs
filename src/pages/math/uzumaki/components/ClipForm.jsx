@@ -16,8 +16,8 @@ export default function ClipForm({ modifiers, show, style, onMod, onShow, onStyl
   return (
     <>
       <Section label="Modifiers">
-        <Slider label="Copies" min={1} max={24} step={1} value={m.repeat || 1} onChange={(v) => onMod({ repeat: v })} variant="default" />
-        <Slider label="Spiral" min={0} max={8} step={0.1} value={m.spiral || 0} onChange={(v) => onMod({ spiral: v })} variant="default" />
+        <Slider labeled label="Copies" min={1} max={24} step={1} value={m.repeat || 1} onChange={(v) => onMod({ repeat: v })} variant="default" />
+        <Slider labeled label="Spiral" min={0} max={8} step={0.1} value={m.spiral || 0} onChange={(v) => onMod({ spiral: v })} variant="default" />
       </Section>
 
       <Section label="Show">
@@ -29,7 +29,7 @@ export default function ClipForm({ modifiers, show, style, onMod, onShow, onStyl
         <LabeledControl inline label="Color" labelWidth={64}>
           <ColorField value={st.color || '#ffffff'} onChange={(c) => onStyle({ color: c })} />
         </LabeledControl>
-        <Slider label="Weight" min={0.5} max={4} step={0.1} value={st.weight || 1.5} onChange={(v) => onStyle({ weight: v })} variant="default" />
+        <Slider labeled label="Weight" min={0.5} max={4} step={0.1} value={st.weight || 1.5} onChange={(v) => onStyle({ weight: v })} variant="default" />
       </Section>
     </>
   )

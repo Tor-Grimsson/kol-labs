@@ -17,17 +17,17 @@ export default function SweepControls({ isVideo, animating, onAnimate, speed, on
   return (
     <Section label="Motion">
       {!isVideo && (
-        <>
-          <ToggleSwitch variant="plain" label="Animate" checked={animating} onChange={onAnimate} />
-          <div className="kol-mono-10 text-fg-32">Pick a preset to bring a still to life.</div>
-        </>
+        <ToggleSwitch variant="plain" label="Animate" checked={animating} onChange={onAnimate} />
       )}
-      <div className="flex flex-wrap gap-1">
-        {SWEEP_PRESETS.map((p) => (
-          <Button key={p.name} variant="primary" size="sm" className="flex-1 min-w-[58px]" onClick={() => onAdd(p)}>{p.name}</Button>
-        ))}
-      </div>
-      <Slider label="Speed" min={0} max={3} step={0.05} value={speed} onChange={onSpeed} variant="default" />
+      <Dropdown
+        size="sm"
+        options={[{ value: '', label: 'Add motion…' }, ...SWEEP_PRESETS.map((p) => ({ value: p.name, label: p.name }))]}
+        value=""
+        onChange={(name) => { const p = SWEEP_PRESETS.find((x) => x.name === name); if (p) onAdd(p) }}
+        variant="subtle"
+        className="w-full"
+      />
+      <Slider labeled label="Speed" min={0} max={3} step={0.05} value={speed} onChange={onSpeed} variant="default" />
 
       {sweeps.map((sw, i) => {
         const isReveal = sw.target === 'reveal'
@@ -40,15 +40,15 @@ export default function SweepControls({ isVideo, animating, onAnimate, speed, on
             </div>
             {sw.enabled && (
               <>
-                <Dropdown size="sm" options={SWEEP_SHAPE_OPTIONS} value={sw.shape} onChange={(v) => onUpdate(i, 'shape', v)} variant="subtle" className="w-full" />
-                <Dropdown size="sm" options={SWEEP_TARGET_OPTIONS} value={sw.target} onChange={(v) => onUpdate(i, 'target', v)} variant="subtle" className="w-full" />
+                <Dropdown size="sm" options={SWEEP_SHAPE_OPTIONS} value={sw.shape} onChange={(v) => onUpdate(i, 'shape', v)} variant="subtle" raised className="w-full" />
+                <Dropdown size="sm" options={SWEEP_TARGET_OPTIONS} value={sw.target} onChange={(v) => onUpdate(i, 'target', v)} variant="subtle" raised className="w-full" />
                 {!isReveal && (
-                  <Slider label="Amount" min={-1} max={1} step={0.05} value={sw.amount} onChange={(v) => onUpdate(i, 'amount', v)} variant="default" />
+                  <Slider labeled label="Amount" min={-1} max={1} step={0.05} value={sw.amount} onChange={(v) => onUpdate(i, 'amount', v)} variant="default" />
                 )}
-                <Slider label="Speed" min={-1} max={1} step={0.02} value={sw.speed} onChange={(v) => onUpdate(i, 'speed', v)} variant="default" />
-                <Slider label="Width" min={0.05} max={1} step={0.01} value={sw.width} onChange={(v) => onUpdate(i, 'width', v)} variant="default" />
+                <Slider labeled label="Speed" min={-1} max={1} step={0.02} value={sw.speed} onChange={(v) => onUpdate(i, 'speed', v)} variant="default" />
+                <Slider labeled label="Width" min={0.05} max={1} step={0.01} value={sw.width} onChange={(v) => onUpdate(i, 'width', v)} variant="default" />
                 {angled && (
-                  <Slider label="Angle" min={0} max={360} step={1} value={sw.angle} onChange={(v) => onUpdate(i, 'angle', v)} variant="default" />
+                  <Slider labeled label="Angle" min={0} max={360} step={1} value={sw.angle} onChange={(v) => onUpdate(i, 'angle', v)} variant="default" />
                 )}
               </>
             )}

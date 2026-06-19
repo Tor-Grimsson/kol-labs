@@ -1,6 +1,6 @@
 import { Delaunay } from 'd3-delaunay'
 
-import { clear, strokeOutline, wrapLoop } from './common'
+import { clear, strokeOutline, wrapLoop, pc } from './common'
 
 
 
@@ -18,10 +18,25 @@ export const packingLloyd            = {
     'Variable-radius Poisson-disc pack (SDF-scaled radii) settled by Lloyd relaxation. Each frame: Voronoi → move each circle to its cell centroid. Blue-noise → centroidal Voronoi tessellation. Re-usable as the base "packed" layer.',
   helps:
     'The backbone base layer — recreates the Squishy Type reference directly. Matches the ref aesthetic 1:1.',
-  init({ ctx, sdf, W, H, rng }) {
+  // Generation knobs — surfaced as Layout sliders, read live in init() so each
+  // slider drives the actual pack/relaxation. Defaults reproduce the ref look.
+  params: [
+    { key: 'minR', type: 'int', min: 2, max: 24, default: 6, label: 'min radius' },
+    { key: 'maxR', type: 'int', min: 16, max: 80, default: 44, label: 'max radius' },
+    { key: 'radiusScale', type: 'range', min: 0.4, max: 1.2, step: 0.05, default: 0.85, label: 'radius scale' },
+    { key: 'padding', type: 'int', min: 0, max: 10, default: 2, label: 'padding' },
+    { key: 'attempts', type: 'int', min: 1000, max: 12000, step: 500, default: 6000, label: 'density' },
+    { key: 'relax', type: 'range', min: 0.02, max: 0.5, step: 0.01, default: 0.18, label: 'relax' },
+    { key: 'spokes', type: 'int', min: 6, max: 40, default: 22, label: 'spokes' },
+    // alive — clock-driven motion (default 0/1 = static, reproduces the ref look)
+    { key: 'bounce', type: 'range', min: 0, max: 1, step: 0.02, default: 0, label: 'bounce' },
+    { key: 'interact', type: 'range', min: 0, max: 3, step: 0.1, default: 1, label: 'interaction' },
+    { key: 'loop', type: 'range', min: 0.5, max: 8, step: 0.5, default: 3, label: 'loop (s)' },
+  ],
+  init({ ctx, sdf, W, H, rng, params, clock }) {
     const sx = W / sdf.w, sy = H / sdf.h
 
-    const minR = 6, maxR = 44, radiusScale = 0.85, padding = 2, attempts = 6000
+    const { minR, maxR, radiusScale, padding, attempts } = params
 
     // Pack via multi-pass greedy dart-throwing into SDF-constrained space
     const cells         = []
@@ -77,7 +92,11 @@ export const packingLloyd            = {
       }
     }
 
-    const relaxStrength = 0.18
+    // interaction multiplication — scales how strongly cells relax/interact
+    const relaxStrength = params.relax * params.interact
+    const TAU = Math.PI * 2
+    // per-cell pulsing display radius (alive bounce), looping every `loop` seconds
+    const dispR = (c, ci) => c.r * (1 + params.bounce * Math.sin((clock.nowSeconds() / params.loop) * TAU + ci * 0.7))
 
     return wrapLoop(() => {
       // Lloyd step: move each circle toward its Voronoi-cell centroid (clamped by SDF).
@@ -108,26 +127,29 @@ export const packingLloyd            = {
         }
       }
 
-      // Render
+      // Render — each element pulls its colour from the palette by role:
+      // outline/spokes = dim (recessive), edges + dot rings = accent, dots = fg,
+      // centres = warm.
       clear(ctx, W, H)
-      strokeOutline(ctx, sdf, W, H, 'rgba(243, 231, 207, 0.22)', 1)
+      strokeOutline(ctx, sdf, W, H, pc('dim', 0.22), 1)
 
       // spokes
-      ctx.strokeStyle = 'rgba(170, 174, 220, 0.25)'
+      ctx.strokeStyle = pc('dim', 0.25)
       ctx.lineWidth = 0.6
       ctx.beginPath()
-      const spokeCount = 22
-      for (const c of cells) {
+      const spokeCount = params.spokes
+      cells.forEach((c, ci) => {
+        const rr = dispR(c, ci)
         for (let i = 0; i < spokeCount; i++) {
-          const t = (i / spokeCount) * Math.PI * 2
+          const ang = (i / spokeCount) * TAU
           ctx.moveTo(c.x * sx, c.y * sy)
-          ctx.lineTo((c.x + Math.cos(t) * c.r) * sx, (c.y + Math.sin(t) * c.r) * sy)
+          ctx.lineTo((c.x + Math.cos(ang) * rr) * sx, (c.y + Math.sin(ang) * rr) * sy)
         }
-      }
+      })
       ctx.stroke()
 
       // edges between touching cells (approx via Voronoi neighbors + dist check)
-      ctx.strokeStyle = 'rgba(210, 215, 235, 0.4)'
+      ctx.strokeStyle = pc('accent', 0.4)
       ctx.lineWidth = 0.8
       ctx.beginPath()
       const visited = new Set        ()
@@ -147,23 +169,24 @@ export const packingLloyd            = {
       ctx.stroke()
 
       // boundary dots (per spoke endpoint)
-      ctx.fillStyle = '#ffffff'
-      ctx.strokeStyle = '#8b8fd6'
+      ctx.fillStyle = pc('fg')
+      ctx.strokeStyle = pc('accent')
       ctx.lineWidth = 1
-      for (const c of cells) {
+      cells.forEach((c, ci) => {
+        const rr = dispR(c, ci)
         for (let i = 0; i < spokeCount; i++) {
-          const t = (i / spokeCount) * Math.PI * 2
-          const bx = (c.x + Math.cos(t) * c.r) * sx
-          const by = (c.y + Math.sin(t) * c.r) * sy
+          const ang = (i / spokeCount) * TAU
+          const bx = (c.x + Math.cos(ang) * rr) * sx
+          const by = (c.y + Math.sin(ang) * rr) * sy
           ctx.beginPath()
           ctx.arc(bx, by, 1.6, 0, Math.PI * 2)
           ctx.fill()
           ctx.stroke()
         }
-      }
+      })
 
       // centers
-      ctx.fillStyle = '#f3c9c4'
+      ctx.fillStyle = pc('warm')
       for (const c of cells) {
         ctx.beginPath()
         ctx.arc(c.x * sx, c.y * sy, 2.4, 0, Math.PI * 2)

@@ -8,6 +8,7 @@ const ToggleSwitch = ({
   variant = 'default',
   className = '',
   hint,
+  labeled = false, // label adopts the DS "labeled" text style (matches a labeled Slider)
   ...props
 }) => {
   const handleClick = () => {
@@ -26,7 +27,10 @@ const ToggleSwitch = ({
       aria-pressed={checked}
       {...props}
     >
-      <span className="toggle-switch-label">
+      <span
+        className={labeled ? 'kol-helper-10 uppercase tracking-widest' : 'toggle-switch-label'}
+        style={labeled ? { color: 'var(--kol-fg-meta)' } : undefined}
+      >
         {label}
         {hint ? (
           <span className="ml-2 opacity-60 normal-case tracking-normal text-[10px]">

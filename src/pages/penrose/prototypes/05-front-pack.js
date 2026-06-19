@@ -17,14 +17,19 @@ export const frontPack            = {
     'Each frame, N new seeds spawn and grow as circles until they collide with a neighbor or the SDF boundary. Higher-quality packings than dart-throwing (tighter, no gaps). Animates natively as circles visibly inflate.',
   helps:
     'The "build-up over time" feel from the brief. Unlike the static pack (01), this one visually accretes. Use as the initial trigger animation.',
-  init({ ctx, sdf, W, H, rng }) {
+  params: [
+    { key: 'maxCircles', type: 'int', min: 100, max: 2400, step: 50, default: 900, label: 'max circles' },
+    { key: 'seedsPerFrame', type: 'int', min: 1, max: 24, default: 6, label: 'seeds/frame' },
+    { key: 'growStep', type: 'range', min: 0.1, max: 2, step: 0.05, default: 0.4, label: 'grow step' },
+    { key: 'minR', type: 'int', min: 1, max: 12, default: 3, label: 'min radius' },
+    { key: 'maxR', type: 'int', min: 16, max: 100, default: 55, label: 'max radius' },
+  ],
+  init({ ctx, sdf, W, H, rng, params }) {
     const sx = W / sdf.w, sy = H / sdf.h
 
+    const { maxCircles, seedsPerFrame, growStep, minR, maxR } = params
+
     const circles      = []
-    const maxCircles = 900
-    const seedsPerFrame = 6
-    const growStep = 0.4
-    const minR = 3, maxR = 55
 
     return wrapLoop(() => {
       // Spawn new seeds

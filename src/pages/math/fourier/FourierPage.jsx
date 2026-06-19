@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect } from 'react'
 import FourierScope from './FourierScope'
-import { VIEW_ASPECTS, DEFAULT_ASPECT, DEFAULT_SCALE, ratioFor, dimsFor } from '../../_shared/exportSpecs.js'
-import ExportPanel from '../../_shared/ExportPanel.jsx'
+import { VIEW_ASPECTS, DEFAULT_ASPECT, defaultAspectFor, DEFAULT_SCALE, ratioFor, dimsFor } from '../../_shared/exportSpecs.js'
+import { defaultTheme } from '../../../lib/appSettings.js'
 import StylePanel from '../components/StylePanel'
 import { useMathStyle } from '../style/mathStyle'
-import { DEFAULT_THEME, resolveTheme } from '../../../lib/themes.js'
+import { resolveTheme } from '../../../lib/themes.js'
 import { mulberry32, randomSeed } from '../../../lib/rng.js'
 import { roundIfNum } from '../../../lib/exprParam.js'
 import SettingsPanel from '../../../components/framework/SettingsPanel.jsx'
@@ -13,8 +13,8 @@ import Slider from '../../../components/atoms/Slider.jsx'
 import Dropdown from '../../../components/molecules/Dropdown.jsx'
 import LabeledControl from '../../../components/molecules/LabeledControl.jsx'
 import Section from '../../../components/molecules/Section.jsx'
-import TransportBar from '../../../components/framework/TransportBar.jsx'
 import EditorRail, { RailHeader } from '../../../components/framework/EditorRail.jsx'
+import EditorFooter from '../../../components/framework/EditorFooter.jsx'
 
 const WAVES = ['square', 'sawtooth', 'triangle']
 // The StylePanel "axis" enum is repurposed here as the epicycle-scaffold toggle.
@@ -26,15 +26,16 @@ export default function FourierPage() {
   const [harmonics, setHarmonics] = useState(5)
   const [wave, setWave] = useState('square')
   const [speed, setSpeed] = useState(0.3)
-  const [aspect, setAspect] = useState(DEFAULT_ASPECT)
+  const [aspect, setAspect] = useState(() => defaultAspectFor('view'))
   const [scale, setScale] = useState(DEFAULT_SCALE)
   const [style, patchStyle, applyTheme] = useMathStyle({ bg: '#0b0907', stroke: '#e5dfcf', axis: 'on', gridColor: '#4a3e34', gridOpacity: 0.6, weight: 1.25 })
-  const [themeId, setThemeId] = useState(DEFAULT_THEME)
+  const [themeId, setThemeId] = useState(() => defaultTheme())
   const [invert, setInvert] = useState(false)
   const [seed, setSeed] = useState(1)
   const [playing, setPlaying] = useState(false)
   const [tempo, setTempo] = useState(120)
   const [resetKey, setResetKey] = useState(0)
+  const [footTab, setFootTab] = useState('transport')
   const scopeRef = useRef(null)
 
   // Theme drives the chrome: bg, trace (fg), epicycle scaffold (grid — which
@@ -88,50 +89,53 @@ export default function FourierPage() {
         />
       </div>
 
-      <EditorRail>
-        <RailHeader>fourier</RailHeader>
-
-        <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-5">
-          <Section label="Wave">
-            <LabeledControl inline label="Shape">
-              <Dropdown size="sm" variant="subtle" className="w-full" options={WAVES.map((w) => ({ value: w, label: w }))} value={wave} onChange={setWave} />
-            </LabeledControl>
-            <Slider label="Harmonics" min={1} max={12} step={1} value={harmonics} onChange={(v) => setHarmonics(roundIfNum(v))} variant="default" />
-            <Slider label="Speed" min={0.1} max={1.5} step={0.05} value={speed} onChange={setSpeed} variant="default" />
-          </Section>
-
-          <StylePanel style={style} onPatch={patchStyle} onTheme={applyTheme} axisOptions={SCAFFOLD_AXIS} strokeLabel="Trace" showTheme={false} />
-
-          <SettingsPanel
-            page="math-fourier"
-            theme={themeId}
-            onTheme={setThemeId}
-            invert={invert}
-            onInvert={setInvert}
-            onRandomize={onRandomize}
-            seed={seed}
-            onSeed={setSeed}
+      <EditorRail
+        footerBare
+        header={<RailHeader>Fourier</RailHeader>}
+        footer={
+          <EditorFooter
+            tab={footTab} onTab={setFootTab}
+            transport={{
+              playing,
+              onPlay: () => setPlaying(true),
+              onPause: () => setPlaying(false),
+              onStop: () => { setPlaying(false); setResetKey((k) => k + 1) },
+              onRewind: () => setResetKey((k) => k + 1),
+              tempo,
+              onTempo: setTempo,
+              tempoMax: 600,
+            }}
+            exportProps={{ aspect, onAspect: setAspect, aspects: VIEW_ASPECTS, scale, onScale: setScale }}
+            exportActions={<Button variant="primary" size="sm" className="w-full" iconLeft="download" onClick={exportPng}>Export PNG</Button>}
+            settingsPage="math-fourier"
             getSettings={getSettings}
             applySettings={applySettings}
           />
+        }
+      >
+        <Section label="Wave">
+          <LabeledControl inline label="Shape">
+            <Dropdown size="sm" variant="subtle" className="w-full" options={WAVES.map((w) => ({ value: w, label: w }))} value={wave} onChange={setWave} />
+          </LabeledControl>
+          <Slider labeled label="Harmonics" min={1} max={12} step={1} value={harmonics} onChange={(v) => setHarmonics(roundIfNum(v))} variant="default" />
+          <Slider labeled label="Speed" min={0.1} max={1.5} step={0.05} value={speed} onChange={setSpeed} variant="default" />
+        </Section>
 
-          <ExportPanel aspect={aspect} onAspect={setAspect} aspects={VIEW_ASPECTS} scale={scale} onScale={setScale}>
-            <Button variant="primary" size="sm" className="w-full" iconLeft="download" onClick={exportPng}>Export PNG</Button>
-          </ExportPanel>
-        </div>
+        <StylePanel style={style} onPatch={patchStyle} onTheme={applyTheme} axisOptions={SCAFFOLD_AXIS} strokeLabel="Trace" showTheme={false} />
 
-        <div className="border-t border-fg-08 pt-3">
-          <TransportBar
-            playing={playing}
-            onPlay={() => setPlaying(true)}
-            onPause={() => setPlaying(false)}
-            onStop={() => { setPlaying(false); setResetKey((k) => k + 1) }}
-            onRewind={() => setResetKey((k) => k + 1)}
-            tempo={tempo}
-            onTempo={setTempo}
-            tempoMax={300}
-          />
-        </div>
+        <SettingsPanel
+          page="math-fourier"
+          theme={themeId}
+          onTheme={setThemeId}
+          invert={invert}
+          onInvert={setInvert}
+          onRandomize={onRandomize}
+          seed={seed}
+          onSeed={setSeed}
+          showIO={false}
+          getSettings={getSettings}
+          applySettings={applySettings}
+        />
       </EditorRail>
     </div>
   )

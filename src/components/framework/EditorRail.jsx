@@ -32,7 +32,7 @@ import { useState } from 'react'
  * sticky-footer hack). Omit both and it's a single scroll of `children` exactly
  * as before — fully backward compatible.
  */
-export default function EditorRail({ header, footer, children }) {
+export default function EditorRail({ header, footer, footerBare = false, children }) {
   // mobile-only: bottom sheet starts hidden, revealed by its handle. Inert at
   // md+ (content is always shown via md:flex regardless of this state).
   const [open, setOpen] = useState(false)
@@ -67,7 +67,10 @@ export default function EditorRail({ header, footer, children }) {
         {/* the single scrolling body */}
         <div className="flex-1 min-h-0 overflow-y-auto p-5 flex flex-col gap-5">{children}</div>
         {footer != null && (
-          <div className="shrink-0 border-t border-fg-08 px-5 py-3">{footer}</div>
+          // footerBare: the footer content owns its own divider + padding (e.g.
+          // RailFooterTabs); the rail just pins it. Otherwise apply the standard
+          // edge-to-edge divider + padding.
+          <div className={footerBare ? 'shrink-0' : 'shrink-0 border-t border-fg-08 px-5 py-3'}>{footer}</div>
         )}
       </div>
     </aside>

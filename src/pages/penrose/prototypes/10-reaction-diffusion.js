@@ -1,5 +1,5 @@
 
-import { clear, wrapLoop } from './common'
+import { clear, wrapLoop, rampRGB, roleRGB } from './common'
 
 // Gray-Scott reaction-diffusion on a 220×220 grid (one-dim per channel).
 // Mask limits the reactive region to SDF<0. Rendered via an ImageData put
@@ -15,7 +15,16 @@ export const reactionDiff            = {
     'Gray-Scott partial-differential equations solved on a coarse grid, masked by the SDF. Produces coral / zebra / spots / leopard depending on feed/kill rates. Slower iteration than vector algos; here CPU-bound at ~30fps, fine for demo. A pixel pattern layer instead of vector.',
   helps:
     'The odd one out — raster, not vector. Shows what off-brief looks like. Probably not the fit for this project, but worth seeing the comparison.',
-  init({ ctx, sdf, W, H }) {
+  params: [
+    { key: 'feed', type: 'range', min: 0.01, max: 0.1, step: 0.001, default: 0.055, label: 'feed' },
+    { key: 'kill', type: 'range', min: 0.04, max: 0.08, step: 0.001, default: 0.062, label: 'kill' },
+    { key: 'dA', type: 'range', min: 0.2, max: 1.5, step: 0.05, default: 1.0, label: 'diffuse a' },
+    { key: 'dB', type: 'range', min: 0.1, max: 1, step: 0.05, default: 0.5, label: 'diffuse b' },
+    { key: 'iter', type: 'int', min: 1, max: 8, default: 2, label: 'iterations' },
+    { key: 'seeds', type: 'int', min: 1, max: 80, default: 20, label: 'seeds' },
+  ],
+  init({ ctx, sdf, W, H, params }) {
+    const { feed, kill, dA, dB, iter, seeds } = params
     const GRID = 220
     const A = new Float32Array(GRID * GRID)
     const B = new Float32Array(GRID * GRID)
@@ -31,7 +40,7 @@ export const reactionDiff            = {
       }
     }
     // seed with a few random spots inside
-    for (let i = 0; i < 20; i++) {
+    for (let i = 0; i < seeds; i++) {
       const x = (Math.random() * GRID) | 0
       const y = (Math.random() * GRID) | 0
       if (!isIn[y * GRID + x]) continue
@@ -45,8 +54,6 @@ export const reactionDiff            = {
       }
     }
 
-    const dA = 1.0, dB = 0.5
-    const feed = 0.055, kill = 0.062
     const dt = 1
 
     const img = ctx.createImageData(GRID, GRID)
@@ -60,8 +67,8 @@ export const reactionDiff            = {
     }
 
     return wrapLoop(() => {
-      // 2 iterations per frame
-      for (let it = 0; it < 2; it++) {
+      // iterations per frame
+      for (let it = 0; it < iter; it++) {
         for (let y = 1; y < GRID - 1; y++) {
           for (let x = 1; x < GRID - 1; x++) {
             const i = y * GRID + x
@@ -77,13 +84,15 @@ export const reactionDiff            = {
       }
 
       // render via ImageData scaled
+      const [bgR, bgG, bgB] = roleRGB('bg')
       for (let i = 0; i < GRID * GRID; i++) {
         const j = i * 4
-        if (!isIn[i]) { img.data[j] = 10; img.data[j + 1] = 11; img.data[j + 2] = 20; img.data[j + 3] = 255; continue }
+        if (!isIn[i]) { img.data[j] = bgR; img.data[j + 1] = bgG; img.data[j + 2] = bgB; img.data[j + 3] = 255; continue }
         const v = Math.max(0, Math.min(1, A[i] - B[i]))
-        img.data[j] = 243 * v + 10 * (1 - v)
-        img.data[j + 1] = 201 * v + 11 * (1 - v)
-        img.data[j + 2] = 196 * v + 20 * (1 - v)
+        const [r, g, b] = rampRGB(v)
+        img.data[j] = r
+        img.data[j + 1] = g
+        img.data[j + 2] = b
         img.data[j + 3] = 255
       }
       clear(ctx, W, H)

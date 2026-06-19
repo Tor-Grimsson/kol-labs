@@ -1,7 +1,7 @@
 
 
 import { num } from '../../knobs'
-import { clear, strokeOutline, wrapLoop } from '../common'
+import { clear, strokeOutline, wrapLoop, rampRGB } from '../common'
 
 const PARAMS          = [
   { key: 'rMin', type: 'range', min: 2.5, max: 3.5, default: 2.8, step: 0.05, label: 'r window min' },
@@ -132,7 +132,8 @@ export const r2_frac_05_bifurcation            = {
       for (let i = 0; i < RES_X * RES_Y; i++) {
         const d = densityR[i]
         if (d < 0.5) continue
-        const [r, g, b] = paletteCol(d, palette, periodBuf[i])
+        const intensity = Math.max(0, Math.min(1, Math.log(d + 1) / Math.log(20)))
+        const [r, g, b] = rampRGB(intensity)
         img.data[i * 4] = r
         img.data[i * 4 + 1] = g
         img.data[i * 4 + 2] = b

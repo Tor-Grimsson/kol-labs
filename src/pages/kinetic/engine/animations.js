@@ -41,7 +41,52 @@ export const MOTIONS = {
     const k = 0.5 + 0.5 * Math.sin(c.u * TAU * cyc - c.i * (c.m.phase ?? 0.6))
     return { ...IDENTITY, scale: lerp(0.25, 1, k), opacity: lerp(0.15, 1, k) }
   },
+
+  // ── Field sweeps (ported from radar/effects/sweeps.js, u-driven & seamless) ──
+  // A moving wavefront crosses the frame; each glyph reads the field at its OWN
+  // position (nx,ny) so the animation sweeps spatially, not by index. Three
+  // targets: reveal (scale/opacity), weight (vf axis), shift (displacement).
+  sweep:       (c) => { const v = sweepAt(c); return { ...IDENTITY, scale: lerp(0.25, 1, v), opacity: lerp(0.12, 1, v) } },
+  sweepWeight: (c) => { const v = sweepAt(c); return { ...IDENTITY, vf: { [c.axisTag]: lerp(c.axisMin, c.axisMax, v) } } },
+  sweepShift:  (c) => { const v = sweepAt(c); return { ...IDENTITY, dNormal: v * 0.6 * c.sizePx } },
 }
+
+// ── sweep field (radar port) ──
+const wrap01 = (x) => x - Math.floor(x)
+// raised falloff: 1 at the band centre → 0 at half-width w
+function band(dist, w) {
+  if (w <= 0) return 0
+  const t = Math.min(1, dist / w)
+  return 1 - t * t * (3 - 2 * t)
+}
+// scalar field 0..1 at normalized (nx,ny) for a wavefront looping over u.
+// `field` = shape/direction; cyc = passes per loop (integer → seamless); width = band.
+function sweepField(field, nx, ny, u, cyc, width) {
+  const pos = wrap01(u * cyc)
+  const halfW = Math.max(0.02, width * 0.5)
+  const bandAt = (v) => { const d = Math.abs(wrap01(v) - pos); return band(Math.min(d, 1 - d), halfW) }
+  switch (field) {
+    case 'y': return bandAt(ny)
+    case 'diagonal': return bandAt(0.5 + (nx - 0.5) * 0.7071 + (ny - 0.5) * 0.7071)
+    case 'radial': return bandAt(Math.hypot(nx - 0.5, ny - 0.5) / 0.7071)
+    case 'angular': return bandAt(Math.atan2(ny - 0.5, nx - 0.5) / TAU + 0.5)
+    case 'wave': { const freq = Math.max(1, Math.round(1 + (1 - width) * 6)); return 0.5 + 0.5 * Math.sin((nx * freq - u * cyc) * TAU) }
+    case 'x':
+    default: return bandAt(nx)
+  }
+}
+const sweepAt = (c) => sweepField(c.m.field || 'x', c.nx ?? 0.5, c.ny ?? 0.5, c.u, Math.max(1, Math.round(c.m.cycles || 1)), c.m.amp ?? 0.35)
+
+export const FIELD_OPTIONS = [
+  { value: 'x', label: 'Sweep X' },
+  { value: 'y', label: 'Sweep Y' },
+  { value: 'diagonal', label: 'Diagonal' },
+  { value: 'radial', label: 'Radial' },
+  { value: 'angular', label: 'Angular' },
+  { value: 'wave', label: 'Wave' },
+]
+export const SWEEP_MODES = new Set(['sweep', 'sweepWeight', 'sweepShift'])
+export const isSweep = (mode) => SWEEP_MODES.has(mode)
 
 export const MOTION_OPTIONS = [
   { value: 'none', label: 'None' },
@@ -50,6 +95,9 @@ export const MOTION_OPTIONS = [
   { value: 'vfwave', label: 'VF wave' },
   { value: 'glyphwave', label: 'Glyph wave' },
   { value: 'cascade', label: 'Cascade' },
+  { value: 'sweep', label: 'Field sweep' },
+  { value: 'sweepWeight', label: 'Field weight' },
+  { value: 'sweepShift', label: 'Field shift' },
 ]
 
 export function glyphAnim(mode, c) {

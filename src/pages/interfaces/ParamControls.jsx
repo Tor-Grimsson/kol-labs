@@ -29,7 +29,7 @@ export default function ParamControls({ params, opts, onChange }) {
     ) : p.type === 'boolean' ? (
       <ToggleCheckbox key={p.key} label={p.label} checked={!!opts[p.key]} onChange={(v) => onChange(p.key, v)} />
     ) : (
-      <Slider key={p.key} label={p.label} min={p.min} max={p.max} step={p.step} value={opts[p.key]} onChange={(v) => onChange(p.key, v)} />
+      <Slider labeled key={p.key} label={p.label} min={p.min} max={p.max} step={p.step} value={opts[p.key]} onChange={(v) => onChange(p.key, v)} />
     )
   ))
 }

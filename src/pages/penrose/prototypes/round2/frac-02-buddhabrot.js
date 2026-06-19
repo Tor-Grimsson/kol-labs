@@ -1,7 +1,7 @@
 
 
 import { num } from '../../knobs'
-import { clear, strokeOutline, wrapLoop } from '../common'
+import { clear, strokeOutline, wrapLoop, rampRGB } from '../common'
 
 const PARAMS          = [
   { key: 'samples', type: 'int', min: 1000, max: 20000, default: 5000, step: 1000, label: 'samples/frame' },
@@ -118,13 +118,15 @@ export const r2_frac_02_buddhabrot            = {
         const px = i % RES, py = Math.floor(i / RES)
         const wx = (px / RES) * sdf.w, wy = (py / RES) * sdf.h
         if (sdf.sample(wx, wy) >= 0) continue
-        const r = Math.floor(255 * Math.pow(Math.log(histR[i] + 1) / logR, 0.5))
-        const g = Math.floor(255 * Math.pow(Math.log(histG[i] + 1) / logG, 0.5))
-        const b = Math.floor(255 * Math.pow(Math.log(histB[i] + 1) / logB, 0.5))
+        const dR = Math.pow(Math.log(histR[i] + 1) / logR, 0.5)
+        const dG = Math.pow(Math.log(histG[i] + 1) / logG, 0.5)
+        const dB = Math.pow(Math.log(histB[i] + 1) / logB, 0.5)
+        const intensity = Math.max(0, Math.min(1, (dR + dG + dB) / 3))
+        const [r, g, b] = rampRGB(intensity)
         img.data[i * 4] = r
         img.data[i * 4 + 1] = g
         img.data[i * 4 + 2] = b
-        img.data[i * 4 + 3] = Math.min(255, r + g + b > 0 ? 220 : 0)
+        img.data[i * 4 + 3] = Math.min(255, intensity > 0 ? 220 : 0)
       }
 
       clear(ctx, W, H)

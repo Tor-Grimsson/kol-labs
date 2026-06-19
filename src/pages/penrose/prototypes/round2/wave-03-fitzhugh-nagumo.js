@@ -8,7 +8,7 @@
 
 
 import { num } from '../../knobs'
-import { clear, strokeOutline, wrapLoop } from '../common'
+import { clear, strokeOutline, wrapLoop, rampRGB, roleRGB } from '../common'
 
 const PARAMS          = [
   { key: 'res',   type: 'int',   min: 80,  max: 160, default: 120, step: 20,    label: 'grid res' },
@@ -104,14 +104,16 @@ export const r2_wave_03_fitzhugh_nagumo            = {
       for (let i = 0; i < N; i++) {
         const j = i * 4
         if (!mask[i]) {
-          img.data[j] = 10; img.data[j+1] = 11; img.data[j+2] = 20; img.data[j+3] = 255
+          const [br, bg, bb] = roleRGB('bg')
+          img.data[j] = br; img.data[j+1] = bg; img.data[j+2] = bb; img.data[j+3] = 255
           continue
         }
-        // u ranges roughly −2..2; map to 0..1
+        // u ranges roughly −2..2; map to 0..1 activation intensity
         const bright = Math.max(0, Math.min(1, (u[i] + 2) / 4))
-        img.data[j]   = (20  + 223 * bright) | 0
-        img.data[j+1] = (15  + 180 * bright) | 0
-        img.data[j+2] = (60  +  80 * bright) | 0
+        const [r, g, b] = rampRGB(bright)
+        img.data[j]   = r
+        img.data[j+1] = g
+        img.data[j+2] = b
         img.data[j+3] = 255
       }
 

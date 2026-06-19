@@ -44,13 +44,13 @@ export default function KeyframeEditor({ keyframes, selected, onSelect, onAdd, o
       </Section>
 
       <Section label="Pose">
-        <Slider label="Rotate X" min={-360} max={360} step={1} value={deg(k.rot?.[0])} onChange={(v) => setRot(0, v)} variant="default" noExpr />
-        <Slider label="Rotate Y" min={-360} max={360} step={1} value={deg(k.rot?.[1])} onChange={(v) => setRot(1, v)} variant="default" noExpr />
-        <Slider label="Rotate Z" min={-360} max={360} step={1} value={deg(k.rot?.[2])} onChange={(v) => setRot(2, v)} variant="default" noExpr />
-        <Slider label="Move X" min={-2} max={2} step={0.05} value={k.pos?.[0] || 0} onChange={(v) => setPos(0, v)} variant="default" noExpr />
-        <Slider label="Move Y" min={-2} max={2} step={0.05} value={k.pos?.[1] || 0} onChange={(v) => setPos(1, v)} variant="default" noExpr />
-        <Slider label="Move Z" min={-2} max={2} step={0.05} value={k.pos?.[2] || 0} onChange={(v) => setPos(2, v)} variant="default" noExpr />
-        <Slider label="Scale" min={0.2} max={2} step={0.05} value={k.scale ?? 1} onChange={(v) => onPatch({ scale: v })} variant="default" noExpr />
+        <Slider labeled label="Rotate X" min={-360} max={360} step={1} value={deg(k.rot?.[0])} onChange={(v) => setRot(0, v)} variant="default" noExpr />
+        <Slider labeled label="Rotate Y" min={-360} max={360} step={1} value={deg(k.rot?.[1])} onChange={(v) => setRot(1, v)} variant="default" noExpr />
+        <Slider labeled label="Rotate Z" min={-360} max={360} step={1} value={deg(k.rot?.[2])} onChange={(v) => setRot(2, v)} variant="default" noExpr />
+        <Slider labeled label="Move X" min={-2} max={2} step={0.05} value={k.pos?.[0] || 0} onChange={(v) => setPos(0, v)} variant="default" noExpr />
+        <Slider labeled label="Move Y" min={-2} max={2} step={0.05} value={k.pos?.[1] || 0} onChange={(v) => setPos(1, v)} variant="default" noExpr />
+        <Slider labeled label="Move Z" min={-2} max={2} step={0.05} value={k.pos?.[2] || 0} onChange={(v) => setPos(2, v)} variant="default" noExpr />
+        <Slider labeled label="Scale" min={0.2} max={2} step={0.05} value={k.scale ?? 1} onChange={(v) => onPatch({ scale: v })} variant="default" noExpr />
         <LabeledControl inline label="ease">
           <Dropdown size="sm" variant="subtle" className="w-full" options={EASE_OPTIONS} value={k.ease || 'inout'} onChange={(v) => onPatch({ ease: v })} />
         </LabeledControl>

@@ -1,7 +1,7 @@
 
 
 import { num } from '../../knobs'
-import { clear, strokeOutline, wrapLoop } from '../common'
+import { clear, strokeOutline, wrapLoop, rampRGB } from '../common'
 
 const PARAMS          = [
   { key: 'folds', type: 'int', min: 3, max: 8, default: 5, step: 1, label: 'fold count' },
@@ -96,7 +96,7 @@ export const r2_frac_04_kifs            = {
           const v = 1 - Math.exp(-de * 1.5) + accumulated * 0.003
 
           const t01 = v - Math.floor(v)
-          const [rr, gg, bb] = paletteCol(t01, palette)
+          const [rr, gg, bb] = rampRGB(t01)
 
           const idx = (py * RES + px) * 4
           img.data[idx] = rr

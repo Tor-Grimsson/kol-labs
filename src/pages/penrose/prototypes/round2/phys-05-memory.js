@@ -7,7 +7,7 @@
 
 
 import { num } from '../../knobs'
-import { clear, strokeOutline, wrapLoop, sampleInside } from '../common'
+import { clear, strokeOutline, wrapLoop, sampleInside, rampRGB, roleRGB } from '../common'
 
 const PARAMS          = [
   { key: 'agents',    type: 'int',   min: 300,  max: 3000, default: 1200, step: 100,   label: 'agents' },
@@ -128,18 +128,21 @@ export const r2_phys_05_memory            = {
         }
       }
 
-      // Render: recent in cool blue, long-term in warm gold
+      // Render: recent field along the ramp, long-term highways blended toward warm
+      const [wr, wg, wb] = roleRGB('warm')
       for (let i = 0; i < GS * GS; i++) {
         const j = i * 4
         if (!isIn[i]) {
-          img.data[j] = 10; img.data[j+1] = 11; img.data[j+2] = 20; img.data[j+3] = 255
+          const [br, bg, bb] = roleRGB('bg')
+          img.data[j] = br; img.data[j+1] = bg; img.data[j+2] = bb; img.data[j+3] = 255
           continue
         }
         const r = Math.min(1, recent[i] * 2.5)
         const m = Math.min(1, ltMem[i]  * 8.0)   // amplified — accumulates slowly
-        img.data[j]   = (40  * r + 230 * m) | 0
-        img.data[j+1] = (160 * r + 180 * m) | 0
-        img.data[j+2] = (220 * r + 20  * m) | 0
+        const [rr, rg, rb] = rampRGB(r)
+        img.data[j]   = Math.min(255, (rr + (wr - rr) * m)) | 0
+        img.data[j+1] = Math.min(255, (rg + (wg - rg) * m)) | 0
+        img.data[j+2] = Math.min(255, (rb + (wb - rb) * m)) | 0
         img.data[j+3] = 255
       }
       clear(ctx, W, H)

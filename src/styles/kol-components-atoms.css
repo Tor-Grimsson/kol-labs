@@ -92,7 +92,10 @@
  * textarea takes full width. Resize is disabled (textarea is fixed at its
  * `rows` count, content scrolls). The kol resize-corner icon in the
  * bottom-right is decorative. Used by atoms/Textarea.jsx. */
-.kol-control--textarea {
+/* Specificity bumped (two classes) so this `padding: 0` beats the single-class
+ * `.kol-control-{sm,md,lg}` size rules declared below — otherwise the outer label
+ * re-pads on top of the inner textarea's padding (double padding). */
+.kol-control.kol-control--textarea {
   display: block;
   position: relative;
   padding: 0; /* outer label is purely a wrapper; inner textarea owns padding */
@@ -438,7 +441,7 @@
   border-radius: 0;
   background-color: transparent;
   border: none;
-  height: 24px;
+  min-height: 26px;
   transition: color var(--kol-transition-base);
 }
 
