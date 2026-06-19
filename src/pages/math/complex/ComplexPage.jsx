@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { usePublishReset } from '../../../components/framework/pageShortcuts.jsx'
 import { VIEW_ASPECTS, DEFAULT_ASPECT, defaultAspectFor, DEFAULT_SCALE, ratioFor, dimsFor } from '../../_shared/exportSpecs.js'
-import { defaultTheme } from '../../../lib/appSettings.js'
+import { defaultTheme, defaultAutoplay } from '../../../lib/appSettings.js'
 import { mulberry32, randomSeed } from '../../../lib/rng.js'
 import SettingsPanel from '../../../components/framework/SettingsPanel.jsx'
 import { useViewportZoom } from '../../../components/framework/useViewportZoom.js'
@@ -14,6 +15,7 @@ import Slider from '../../../components/atoms/Slider.jsx'
 import Dropdown from '../../../components/molecules/Dropdown.jsx'
 import LabeledControl from '../../../components/molecules/LabeledControl.jsx'
 import Section from '../../../components/molecules/Section.jsx'
+import SegmentedToggle from '../../../components/molecules/SegmentedToggle.jsx'
 
 // Minimal complex arithmetic (z = [re, im]).
 const C = {
@@ -138,12 +140,14 @@ export default function ComplexPage() {
     zoom: (f) => setRange((r) => Math.max(0.2, Math.min(40, r / f))),
     reset: () => { setCenter({ x: 0, y: 0 }); setRange(6) },
   })
+  usePublishReset(() => { setCenter({ x: 0, y: 0 }); setRange(6) })
   const [coloring, setColoring] = useState('rings')
   const [quality, setQuality] = useState('1700')
   const [aspect, setAspect] = useState(() => defaultAspectFor('view'))
   const [scale, setScale] = useState(DEFAULT_SCALE)
-  const [playing, setPlaying] = useState(false)
+  const [playing, setPlaying] = useState(() => defaultAutoplay())
   const [tempo, setTempo] = useState(120)
+  const [tab, setTab] = useState('function')
   const [footTab, setFootTab] = useState('transport') // Transport · Output · File
   const [style, patchStyle, applyTheme] = useMathStyle({ axis: 'none' })
   const [themeId, setThemeId] = useState(() => defaultTheme())
@@ -326,7 +330,12 @@ export default function ComplexPage() {
 
       <EditorRail
         footerBare
-        header={<RailHeader>Complex</RailHeader>}
+        header={(
+          <>
+            <RailHeader>Complex</RailHeader>
+            <SegmentedToggle value={tab} onChange={setTab} options={[{ value: 'function', label: 'Function' }, { value: 'style', label: 'Style' }]} />
+          </>
+        )}
         footer={
           <EditorFooter
             tab={footTab}
@@ -349,45 +358,54 @@ export default function ComplexPage() {
           />
         }
       >
-        <Section label="Function">
-            <div className="flex flex-col gap-1">
-              {FUNCS.map((f) => (
-                <Button key={f.id} variant="secondary" size="sm" selected={f.id === funcId} onClick={() => setFuncId(f.id)} className="w-full" style={{ justifyContent: 'flex-start' }}>
-                  {f.label}
-                </Button>
-              ))}
-            </div>
-          </Section>
+        {tab === 'function' && (
+          <>
+            <Section label="Function">
+              <Dropdown
+                size="sm"
+                variant="subtle"
+                className="w-full"
+                options={FUNCS.map((f) => ({ value: f.id, label: f.label }))}
+                value={funcId}
+                onChange={setFuncId}
+              />
+            </Section>
 
-          <Section label="View">
-            <Slider labeled label="Range" min={0.5} max={20} step={0.1} value={range} onChange={setRange} variant="default" noExpr />
-            <LabeledControl label="Coloring">
-              <Dropdown size="sm" variant="subtle" className="w-full" options={COLORINGS} value={coloring} onChange={setColoring} />
-            </LabeledControl>
-            <LabeledControl label="Resolution">
-              <Dropdown size="sm" variant="subtle" className="w-full" options={RES} value={quality} onChange={setQuality} />
-            </LabeledControl>
-            <Button variant="primary" size="sm" onClick={() => { setCenter({ x: 0, y: 0 }); setRange(6) }}>Reset view</Button>
-          </Section>
+            <Section label="View">
+              <Slider labeled label="Range" min={0.5} max={20} step={0.1} value={range} onChange={setRange} variant="default" noExpr />
+              <LabeledControl label="Coloring">
+                <Dropdown size="sm" variant="subtle" className="w-full" options={COLORINGS} value={coloring} onChange={setColoring} />
+              </LabeledControl>
+              <LabeledControl label="Resolution">
+                <Dropdown size="sm" variant="subtle" className="w-full" options={RES} value={quality} onChange={setQuality} />
+              </LabeledControl>
+              <Button variant="primary" size="sm" onClick={() => { setCenter({ x: 0, y: 0 }); setRange(6) }}>Reset view</Button>
+            </Section>
 
-          <StylePanel style={style} onPatch={patchStyle} onTheme={applyTheme} axisOptions={AXIS_2D} showBg={false} showStroke={false} showWeight={false} showTheme={false} />
+            <div className="kol-helper-10 text-body">hue = arg f(z) · brightness = |f| rings · play = phase + ring flow</div>
+          </>
+        )}
 
-          <SettingsPanel
-            page="math-complex"
-            showIO={false}
-            showTheme={false}
-            theme={themeId}
-            onTheme={setThemeId}
-            invert={invert}
-            onInvert={setInvert}
-            onRandomize={onRandomize}
-            seed={seed}
-            onSeed={(n) => { setSeed(n); rollFrom(n) }}
-            getSettings={getSettings}
-            applySettings={applySettings}
-          />
+        {tab === 'style' && (
+          <>
+            <StylePanel style={style} onPatch={patchStyle} onTheme={applyTheme} axisOptions={AXIS_2D} showBg={false} showStroke={false} showWeight={false} showTheme={false} />
 
-          <div className="kol-helper-10 text-body">hue = arg f(z) · brightness = |f| rings · play = phase + ring flow</div>
+            <SettingsPanel
+              page="math-complex"
+              showIO={false}
+              showTheme={false}
+              theme={themeId}
+              onTheme={setThemeId}
+              invert={invert}
+              onInvert={setInvert}
+              onRandomize={onRandomize}
+              seed={seed}
+              onSeed={(n) => { setSeed(n); rollFrom(n) }}
+              getSettings={getSettings}
+              applySettings={applySettings}
+            />
+          </>
+        )}
       </EditorRail>
     </div>
   )

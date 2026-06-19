@@ -8,7 +8,7 @@
 
 import * as THREE from 'three'
 
-const TYPE_INDEX = { glass: 0, ripple: 1, ice: 2, mirror: 3 }
+const TYPE_INDEX = { glass: 0, ripple: 1, ice: 2, mirror: 3, bevel: 4, waves: 5 }
 
 const VERT = `
   varying vec2 vUv;
@@ -20,6 +20,8 @@ const FRAG = `
   varying vec2 vUv;
   uniform sampler2D uPhoto;
   uniform float uHasPhoto, uTime, uScale, uDepth, uChromatic, uFrost, uSheen, uViewAspect, uImgAspect;
+  uniform float uLightAngle, uTintAmt;
+  uniform vec3 uTint;
   uniform int uType;
 
   float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
@@ -34,16 +36,22 @@ const FRAG = `
   float H(vec2 uv){
     float t = uTime;
     float f = 1.0 + uScale*6.0;
-    if(uType==1){ // ripple
+    if(uType==1){ // ripple — concentric water rings
       float r = length(uv-0.5);
       return sin(r*f*16.0 - t*2.0)*0.5+0.5;
     } else if(uType==2){ // ice — faceted (quantized fbm)
       float n = fbm(uv*f*3.0 + t*0.15);
       return floor(n*7.0)/7.0;
-    } else if(uType==3){ // mirror/liquid — low freq
+    } else if(uType==3){ // mirror/liquid — low freq flowing metal
       return fbm(uv*f*0.7 + t*0.1);
+    } else if(uType==4){ // bevel — a single smooth lens dome (magnify centre)
+      float r = length(uv-0.5)*2.0;
+      return 1.0 - smoothstep(0.0, 1.0, r);
+    } else if(uType==5){ // waves — directional water, fbm-perturbed
+      float n = fbm(uv*f*1.5 + t*0.2);
+      return sin((uv.x+uv.y)*f*9.0 + n*4.0 - t*1.6)*0.5+0.5;
     }
-    return fbm(uv*f + t*0.12); // glass
+    return fbm(uv*f + t*0.12); // glass — organic bumps
   }
 
   // screen uv → cover-fit image uv
@@ -78,9 +86,15 @@ const FRAG = `
       c = mix(c, acc/5.0, clamp(uFrost*0.12, 0.0, 1.0));
     }
 
-    // fresnel sheen — bright rim where the surface is steep
+    // directional + fresnel sheen — bright glint where the surface tilts toward
+    // the light, plus a rim on the steep edges
+    vec2 lightDir = vec2(cos(uLightAngle), sin(uLightAngle));
+    float facing = clamp(dot(normalize(grad + 1e-5), lightDir), 0.0, 1.0);
     float steep = clamp(length(grad) * uDepth * 6.0, 0.0, 1.0);
-    c += pow(steep, 2.0) * uSheen;
+    c += (pow(steep, 2.0) * 0.6 + pow(facing, 3.0) * steep) * uSheen;
+
+    // glass tint — a colour cast pulled toward uTint, strongest in the bends
+    c = mix(c, c * uTint, uTintAmt);
 
     gl_FragColor = vec4(clamp(c, 0.0, 1.0), 1.0);
   }
@@ -113,6 +127,9 @@ export class RefractEngine {
       uChromatic: { value: 6 },
       uFrost: { value: 0 },
       uSheen: { value: 0.5 },
+      uLightAngle: { value: Math.PI * 0.25 },
+      uTint: { value: new THREE.Vector3(1, 1, 1) },
+      uTintAmt: { value: 0 },
       uViewAspect: { value: 1 },
       uImgAspect: { value: 1 },
     }
@@ -148,8 +165,11 @@ export class RefractEngine {
   setSource(img) {
     if (!this.uniforms) return
     if (!img) { this.uniforms.uHasPhoto.value = 0; return }
-    const tex = new THREE.Texture(img)
-    tex.needsUpdate = true
+    // Video sources get a VideoTexture (auto-updates each render); stills get a
+    // plain Texture. Either way the shader samples uPhoto identically.
+    const isVideo = img.tagName === 'VIDEO'
+    const tex = isVideo ? new THREE.VideoTexture(img) : new THREE.Texture(img)
+    if (!isVideo) tex.needsUpdate = true
     tex.minFilter = THREE.LinearFilter
     tex.magFilter = THREE.LinearFilter
     tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping
@@ -168,6 +188,12 @@ export class RefractEngine {
     if (p.chromatic != null) this.uniforms.uChromatic.value = p.chromatic
     if (p.frost != null) this.uniforms.uFrost.value = p.frost
     if (p.sheen != null) this.uniforms.uSheen.value = p.sheen
+    if (p.lightAngle != null) this.uniforms.uLightAngle.value = (p.lightAngle * Math.PI) / 180
+    if (p.tint != null) {
+      const n = parseInt(p.tint.slice(1), 16)
+      this.uniforms.uTint.value.set(((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255)
+    }
+    if (p.tintAmt != null) this.uniforms.uTintAmt.value = p.tintAmt
     if (p.flow != null) this.flow = p.flow
   }
 

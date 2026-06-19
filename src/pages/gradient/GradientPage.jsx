@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { usePublishReset } from '../../components/framework/pageShortcuts.jsx'
 import Button from '../../components/atoms/Button.jsx'
 import Divider from '../../components/atoms/Divider.jsx'
 import Slider from '../../components/atoms/Slider.jsx'
@@ -72,6 +73,7 @@ export default function GradientPage() {
   const wrapRef = useRef(null)
   const canvasRef = useRef(null)
   const engineRef = useRef(null)
+  usePublishReset(() => engineRef.current?.resetCamera())
 
   const seeds = useMemo(() => Array.from({ length: VARIATIONS }, (_, i) => seedBase + i * 7919), [seedBase])
   const specs = useMemo(

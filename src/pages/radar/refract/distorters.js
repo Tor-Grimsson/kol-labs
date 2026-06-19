@@ -7,9 +7,11 @@
 
 export const DISTORTERS = [
   { id: 'glass', label: 'Glass' },
-  { id: 'ripple', label: 'Ripple' },
   { id: 'ice', label: 'Ice' },
-  { id: 'mirror', label: 'Liquid' },
+  { id: 'mirror', label: 'Liquid metal' },
+  { id: 'ripple', label: 'Ripple' },
+  { id: 'waves', label: 'Waves' },
+  { id: 'bevel', label: 'Lens' },
 ]
 
 const AMP = 110 // how far R/G swing off the neutral 128

@@ -1,4 +1,5 @@
 import Dropdown from '../components/molecules/Dropdown.jsx'
+import ToggleSwitch from '../components/atoms/ToggleSwitch.jsx'
 import { useAppSettings, setAppSetting } from '../lib/appSettings.js'
 import { RATIO_ASPECTS } from './_shared/exportSpecs.js'
 import { THEME_OPTIONS } from '../lib/themes.js'
@@ -11,9 +12,10 @@ const ASPECT_OPTIONS = [
 ]
 
 export default function Home() {
-  const { defaultAspect, defaultTheme } = useAppSettings()
+  const { defaultAspect, defaultTheme, autoplay, clipToFrame } = useAppSettings()
   return (
-    <main className="p-8 md:p-12 max-w-3xl">
+    <main className="flex min-h-screen">
+      <div className="p-8 md:p-12 w-1/2 bg-surface-primary">
       <p className="kol-helper-12 text-meta uppercase mb-2">kol-labs</p>
       <h1 className="kol-sans-display-01 text-emphasis mb-4">Experiments.</h1>
       <p className="kol-sans-body-01 text-body max-w-prose">
@@ -50,8 +52,38 @@ export default function Home() {
           <p className="kol-mono-12 text-meta mt-1">
             The theme every page opens with. Takes effect on pages you open next.
           </p>
+
+          <div className="flex items-center justify-between mt-4">
+            <label className="kol-helper-12 uppercase tracking-widest text-body">Autoplay on launch</label>
+            <ToggleSwitch
+              variant="plain"
+              checked={!!autoplay}
+              onChange={(v) => setAppSetting('autoplay', v)}
+            />
+          </div>
+          <p className="kol-mono-12 text-meta mt-1">
+            Pages start playing when you open them. Off by default.
+          </p>
+
+          <div className="flex items-center justify-between mt-4">
+            <label className="kol-helper-12 uppercase tracking-widest text-body">Clip to frame</label>
+            <ToggleSwitch
+              variant="plain"
+              checked={clipToFrame !== false}
+              onChange={(v) => setAppSetting('clipToFrame', v)}
+            />
+          </div>
+          <p className="kol-mono-12 text-meta mt-1">
+            Exports crop to the chosen aspect frame. On by default.
+          </p>
         </div>
       </section>
+      </div>
+      <img
+        src="/images/kol-images/kol-radar-ascii-1781429047679.png"
+        alt=""
+        className="w-1/2 object-cover"
+      />
     </main>
   )
 }

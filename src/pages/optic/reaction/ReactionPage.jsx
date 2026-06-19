@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { GrayScott, RD_PRESETS, RD_PALETTES } from './engine.js'
+import { GrayScott, RD_PRESETS, RD_PALETTES, RD_SEEDS } from './engine.js'
+import { VIEW_ASPECTS, defaultAspectFor, DEFAULT_SCALE, dimsFor } from '../../_shared/exportSpecs.js'
 import EditorRail, { RailHeader } from '../../../components/framework/EditorRail.jsx'
 import EditorFooter from '../../../components/framework/EditorFooter.jsx'
 import Section from '../../../components/molecules/Section.jsx'
@@ -17,9 +18,15 @@ export default function ReactionPage() {
   const [preset, setPreset] = useState('mitosis')
   const [feed, setFeed] = useState(0.0367)
   const [kill, setKill] = useState(0.0649)
+  const [du, setDu] = useState(0.16)
+  const [dv, setDv] = useState(0.08)
+  const [seed, setSeed] = useState('scatter')
+  const [gain, setGain] = useState(3.2)
   const [iters, setIters] = useState(10)
   const [palette, setPalette] = useState('lava')
   const [playing, setPlaying] = useState(true)
+  const [aspect, setAspect] = useState(() => defaultAspectFor('view'))
+  const [scale, setScale] = useState(DEFAULT_SCALE)
   const [footTab, setFootTab] = useState('transport')
 
   // refs read inside the loop so it needn't restart on every tweak
@@ -47,7 +54,8 @@ export default function ReactionPage() {
     return () => { alive = false; cancelAnimationFrame(raf); engineRef.current = null }
   }, [])
 
-  useEffect(() => { engineRef.current?.setParams({ feed, kill }) }, [feed, kill])
+  useEffect(() => { engineRef.current?.setParams({ feed, kill, du, dv, gain }) }, [feed, kill, du, dv, gain])
+  useEffect(() => { engineRef.current?.setParams({ seed }); engineRef.current?.reseed() }, [seed])
 
   const choosePreset = (id) => {
     setPreset(id)
@@ -56,12 +64,17 @@ export default function ReactionPage() {
   }
 
   const exportPng = () => {
+    const dd = dimsFor(aspect, Number(scale)) || { w: 1080, h: 1080 }
     const out = document.createElement('canvas')
-    out.width = 1080
-    out.height = 1080
+    out.width = dd.w
+    out.height = dd.h
     const ctx = out.getContext('2d')
     ctx.imageSmoothingEnabled = true
-    ctx.drawImage(simRef.current, 0, 0, 1080, 1080)
+    // cover-fit the square sim into the (possibly non-square) frame → centre crop
+    const sim = simRef.current
+    const s = Math.min(sim.width / dd.w, sim.height / dd.h)
+    const sw = dd.w * s, sh = dd.h * s
+    ctx.drawImage(sim, (sim.width - sw) / 2, (sim.height - sh) / 2, sw, sh, 0, 0, dd.w, dd.h)
     out.toBlob((blob) => {
       if (!blob) return
       const url = URL.createObjectURL(blob)
@@ -73,13 +86,19 @@ export default function ReactionPage() {
     }, 'image/png')
   }
 
-  const getSettings = () => ({ preset, feed, kill, iters, palette })
+  const getSettings = () => ({ preset, feed, kill, du, dv, seed, gain, iters, palette, aspect, scale })
   const applySettings = (s) => {
     if (s.preset != null) setPreset(s.preset)
     if (s.feed != null) setFeed(s.feed)
     if (s.kill != null) setKill(s.kill)
+    if (s.du != null) setDu(s.du)
+    if (s.dv != null) setDv(s.dv)
+    if (s.seed != null) setSeed(s.seed)
+    if (s.gain != null) setGain(s.gain)
     if (s.iters != null) setIters(s.iters)
     if (s.palette != null) setPalette(s.palette)
+    if (s.aspect != null) setAspect(s.aspect)
+    if (s.scale != null) setScale(s.scale)
   }
 
   return (
@@ -105,7 +124,8 @@ export default function ReactionPage() {
               onTempo: setIters,
               tempoMax: 30,
             }}
-            output={<Button variant="primary" size="sm" className="w-full" iconLeft="download" onClick={exportPng}>Export PNG (1080²)</Button>}
+            exportProps={{ aspect, onAspect: setAspect, aspects: VIEW_ASPECTS, scale, onScale: setScale }}
+            exportActions={<Button variant="primary" size="sm" className="w-full" iconLeft="download" onClick={exportPng}>Export PNG</Button>}
             settingsPage="optic-reaction"
             getSettings={getSettings}
             applySettings={applySettings}
@@ -114,17 +134,21 @@ export default function ReactionPage() {
       >
         <Section label="Pattern">
           <Dropdown size="sm" options={RD_PRESETS.map((p) => ({ value: p.value, label: p.label }))} value={preset} onChange={choosePreset} variant="subtle" className="w-full" />
+          <Dropdown size="sm" options={RD_SEEDS} value={seed} onChange={setSeed} variant="subtle" className="w-full" />
           <Button variant="primary" size="sm" iconLeft="cycle" onClick={() => engineRef.current?.reseed()} className="w-full">Reseed</Button>
         </Section>
 
         <Section label="Chemistry">
           <Slider labeled label="Feed" min={0.01} max={0.08} step={0.0005} value={feed} onChange={setFeed} variant="default" />
           <Slider labeled label="Kill" min={0.04} max={0.075} step={0.0005} value={kill} onChange={setKill} variant="default" />
+          <Slider labeled label="Diffuse U" min={0.05} max={0.3} step={0.005} value={du} onChange={setDu} variant="default" />
+          <Slider labeled label="Diffuse V" min={0.02} max={0.16} step={0.005} value={dv} onChange={setDv} variant="default" />
           <Slider labeled label="Speed" min={1} max={30} step={1} value={iters} onChange={setIters} variant="default" noExpr />
         </Section>
 
         <Section label="Color">
           <Dropdown size="sm" options={RD_PALETTES.map((p) => ({ value: p.value, label: p.label }))} value={palette} onChange={setPalette} variant="subtle" className="w-full" />
+          <Slider labeled label="Contrast" min={1} max={6} step={0.1} value={gain} onChange={setGain} variant="default" />
         </Section>
 
         <div className="kol-helper-10 text-body">Gray-Scott · toroidal · 170² upscaled</div>

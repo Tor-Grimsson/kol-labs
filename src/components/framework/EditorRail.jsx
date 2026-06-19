@@ -62,7 +62,7 @@ export default function EditorRail({ header, footer, footerBare = false, childre
       {/* content region — collapsed on mobile when closed */}
       <div className={`${open ? 'flex' : 'hidden'} md:flex flex-1 min-h-0 flex-col overflow-hidden`}>
         {header != null && (
-          <div className="shrink-0 px-5 pt-5 flex flex-col gap-5">{header}</div>
+          <div className="shrink-0 px-5 pt-5 flex flex-col gap-3">{header}</div>
         )}
         {/* the single scrolling body */}
         <div className="flex-1 min-h-0 overflow-y-auto p-5 flex flex-col gap-5">{children}</div>

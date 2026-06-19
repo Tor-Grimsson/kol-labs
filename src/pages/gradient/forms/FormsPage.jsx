@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { usePublishReset } from '../../../components/framework/pageShortcuts.jsx'
 import FormsEngine from './engine/FormsEngine.js'
 import { FORMS } from './data/shapes.js'
 import { VIEW_ASPECTS, DEFAULT_ASPECT, defaultAspectFor, DEFAULT_SCALE, ratioFor, dimsFor } from '../../_shared/exportSpecs.js'
@@ -49,6 +50,7 @@ export default function FormsPage() {
   const wrapRef = useRef(null)
   const canvasRef = useRef(null)
   const engineRef = useRef(null)
+  usePublishReset(() => engineRef.current?.resetCamera())
   const progressRef = useRef({ t: 0, dur: 1 })
   const aspectRef = useRef(aspect)
   aspectRef.current = aspect

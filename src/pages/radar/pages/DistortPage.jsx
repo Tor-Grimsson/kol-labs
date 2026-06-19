@@ -6,7 +6,7 @@ import SegmentedToggle from '../../../components/molecules/SegmentedToggle.jsx'
 import ButtonGroup from '../../../components/molecules/ButtonGroup.jsx'
 import EditorRail, { RailHeader } from '../../../components/framework/EditorRail.jsx'
 import EditorFooter from '../../../components/framework/EditorFooter.jsx'
-import { usePublishShortcuts } from '../../../components/framework/pageShortcuts.jsx'
+import { usePublishShortcuts, usePublishReset } from '../../../components/framework/pageShortcuts.jsx'
 import { LiveClock } from '../../../lib/liveClock.jsx'
 import LibrarySourceButton from '../components/LibrarySourceButton.jsx'
 import { useImage } from '../state/ImageContext'
@@ -39,6 +39,7 @@ export default function DistortPage() {
   const [tempo, setTempo] = useState(120)
   const [footTab, setFootTab] = useState('transport') // Transport | Output | File footer toggle
 
+  usePublishReset(() => setParams(DEFAULTS))
   usePublishShortcuts('Chromatic', [
     ['Move cursor', 'distort the image'],
     ['Record', 'capture the cursor motion as keyframes'],

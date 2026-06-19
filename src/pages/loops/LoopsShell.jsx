@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { usePublishReset, usePublishRetrigger } from '../../components/framework/pageShortcuts.jsx'
 import LoopPlayer2D from '../../loops/LoopPlayer2D.js'
 import { presetsInGroup, presetById, loopById, presetParams, groupById } from '../../loops/registry.js'
 import { VIEW_ASPECTS, DEFAULT_ASPECT, defaultAspectFor, DEFAULT_SCALE, ratioFor, dimsFor } from '../_shared/exportSpecs.js'
@@ -115,6 +116,8 @@ export default function LoopsShell({ group }) {
 
   const updateParam = (k, v) => setParams((p) => ({ ...p, [k]: v }))
   const pickPreset = (id) => setPresetId(id) // stay on the Presets tab; Edit is opt-in
+  usePublishReset(() => pickPreset(presets[0].id))
+  usePublishRetrigger(onRandomize)
 
   // ── Scene settings (theme · invert · randomise · export/import) ──
   // Roll the schema with a given seed, merging over current params (skips the

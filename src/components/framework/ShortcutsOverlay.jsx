@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import Icon from '../loaders/Icon.jsx'
-import { usePageShortcuts } from './pageShortcuts.jsx'
+import { usePageShortcuts, usePageReset, usePageRetrigger } from './pageShortcuts.jsx'
 
 /**
  * App-wide help overlay, toggled by pressing `s` (ignored while typing in a
@@ -37,6 +37,8 @@ const isTyping = (el) =>
 export default function ShortcutsOverlay() {
   const [open, setOpen] = useState(false)
   const page = usePageShortcuts()
+  const resetRef = usePageReset()
+  const retriggerRef = usePageRetrigger()
 
   useEffect(() => {
     const onKey = (e) => {
@@ -46,10 +48,15 @@ export default function ShortcutsOverlay() {
         e.preventDefault()
         setOpen((o) => !o)
       }
+      if ((e.key === 'r' || e.key === 'R') && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault()
+        if (e.shiftKey) retriggerRef?.current?.()
+        else resetRef?.current?.()
+      }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [])
+  }, [resetRef, retriggerRef])
 
   if (!open) return null
 
@@ -118,8 +125,9 @@ export default function ShortcutsOverlay() {
           ))}
         </div>
 
-        <div className="mt-6 flex items-center gap-4 border-t border-fg-08 pt-3">
+        <div className="mt-6 flex items-center gap-4 border-t border-fg-08 pt-3 flex-wrap">
           <span className="kol-helper-10 text-meta"><kbd className="text-emphasis">Space</kbd> play / pause</span>
+          <span className="kol-helper-10 text-meta"><kbd className="text-emphasis">R</kbd> reset · <kbd className="text-emphasis">Shift+R</kbd> reroll</span>
           <span className="kol-helper-10 text-meta"><kbd className="text-emphasis">S</kbd> toggle this</span>
           <span className="kol-helper-10 text-meta"><kbd className="text-emphasis">Esc</kbd> close</span>
         </div>

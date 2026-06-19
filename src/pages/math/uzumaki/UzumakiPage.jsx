@@ -49,7 +49,7 @@ export default function UzumakiPage() {
   return (
     <ClipEditor
       baseClip={base}
-      headerLabel="uzumaki 渦巻"
+      headerLabel="Curves"
       railExtras={gallery}
       settingsPage="math-uzumaki"
       onRandomize={onRandomize}

@@ -1,12 +1,17 @@
 import { useRef, useState } from 'react'
+import { usePublishInfo } from './pageShortcuts.jsx'
 import Section from '../molecules/Section.jsx'
 import LabeledControl from '../molecules/LabeledControl.jsx'
 import Dropdown from '../molecules/Dropdown.jsx'
 import ToggleSwitch from '../atoms/ToggleSwitch.jsx'
 import Button from '../atoms/Button.jsx'
-import Input from '../atoms/Input.jsx'
 import { THEME_OPTIONS } from '../../lib/themes.js'
 import { downloadSettings, readSettingsFile } from '../../lib/settingsIO.js'
+
+function SeedInfo({ label, seed }) {
+  usePublishInfo(label, [['Seed', String(seed)]])
+  return null
+}
 
 /**
  * Shared rail block: theme picker + invert, optional Randomise (+ editable seed),
@@ -76,19 +81,10 @@ export default function SettingsPanel({
       )}
 
       {onRandomize && (
-        <div className="flex items-center gap-2">
-          <Button variant="primary" size="sm" iconLeft="refresh" onClick={onRandomize} className="flex-1">Randomise</Button>
-          {onSeed && (
-            <Input
-              size="sm"
-              chars={9}
-              value={String(seed ?? '')}
-              onChange={(e) => { const n = parseInt(e.target.value, 10); if (Number.isFinite(n)) onSeed(n) }}
-              inputClassName="text-center"
-              title="seed"
-            />
-          )}
-        </div>
+        <>
+          {onSeed && seed != null && <SeedInfo label={page} seed={seed} />}
+          <Button variant="primary" size="sm" iconLeft="refresh" onClick={onRandomize} className="w-full">Randomise</Button>
+        </>
       )}
 
       {showIO && (

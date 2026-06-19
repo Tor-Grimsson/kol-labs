@@ -14,7 +14,6 @@ const ScanPage = lazy(() => import('./pages/ScanPage'))
 const DiscoPage = lazy(() => import('./pages/DiscoPage'))
 // Effects family — pixi.js + pixi-filters; lazy so it never lands in Dither's chunk.
 const EffectsShell = lazy(() => import('../effects/EffectsPage'))
-const RefractPage = lazy(() => import('./refract/RefractPage'))
 
 // Descendant routes under the shell's /radar/* mount (was a standalone
 // BrowserRouter app in kol-labs).
@@ -44,7 +43,6 @@ export default function RadarPage() {
         <Route path="scan" element={<Suspense fallback={<div className="min-h-dvh bg-surface-primary" />}><ScanPage /></Suspense>} />
         <Route path="disco" element={<Suspense fallback={<div className="min-h-dvh bg-surface-primary" />}><DiscoPage /></Suspense>} />
         <Route path="effects/*" element={<Suspense fallback={<div className="min-h-dvh bg-surface-primary" />}><EffectsShell /></Suspense>} />
-        <Route path="refract" element={<Suspense fallback={<div className="min-h-dvh bg-surface-primary" />}><RefractPage /></Suspense>} />
       </Routes>
     </ImageProvider>
   )

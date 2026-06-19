@@ -31,7 +31,6 @@ export const NAV_TREE = [
     ] },
     { label: 'Distortion', children: [
       { to: '/radar/distort', label: 'Chromatic' },
-      { to: '/radar/refract', label: 'Refract' },
     ] },
     { label: 'Synth', children: [
       { to: '/radar/trails', label: 'Trails' },
@@ -98,15 +97,23 @@ export const NAV_TREE = [
   ] },
 
   { id: 'math', label: 'Math', to: '/math', icon: 'math', children: [
-    { to: '/math', label: 'Expression' },
-    { to: '/math/uzumaki', label: 'Uzumaki' },
-    { to: '/math/animate', label: 'Animate' },
-    { to: '/math/attractor', label: 'Attractor' },
-    { to: '/math/surface', label: 'Surface' },
-    { to: '/math/field', label: 'Field' },
-    { to: '/math/complex', label: 'Complex' },
-    { to: '/math/fourier', label: 'Fourier' },
-    { to: '/math/orbits', label: 'Orbits' },
+    { label: 'Waveforms', children: [
+      { to: '/math', label: 'Expression' },
+      { to: '/math/fourier', label: 'Fourier' },
+      { to: '/math/animate', label: 'Animate' },
+    ]},
+    { label: 'Parametric', children: [
+      { to: '/math/uzumaki', label: 'Curves' },
+      { to: '/math/orbits', label: 'Orbits' },
+    ]},
+    { label: 'Surfaces', children: [
+      { to: '/math/surface', label: 'Surface' },
+      { to: '/math/attractor', label: 'Attractor' },
+    ]},
+    { label: 'Fields', children: [
+      { to: '/math/field', label: 'Field' },
+      { to: '/math/complex', label: 'Complex' },
+    ]},
   ] },
   { id: 'loops', label: 'Loops', to: '/loops', icon: 'cycle', children: [
     { to: '/loops', label: 'Simple' },
@@ -119,10 +126,15 @@ export const NAV_TREE = [
     { to: '/3d-scene/forms', label: 'Forms' },
   ] },
   { id: 'optic', label: 'Optic', to: '/optic', icon: 'ptrn-dot', children: [
-    { to: '/optic', label: 'Halftone' },
-    { to: '/optic/gradient-field', label: 'Mesh Gradient' },
-    { to: '/optic/moire', label: 'Moiré' },
-    { to: '/optic/reaction', label: 'Reaction' },
+    { label: 'Pattern', children: [
+      { to: '/optic', label: 'Halftone' },
+      { to: '/optic/moire', label: 'Moiré' },
+      { to: '/optic/gradient-field', label: 'Mesh Gradient' },
+      { to: '/optic/reaction', label: 'Reaction' },
+    ] },
+    { label: 'Lens', children: [
+      { to: '/optic/refract', label: 'Refract' },
+    ] },
   ] },
 
   { section: 'Source-in' },

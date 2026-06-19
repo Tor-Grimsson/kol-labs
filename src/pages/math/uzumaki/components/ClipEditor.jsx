@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { usePublishReset, usePublishShortcuts } from '../../../../components/framework/pageShortcuts.jsx'
 import CurvePlayer from './CurvePlayer'
 import CurveControls from './CurveControls'
 import ClipForm from './ClipForm'
@@ -7,7 +8,7 @@ import { totalDuration } from '../engine/timeline'
 import StylePanel from '../../components/StylePanel'
 import { useMathStyle, AXIS_3D } from '../../style/mathStyle'
 import { VIEW_ASPECTS, DEFAULT_ASPECT, defaultAspectFor, DEFAULT_SCALE, ratioFor, dimsFor } from '../../../_shared/exportSpecs.js'
-import { defaultTheme } from '../../../../lib/appSettings.js'
+import { defaultTheme, defaultAutoplay } from '../../../../lib/appSettings.js'
 import { resolveTheme } from '../../../../lib/themes.js'
 import SettingsPanel from '../../../../components/framework/SettingsPanel.jsx'
 import Scrubber from '../../../../components/framework/Scrubber.jsx'
@@ -49,7 +50,7 @@ export default function ClipEditor({
   baseClip,
   headerLabel = 'editor',
   railExtras = null,
-  autoPlay = false,
+  autoPlay = defaultAutoplay(),
   settingsPage = null,
   onRandomize,
   seed,
@@ -65,7 +66,7 @@ export default function ClipEditor({
   const [kfSel, setKfSel] = useState(0)
   const [cameraMotion, setCameraMotion] = useState(true)
   const [cam, setCam] = useState({ yaw: 20, pitch: 20, dist: 3, zoom: 1 })
-  const [style, patchStyle, applyTheme] = useMathStyle({ plane: 'xy' })
+  const [style, patchStyle, applyTheme] = useMathStyle({ plane: 'xy', axis: 'axes' })
   const [themeId, setThemeId] = useState(() => defaultTheme())
   const [invert, setInvert] = useState(false)
   const [aspect, setAspect] = useState(() => defaultAspectFor('view'))
@@ -120,6 +121,15 @@ export default function ClipEditor({
   const editStyle = (patch) => setEdits((e) => ({ ...e, style: { ...(e.style || baseClip.style || {}), ...patch } }))
   const editTimeline = (tl) => setEdits((e) => ({ ...e, timeline: tl }))
   const resetEdits = () => { setEdits({}); setKfSel(0) }
+  usePublishReset(resetEdits)
+  usePublishShortcuts(headerLabel, [
+    ['drag', 'orbit camera'],
+    ['wheel', 'zoom'],
+    ['← → ↑ ↓', 'orbit ±5°'],
+    ['[ ]', 'distance ±'],
+    ['r', 'reset camera'],
+    ['space', 'play / pause'],
+  ])
 
   // Toggling motion off seeds the orbit sliders from the clip's first keyframe so
   // the frozen pose doesn't jump from wherever the animation happened to be.

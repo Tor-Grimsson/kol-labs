@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { usePublishReset, usePublishRetrigger } from '../../../components/framework/pageShortcuts.jsx'
 import Viewport3D from '../components/Viewport3D'
 import StylePanel from '../components/StylePanel'
 import { useMathStyle, AXIS_3D } from '../style/mathStyle'
@@ -7,9 +8,10 @@ import { resolveRate } from '../../../lib/exprParam.js'
 import { VIEW_ASPECTS, DEFAULT_ASPECT, defaultAspectFor, DEFAULT_SCALE, ratioFor, dimsFor } from '../../_shared/exportSpecs.js'
 import EditorFooter from '../../../components/framework/EditorFooter.jsx'
 import { resolveTheme } from '../../../lib/themes.js'
-import { defaultTheme } from '../../../lib/appSettings.js'
+import { defaultTheme, defaultAutoplay } from '../../../lib/appSettings.js'
 import { mulberry32, randomSeed, randomizeSchema } from '../../../lib/rng.js'
 import SettingsPanel from '../../../components/framework/SettingsPanel.jsx'
+import CameraPanel from '../../../components/framework/CameraPanel.jsx'
 import EditorRail, { RailHeader } from '../../../components/framework/EditorRail.jsx'
 import { LiveClock } from '../../../lib/liveClock.jsx'
 import Button from '../../../components/atoms/Button.jsx'
@@ -18,6 +20,7 @@ import ToggleSwitch from '../../../components/atoms/ToggleSwitch.jsx'
 import Dropdown from '../../../components/molecules/Dropdown.jsx'
 import LabeledControl from '../../../components/molecules/LabeledControl.jsx'
 import Section from '../../../components/molecules/Section.jsx'
+import SegmentedToggle from '../../../components/molecules/SegmentedToggle.jsx'
 
 const DRAW_SECONDS = 14 // a full progressive trace takes this long at tempo 120
 
@@ -34,12 +37,14 @@ export default function AttractorPage() {
   const [themeId, setThemeId] = useState(() => defaultTheme())
   const [invert, setInvert] = useState(false)
   const [seed, setSeed] = useState(1)
-  const [playing, setPlaying] = useState(false)
+  const [playing, setPlaying] = useState(() => defaultAutoplay())
   const [tempo, setTempo] = useState(120)
   const [aspect, setAspect] = useState(() => defaultAspectFor('view'))
   const [scale, setScale] = useState(DEFAULT_SCALE)
+  const [tab, setTab] = useState('attractor')
   const [footTab, setFootTab] = useState('transport') // Transport · Output · File
   const viewRef = useRef(null)
+  usePublishReset(() => viewRef.current?.resetCamera())
 
   const att = ATTRACTORS.find((a) => a.id === id) || DEFAULT_ATTRACTOR
   const { pts, ext } = useMemo(() => integrate(att, steps), [att, steps])
@@ -64,6 +69,7 @@ export default function AttractorPage() {
     if (r.glow != null) setGlow(r.glow)
   }
   const onRandomize = () => { const s = randomSeed(); setSeed(s); rollFrom(s) }
+  usePublishRetrigger(onRandomize)
 
   const getSettings = () => ({ id, steps, spin, gradient, glow, aspect, scale, themeId, invert, seed })
   const applySettings = (s) => {
@@ -164,7 +170,12 @@ export default function AttractorPage() {
       <LiveClock getT={() => viewRef.current?.now()}>
       <EditorRail
         footerBare
-        header={<RailHeader>Attractor</RailHeader>}
+        header={(
+          <>
+            <RailHeader>Attractor</RailHeader>
+            <SegmentedToggle value={tab} onChange={setTab} options={[{ value: 'attractor', label: 'Attractor' }, { value: 'render', label: 'Render' }, { value: 'style', label: 'Style' }]} />
+          </>
+        )}
         footer={
           <EditorFooter
             tab={footTab}
@@ -187,53 +198,52 @@ export default function AttractorPage() {
           />
         }
       >
-          <Section label="Attractor">
-            <div className="flex flex-col gap-1">
-              {ATTRACTORS.map((a) => (
-                <Button
-                  key={a.id}
-                  variant="secondary"
+          {tab === 'attractor' && (
+            <>
+              <Section label="Attractor">
+                <Dropdown
                   size="sm"
-                  selected={a.id === id}
-                  onClick={() => selectAttractor(a)}
+                  variant="subtle"
                   className="w-full"
-                  style={{ justifyContent: 'flex-start' }}
-                >
-                  {a.label}
-                </Button>
-              ))}
-            </div>
-          </Section>
+                  options={ATTRACTORS.map((a) => ({ value: a.id, label: a.label }))}
+                  value={id}
+                  onChange={(v) => { const a = ATTRACTORS.find((x) => x.id === v); if (a) selectAttractor(a) }}
+                />
+              </Section>
+              <Section label="Trajectory">
+                <Slider labeled label="Points" min={1000} max={20000} step={500} value={steps} onChange={setSteps} variant="default" noExpr />
+              </Section>
+            </>
+          )}
 
-          <Section label="Trajectory">
-            <Slider labeled label="Points" min={1000} max={20000} step={500} value={steps} onChange={setSteps} variant="default" noExpr />
-          </Section>
+          {tab === 'render' && (
+            <>
+              <Section label="Render">
+                <ToggleSwitch variant="plain" label="Gradient" checked={gradient} onChange={setGradient} />
+                <Slider labeled label="Glow" min={0} max={30} step={1} value={glow} onChange={setGlow} variant="default" />
+              </Section>
+              <CameraPanel viewRef={viewRef} spin={spin} onSpin={setSpin} />
+            </>
+          )}
 
-          <StylePanel style={style} onPatch={patchStyle} onTheme={applyTheme} axisOptions={AXIS_3D} showTheme={false} />
-
-          <SettingsPanel
-            page="math-attractor"
-            theme={themeId}
-            onTheme={setThemeId}
-            invert={invert}
-            onInvert={setInvert}
-            onRandomize={onRandomize}
-            seed={seed}
-            onSeed={(n) => { setSeed(n); rollFrom(n) }}
-            getSettings={getSettings}
-            applySettings={applySettings}
-            showIO={false}
-          />
-
-          <Section label="Render">
-            <ToggleSwitch variant="plain" label="Gradient" checked={gradient} onChange={setGradient} />
-            <Slider labeled label="Glow" min={0} max={30} step={1} value={glow} onChange={setGlow} variant="default" />
-          </Section>
-
-          <Section label="Camera">
-            <Slider labeled label="Auto-spin" min={0} max={40} step={1} value={spin} onChange={setSpin} variant="default" />
-            <Button variant="primary" size="sm" onClick={() => viewRef.current?.resetCamera()}>Cam reset</Button>
-          </Section>
+          {tab === 'style' && (
+            <>
+              <StylePanel style={style} onPatch={patchStyle} onTheme={applyTheme} axisOptions={AXIS_3D} showTheme={false} />
+              <SettingsPanel
+                page="math-attractor"
+                theme={themeId}
+                onTheme={setThemeId}
+                invert={invert}
+                onInvert={setInvert}
+                onRandomize={onRandomize}
+                seed={seed}
+                onSeed={(n) => { setSeed(n); rollFrom(n) }}
+                getSettings={getSettings}
+                applySettings={applySettings}
+                showIO={false}
+              />
+            </>
+          )}
 
           <div className="kol-helper-10 text-body">{ATTRACTORS.length} attractors · RK4 integrated · paused = full figure</div>
       </EditorRail>

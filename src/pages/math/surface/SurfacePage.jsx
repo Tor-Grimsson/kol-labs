@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { usePublishReset, usePublishRetrigger } from '../../../components/framework/pageShortcuts.jsx'
 import Viewport3D from '../components/Viewport3D'
 import StylePanel from '../components/StylePanel'
 import { useMathStyle, AXIS_3D, hexToRgb } from '../style/mathStyle'
 import { compileVars } from '../lib/mathfn'
 import { resolveRate } from '../../../lib/exprParam.js'
 import { VIEW_ASPECTS, DEFAULT_ASPECT, defaultAspectFor, DEFAULT_SCALE, ratioFor, dimsFor } from '../../_shared/exportSpecs.js'
-import { defaultTheme } from '../../../lib/appSettings.js'
+import { defaultTheme, defaultAutoplay } from '../../../lib/appSettings.js'
 import { resolveTheme } from '../../../lib/themes.js'
 import { mulberry32, randomSeed, randomizeSchema } from '../../../lib/rng.js'
 import SettingsPanel from '../../../components/framework/SettingsPanel.jsx'
+import CameraPanel from '../../../components/framework/CameraPanel.jsx'
 import EditorRail, { RailHeader } from '../../../components/framework/EditorRail.jsx'
 import EditorFooter from '../../../components/framework/EditorFooter.jsx'
 import { LiveClock } from '../../../lib/liveClock.jsx'
@@ -55,12 +57,14 @@ export default function SurfacePage() {
   const [themeId, setThemeId] = useState(() => defaultTheme())
   const [invert, setInvert] = useState(false)
   const [seed, setSeed] = useState(1)
-  const [playing, setPlaying] = useState(false)
+  const [playing, setPlaying] = useState(() => defaultAutoplay())
   const [tempo, setTempo] = useState(120)
   const [aspect, setAspect] = useState(() => defaultAspectFor('view'))
   const [scale, setScale] = useState(DEFAULT_SCALE)
+  const [tab, setTab] = useState('surface')
   const [footTab, setFootTab] = useState('transport')
   const viewRef = useRef(null)
+  usePublishReset(() => viewRef.current?.resetCamera())
 
   useEffect(() => {
     const t = resolveTheme(themeId, invert)
@@ -83,6 +87,7 @@ export default function SurfacePage() {
     if (r.spin != null) setSpin(r.spin)
   }
   const onRandomize = () => { const s = randomSeed(); setSeed(s); rollFrom(s) }
+  usePublishRetrigger(onRandomize)
 
   const getSettings = () => ({ expr, domain, res, height, mode, contours, spin, low, high, aspect, scale, themeId, invert, seed })
   const applySettings = (s) => {
@@ -267,7 +272,12 @@ export default function SurfacePage() {
       <LiveClock getT={() => viewRef.current?.now()}>
       <EditorRail
         footerBare
-        header={<RailHeader>Surface</RailHeader>}
+        header={(
+          <>
+            <RailHeader>Surface</RailHeader>
+            <SegmentedToggle value={tab} onChange={setTab} options={[{ value: 'surface', label: 'Surface' }, { value: 'render', label: 'Render' }, { value: 'style', label: 'Style' }]} />
+          </>
+        )}
         footer={
           <EditorFooter
             tab={footTab}
@@ -290,64 +300,71 @@ export default function SurfacePage() {
           />
         }
       >
-          <Section label="z = f(x, y, t)">
-            <Input
-              size="sm"
-              width="100%"
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              onBlur={commitExpr}
-              onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur() }}
-            />
-            <div className="flex flex-col gap-1">
-              {EXAMPLES.map((ex) => (
-                <Button key={ex} variant="secondary" size="sm" selected={ex === expr} onClick={() => loadExample(ex)} className="w-full" style={{ justifyContent: 'flex-start' }}>
-                  <span className="kol-helper-10 truncate">{ex}</span>
-                </Button>
-              ))}
-            </div>
-          </Section>
+          {tab === 'surface' && (
+            <>
+              <Section label="z = f(x, y, t)">
+                <Input
+                  size="sm"
+                  width="100%"
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  onBlur={commitExpr}
+                  onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur() }}
+                />
+                <Dropdown
+                  size="sm"
+                  variant="subtle"
+                  className="w-full"
+                  options={EXAMPLES.map((ex) => ({ value: ex, label: ex }))}
+                  value={expr}
+                  onChange={(v) => loadExample(v)}
+                  placeholder="Examples…"
+                />
+              </Section>
+              <Section label="Mesh">
+                <Slider labeled label="Domain" min={1} max={8} step={0.2} value={domain} onChange={setDomain} variant="default" />
+                <Slider labeled label="Resolution" min={12} max={80} step={2} value={res} onChange={setRes} variant="default" noExpr />
+                <Slider labeled label="Height" min={0.1} max={4} step={0.1} value={height} onChange={setHeight} variant="default" />
+              </Section>
+              <Section label="Render">
+                <SegmentedToggle value={mode} onChange={setMode} options={[{ value: 'wire', label: 'Wire' }, { value: 'fill', label: 'Filled' }]} />
+                <ToggleSwitch variant="plain" label="Contours" checked={contours} onChange={setContours} />
+              </Section>
+            </>
+          )}
 
-          <Section label="Mesh">
-            <Slider labeled label="Domain" min={1} max={8} step={0.2} value={domain} onChange={setDomain} variant="default" />
-            <Slider labeled label="Resolution" min={12} max={80} step={2} value={res} onChange={setRes} variant="default" noExpr />
-            <Slider labeled label="Height" min={0.1} max={4} step={0.1} value={height} onChange={setHeight} variant="default" />
-          </Section>
+          {tab === 'render' && (
+            <>
+              <Section label="Color">
+                <LabeledControl inline label="Low">
+                  <ColorField value={low} onChange={setLow} />
+                </LabeledControl>
+                <LabeledControl inline label="High">
+                  <ColorField value={high} onChange={setHigh} />
+                </LabeledControl>
+              </Section>
+              <CameraPanel viewRef={viewRef} spin={spin} onSpin={setSpin} />
+            </>
+          )}
 
-          <Section label="Render">
-            <SegmentedToggle value={mode} onChange={setMode} options={[{ value: 'wire', label: 'Wire' }, { value: 'fill', label: 'Filled' }]} />
-            <ToggleSwitch variant="plain" label="Contours" checked={contours} onChange={setContours} />
-          </Section>
-
-          <Section label="Color">
-            <LabeledControl inline label="Low">
-              <ColorField value={low} onChange={setLow} />
-            </LabeledControl>
-            <LabeledControl inline label="High">
-              <ColorField value={high} onChange={setHigh} />
-            </LabeledControl>
-          </Section>
-
-          <StylePanel style={style} onPatch={patchStyle} onTheme={applyTheme} axisOptions={AXIS_3D} showStroke={false} showTheme={false} />
-
-          <SettingsPanel
-            page="math-surface"
-            showIO={false}
-            theme={themeId}
-            onTheme={setThemeId}
-            invert={invert}
-            onInvert={setInvert}
-            onRandomize={onRandomize}
-            seed={seed}
-            onSeed={(n) => { setSeed(n); rollFrom(n) }}
-            getSettings={getSettings}
-            applySettings={applySettings}
-          />
-
-          <Section label="Camera">
-            <Slider labeled label="Auto-spin" min={0} max={40} step={1} value={spin} onChange={setSpin} variant="default" />
-            <Button variant="primary" size="sm" onClick={() => viewRef.current?.resetCamera()}>Cam reset</Button>
-          </Section>
+          {tab === 'style' && (
+            <>
+              <StylePanel style={style} onPatch={patchStyle} onTheme={applyTheme} axisOptions={AXIS_3D} showStroke={false} showTheme={false} />
+              <SettingsPanel
+                page="math-surface"
+                showIO={false}
+                theme={themeId}
+                onTheme={setThemeId}
+                invert={invert}
+                onInvert={setInvert}
+                onRandomize={onRandomize}
+                seed={seed}
+                onSeed={(n) => { setSeed(n); rollFrom(n) }}
+                getSettings={getSettings}
+                applySettings={applySettings}
+              />
+            </>
+          )}
       </EditorRail>
       </LiveClock>
     </div>

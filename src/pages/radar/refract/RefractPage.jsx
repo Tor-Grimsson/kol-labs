@@ -11,6 +11,7 @@ import Dropdown from '../../../components/molecules/Dropdown.jsx'
 import ButtonGroup from '../../../components/molecules/ButtonGroup.jsx'
 import Slider from '../../../components/atoms/Slider.jsx'
 import Button from '../../../components/atoms/Button.jsx'
+import ColorField from '../../../components/color/ColorField.jsx'
 
 // Radar · Refract — a photo behind a procedural glass/ice/mirror/ripple
 // distorter. DEPTH drives how far the surface bends + RGB-splits the image
@@ -32,6 +33,9 @@ export default function RefractPage() {
   const [chromatic, setChromatic] = useState(6)
   const [frost, setFrost] = useState(0)
   const [sheen, setSheen] = useState(0.5)
+  const [lightAngle, setLightAngle] = useState(45)
+  const [tint, setTint] = useState('#ffffff')
+  const [tintAmt, setTintAmt] = useState(0)
   const [flow, setFlow] = useState(1)
 
   // One engine for the page's life.
@@ -44,7 +48,7 @@ export default function RefractPage() {
   }, [])
 
   useEffect(() => { if (ready) engineRef.current?.setSource(sourceImage) }, [ready, sourceImage])
-  useEffect(() => { engineRef.current?.setParams({ type, scale, depth, chromatic, frost, sheen, flow }) }, [type, scale, depth, chromatic, frost, sheen, flow])
+  useEffect(() => { engineRef.current?.setParams({ type, scale, depth, chromatic, frost, sheen, lightAngle, tint, tintAmt, flow }) }, [type, scale, depth, chromatic, frost, sheen, lightAngle, tint, tintAmt, flow])
   useEffect(() => { engineRef.current?.setPlaying(playing) }, [playing])
 
   const handleFileUpload = (e) => loadImageFromFile(e.target.files[0])
@@ -115,7 +119,7 @@ export default function RefractPage() {
             file={
               <div className="flex flex-col gap-2">
                 <ButtonGroup orientation="vertical" className="w-full">
-                  <Button variant="primary" size="sm" onClick={() => fileInputRef.current?.click()} iconLeft="upload" className="w-full">Upload Image</Button>
+                  <Button variant="primary" size="sm" onClick={() => fileInputRef.current?.click()} iconLeft="upload" className="w-full">Upload media</Button>
                   <LibrarySourceButton />
                 </ButtonGroup>
                 {sourceImage && (
@@ -126,22 +130,28 @@ export default function RefractPage() {
           />
         }
       >
-        <Section label="Distorter">
+        <Section label="Surface">
           <Dropdown size="sm" options={DISTORTERS.map((d) => ({ value: d.id, label: d.label }))} value={type} onChange={setType} variant="subtle" className="w-full" />
-          <Slider labeled label="Scale" min={0} max={1} step={0.01} value={scale} onChange={setScale} variant="default" />
+          <Slider labeled label="Detail" min={0} max={1} step={0.01} value={scale} onChange={setScale} variant="default" />
         </Section>
 
         <Section label="Refraction">
           <Slider labeled label="Depth" min={0} max={120} step={1} value={depth} onChange={setDepth} variant="default" />
           <Slider labeled label="Chromatic" min={0} max={40} step={1} value={chromatic} onChange={setChromatic} variant="default" />
           <Slider labeled label="Frost" min={0} max={20} step={0.5} value={frost} onChange={setFrost} variant="default" />
-          <Slider labeled label="Sheen" min={0} max={1.5} step={0.05} value={sheen} onChange={setSheen} variant="default" />
         </Section>
 
-        <div className="kol-helper-10 text-body">glass refraction · depth = parallax · flowing</div>
+        <Section label="Finish">
+          <Slider labeled label="Sheen" min={0} max={1.5} step={0.05} value={sheen} onChange={setSheen} variant="default" />
+          <Slider labeled label="Light angle" min={0} max={360} step={1} value={lightAngle} onChange={setLightAngle} variant="default" />
+          <ColorField label="Tint" value={tint} onChange={setTint} />
+          <Slider labeled label="Tint amount" min={0} max={1} step={0.01} value={tintAmt} onChange={setTintAmt} variant="default" />
+        </Section>
+
+        <div className="kol-helper-10 text-body">photo/video behind glass · depth = parallax · flowing</div>
       </EditorRail>
 
-      <input ref={fileInputRef} type="file" accept="image/*,.svg" onChange={handleFileUpload} className="hidden" />
+      <input ref={fileInputRef} type="file" accept="image/*,video/*,.svg" onChange={handleFileUpload} className="hidden" />
     </div>
   )
 }

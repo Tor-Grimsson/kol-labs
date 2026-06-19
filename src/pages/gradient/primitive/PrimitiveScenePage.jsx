@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { usePublishReset, usePublishRetrigger } from '../../../components/framework/pageShortcuts.jsx'
 import PrimitiveEngine from './engine/PrimitiveEngine.js'
 import { PRIMITIVES, PRESETS } from './data/primitives.js'
 import { DEFAULT_KEYFRAMES } from './data/keyframes.js'
@@ -89,6 +90,7 @@ export default function PrimitiveScenePage() {
   const wrapRef = useRef(null)
   const canvasRef = useRef(null)
   const engineRef = useRef(null)
+  usePublishReset(() => engineRef.current?.resetCamera())
   const progressRef = useRef({ t: 0, dur: 1 })
   const audioFileRef = useRef(null)
   const aspectRef = useRef(aspect)
@@ -177,6 +179,7 @@ export default function PrimitiveScenePage() {
   }
   const reseed = (s) => { setSeed(s); applyScene(randomScene(s)) }
   const randomize = () => reseed(randomSeed())
+  usePublishRetrigger(randomize)
 
   // ── Settings export / import ──
   const getSettings = () => ({

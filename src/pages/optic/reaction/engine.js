@@ -14,6 +14,13 @@ export const RD_PRESETS = [
   { value: 'worms', label: 'Worms', feed: 0.046, kill: 0.063 },
 ]
 
+export const RD_SEEDS = [
+  { value: 'scatter', label: 'Scatter' },
+  { value: 'center', label: 'Center' },
+  { value: 'stripe', label: 'Stripe' },
+  { value: 'grid', label: 'Grid' },
+]
+
 export const RD_PALETTES = [
   { value: 'lava', label: 'Lava', stops: ['#05010a', '#7a1f0a', '#ff6b00', '#ffd23f'] },
   { value: 'ink', label: 'Ink', stops: ['#ffffff', '#9aa6b2', '#10131a', '#000000'] },
@@ -30,6 +37,10 @@ export class GrayScott {
   constructor(n = 170) {
     this.feed = 0.0367
     this.kill = 0.0649
+    this.du = DU
+    this.dv = DV
+    this.seed = 'scatter'
+    this.gain = 3.2
     this.setSize(n)
   }
 
@@ -42,34 +53,51 @@ export class GrayScott {
     this.reseed()
   }
 
-  setParams({ feed, kill }) {
+  setParams({ feed, kill, du, dv, seed, gain }) {
     if (feed != null) this.feed = feed
     if (kill != null) this.kill = kill
+    if (du != null) this.du = du
+    if (dv != null) this.dv = dv
+    if (seed != null) this.seed = seed
+    if (gain != null) this.gain = gain
   }
 
-  reseed(rand = Math.random) {
+  // Stamp a square block of V at (cx,cy).
+  _stamp(cx, cy, r) {
     const { n, u, v } = this
-    u.fill(1)
-    v.fill(0)
-    // a few square seeds of V
-    const seeds = 14
-    for (let s = 0; s < seeds; s++) {
-      const cx = Math.floor(rand() * n)
-      const cy = Math.floor(rand() * n)
-      const r = 3 + Math.floor(rand() * 4)
-      for (let y = -r; y <= r; y++) {
-        for (let x = -r; x <= r; x++) {
-          const xx = (cx + x + n) % n
-          const yy = (cy + y + n) % n
-          v[yy * n + xx] = 1
-          u[yy * n + xx] = 0.5
-        }
+    for (let y = -r; y <= r; y++) {
+      for (let x = -r; x <= r; x++) {
+        const xx = (cx + x + n) % n
+        const yy = (cy + y + n) % n
+        v[yy * n + xx] = 1
+        u[yy * n + xx] = 0.5
       }
     }
   }
 
+  reseed(rand = Math.random) {
+    const { n, u, v, seed } = this
+    u.fill(1)
+    v.fill(0)
+    if (seed === 'center') {
+      this._stamp(n >> 1, n >> 1, Math.max(4, n >> 4))
+    } else if (seed === 'stripe') {
+      for (let y = (n >> 1) - 3; y <= (n >> 1) + 3; y++)
+        for (let x = 0; x < n; x++) { v[y * n + x] = 1; u[y * n + x] = 0.5 }
+    } else if (seed === 'grid') {
+      const g = 5, sp = Math.floor(n / g)
+      for (let gy = 0; gy < g; gy++)
+        for (let gx = 0; gx < g; gx++)
+          this._stamp(Math.floor((gx + 0.5) * sp), Math.floor((gy + 0.5) * sp), 3)
+    } else {
+      // scatter — a handful of random square seeds
+      for (let s = 0; s < 14; s++)
+        this._stamp(Math.floor(rand() * n), Math.floor(rand() * n), 3 + Math.floor(rand() * 4))
+    }
+  }
+
   step(iters) {
-    const { n, feed, kill } = this
+    const { n, feed, kill, du: DU, dv: DV } = this
     let U = this.u, V = this.v, U2 = this.u2, V2 = this.v2
     for (let it = 0; it < iters; it++) {
       for (let y = 0; y < n; y++) {
@@ -102,8 +130,9 @@ export class GrayScott {
     const d = img.data
     const pal = rgbStops((RD_PALETTES.find((p) => p.value === palette) || RD_PALETTES[0]).stops)
     const ns = pal.length - 1
+    const gain = this.gain
     for (let i = 0; i < n * n; i++) {
-      let t = v[i] * 3.2
+      let t = v[i] * gain
       if (t > 1) t = 1
       else if (t < 0) t = 0
       const seg = Math.min(ns - 1, Math.floor(t * ns))

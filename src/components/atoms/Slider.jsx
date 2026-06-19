@@ -155,6 +155,14 @@ const Slider = ({
   const onKeyDown = (e) => {
     if (e.key === 'Enter')  { e.currentTarget.blur() }
     if (e.key === 'Escape') { setDraft(displayValue); setEditing(false); e.currentTarget.blur() }
+    if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && !exprBound) {
+      e.preventDefault()
+      const dir = e.key === 'ArrowUp' ? 1 : -1
+      const next = Math.max(min, Math.min(max, Number(value) + dir * step))
+      if (onChange) onChange(next)
+      setDraft(fmtNum(next))
+      setEditing(false)
+    }
   }
 
   // While expression-bound and not editing, show the live resolved number in the

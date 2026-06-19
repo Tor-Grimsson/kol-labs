@@ -9,7 +9,7 @@ import { hexToRgb } from '../style/mathStyle'
 // ref. Drawing logic ported from kol-mirror's ExpressionReference.
 const Oscilloscope = forwardRef(function Oscilloscope({
   fn,
-  min, max, duration,
+  min, max, duration, margin = 0,
   zoomX, zoomY, panX, panY, setPanX, setPanY, onZoom,
   playing = true, tempo = 120, resetKey = 0, aspect = null, vstyle = null,
 }, ref) {
@@ -36,6 +36,7 @@ const Oscilloscope = forwardRef(function Oscilloscope({
   const minRef = useRef(min)
   const maxRef = useRef(max)
   const durRef = useRef(duration)
+  const marginRef = useRef(margin)
   const zoomXRef = useRef(zoomX)
   const zoomYRef = useRef(zoomY)
   const panXRef = useRef(panX)
@@ -43,6 +44,7 @@ const Oscilloscope = forwardRef(function Oscilloscope({
   minRef.current = min
   maxRef.current = max
   durRef.current = duration
+  marginRef.current = margin
   zoomXRef.current = zoomX
   zoomYRef.current = zoomY
   panXRef.current = panX
@@ -157,22 +159,24 @@ const Oscilloscope = forwardRef(function Oscilloscope({
       const mn = minRef.current
       const mx = maxRef.current
       const baseDur = durRef.current
+      const pad = marginRef.current
       const zx = zoomXRef.current
       const zy = zoomYRef.current
       const px = panXRef.current
       const py = panYRef.current
       const dur = baseDur / zx
-      const pad = 12
       const range = (mx - mn) / zy || 1
       const center = (mn + mx) / 2 + py
       const lo = center - range / 2
-      const toY = (v) => pad + (h - pad * 2) * (1 - (v - lo) / range)
-      const toT = (pixelX) => (pixelX / w) * dur + px
+      const innerW = Math.max(1, w - pad * 2)
+      const innerH = Math.max(1, h - pad * 2)
+      const toY = (v) => pad + innerH * (1 - (v - lo) / range)
+      const toT = (pixelX) => ((pixelX - pad) / innerW) * dur + px
 
       if (fnNow) {
         // Sample once to find the curve's actual min/max for the grid labels.
         let vMin = Infinity, vMax = -Infinity
-        for (let i = 0; i < w; i++) {
+        for (let i = pad; i < w - pad; i++) {
           const t = toT(i)
           try {
             const v = fnNow(t, Math.round(t * 60), 0, 100)
@@ -187,55 +191,55 @@ const Oscilloscope = forwardRef(function Oscilloscope({
         ctx.lineWidth = uiWeight
         ctx.setLineDash([4, 4])
         const y0 = toY(0), y100 = toY(100)
-        ctx.beginPath(); ctx.moveTo(0, y100); ctx.lineTo(w, y100); ctx.stroke()
-        ctx.beginPath(); ctx.moveTo(0, y0); ctx.lineTo(w, y0); ctx.stroke()
+        ctx.beginPath(); ctx.moveTo(pad, y100); ctx.lineTo(w - pad, y100); ctx.stroke()
+        ctx.beginPath(); ctx.moveTo(pad, y0); ctx.lineTo(w - pad, y0); ctx.stroke()
         ctx.setLineDash([])
         ctx.font = '9px var(--kol-font-family-mono)'
         ctx.fillStyle = 'rgba(231,76,60,0.4)'
-        ctx.fillText('100', w - 20, y100 + 10)
-        ctx.fillText('0', w - 10, y0 - 4)
+        ctx.fillText('100', w - pad - 22, y100 + 10)
+        ctx.fillText('0', w - pad - 12, y0 - 4)
 
         // Grid lines at the curve's min / mid / max (gated by the axis style).
         ctx.lineWidth = uiWeight
         ctx.fillStyle = `rgba(${gridCol},${Math.min(1, gridOp * 3)})`
         for (const v of [vMax, vMid, vMin]) {
           const y = toY(v)
-          if (gridOn) { ctx.strokeStyle = `rgba(${gridCol},${gridOp})`; ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke() }
-          ctx.fillText(Math.round(v), 4, y - 3)
+          if (gridOn) { ctx.strokeStyle = `rgba(${gridCol},${gridOp})`; ctx.beginPath(); ctx.moveTo(pad, y); ctx.lineTo(w - pad, y); ctx.stroke() }
+          ctx.fillText(Math.round(v), pad + 4, y - 3)
         }
 
         // Static curve (full window, dim).
         ctx.strokeStyle = `rgba(${strokeRgb},0.15)`
         ctx.lineWidth = uiWeight
         ctx.beginPath()
-        for (let i = 0; i < w; i++) {
+        for (let i = pad; i < w - pad; i++) {
           const t = toT(i)
           try {
             const v = fnNow(t, Math.round(t * 60), 0, 100)
             const y = toY(v)
-            i === 0 ? ctx.moveTo(i, y) : ctx.lineTo(i, y)
+            i === pad ? ctx.moveTo(i, y) : ctx.lineTo(i, y)
           } catch { break }
         }
         ctx.stroke()
 
         // Playhead.
         const playT = (elapsed % baseDur)
-        const playX = ((playT - px) / dur) * w
+        const playX = pad + (playT - px) / dur * innerW
         ctx.strokeStyle = `rgba(${strokeRgb},0.4)`
         ctx.lineWidth = uiWeight
-        ctx.beginPath(); ctx.moveTo(playX, 0); ctx.lineTo(playX, h); ctx.stroke()
+        ctx.beginPath(); ctx.moveTo(playX, pad); ctx.lineTo(playX, h - pad); ctx.stroke()
 
         // Live trace up to the playhead.
         ctx.strokeStyle = stroke
         ctx.lineWidth = weight
         ctx.beginPath()
-        const traceEnd = Math.min(playX, w)
-        for (let i = 0; i < traceEnd; i++) {
+        const traceEnd = Math.min(playX, w - pad)
+        for (let i = pad; i < traceEnd; i++) {
           const t = toT(i)
           try {
             const v = fnNow(t, Math.round(t * 60), 0, 100)
             const y = toY(v)
-            i === 0 ? ctx.moveTo(i, y) : ctx.lineTo(i, y)
+            i === pad ? ctx.moveTo(i, y) : ctx.lineTo(i, y)
           } catch { break }
         }
         ctx.stroke()

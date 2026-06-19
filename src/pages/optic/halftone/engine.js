@@ -110,19 +110,27 @@ function cells(layout, density, w, h) {
 
 export function renderHalftone(canvas, params, t) {
   const { field, layout, shape, density, dotScale, palette, bg, invert } = params
+  const fieldScale = params.fieldScale ?? 1
+  const contrast = params.contrast ?? 1
+  const rotate = ((params.rotate ?? 0) * Math.PI) / 180
   const ctx = canvas.getContext('2d')
   const w = canvas.width, h = canvas.height
   ctx.fillStyle = bg
   ctx.fillRect(0, 0, w, h)
 
   const pal = rgbStops((PALETTES.find((p) => p.value === palette) || PALETTES[0]).stops)
-  const freq = 1 + density * 0.15
+  const freq = (1 + density * 0.15) * fieldScale
   const cellPx = (Math.min(w, h)) / (8 + density) // base cell footprint
   const list = cells(layout, density, w, h)
+  const cosR = Math.cos(rotate), sinR = Math.sin(rotate)
 
   for (let k = 0; k < list.length; k++) {
     const [nx, ny] = list[k]
-    let v = sampleField(field, nx, ny, t, freq)
+    // rotate the sample point around the centre so the field spins under the grid
+    const rx = (nx - 0.5) * cosR - (ny - 0.5) * sinR + 0.5
+    const ry = (nx - 0.5) * sinR + (ny - 0.5) * cosR + 0.5
+    let v = sampleField(field, rx, ry, t, freq)
+    if (contrast !== 1) v = clamp01(Math.pow(v, contrast))
     if (invert) v = 1 - v
     const size = v * cellPx * 0.62 * dotScale
     if (size < 0.4) continue

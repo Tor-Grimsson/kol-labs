@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
+import { usePublishReset, usePublishRetrigger } from '../../../components/framework/pageShortcuts.jsx'
 import { makeBodies, stepBodies } from './data/sim.js'
 import { VIEW_ASPECTS, defaultAspectFor, DEFAULT_SCALE, ratioFor } from '../../_shared/exportSpecs.js'
+import { defaultAutoplay } from '../../../lib/appSettings.js'
 import { mulberry32, randomSeed } from '../../../lib/rng.js'
 import EditorRail, { RailHeader } from '../../../components/framework/EditorRail.jsx'
 import EditorFooter from '../../../components/framework/EditorFooter.jsx'
@@ -25,7 +27,7 @@ export default function OrbitsPage() {
   const [glow, setGlow] = useState(10)
   const [mono, setMono] = useState(false)
   const [seed, setSeed] = useState(1)
-  const [playing, setPlaying] = useState(true)
+  const [playing, setPlaying] = useState(() => defaultAutoplay())
   const [tempo, setTempo] = useState(120)
   const [aspect, setAspect] = useState(() => defaultAspectFor('view'))
   const [scale, setScale] = useState(DEFAULT_SCALE)
@@ -106,6 +108,8 @@ export default function OrbitsPage() {
       ctx.fillRect(0, 0, cv.width, cv.height)
     }
   }
+  usePublishReset(reset)
+  usePublishRetrigger(() => setSeed(randomSeed()))
 
   const exportPng = () => {
     const cv = canvasRef.current

@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useRef, useState } from 'react'
 
 /**
  * Lets the active page publish its own keyboard shortcuts into the global `s`
@@ -9,6 +9,10 @@ import { createContext, useContext, useEffect, useState } from 'react'
  *   usePublishShortcuts('Penrose', [['drag', 'pan'], ['← / →', 'step']])
  *
  * Shape: { title: string, items: [keys, description][] }
+ *
+ * Pages also register a reset callback via usePublishReset(fn) — fired globally
+ * when the user presses `r` (outside an input). The handler runs the latest fn
+ * through a ref so pages don't need useCallback.
  */
 const PageShortcutsContext = createContext(null)
 
@@ -16,8 +20,12 @@ export function PageShortcutsProvider({ children }) {
   const [shortcuts, setShortcuts] = useState(null)
   // Parallel channel for the `i` extra-info overlay (page metadata: seed, etc.).
   const [info, setInfo] = useState(null)
+  // Reset callback: pages publish via usePublishReset; cleared on unmount.
+  const resetRef = useRef(null)
+  // Retrigger callback: pages publish via usePublishRetrigger (Shift+R).
+  const retriggerRef = useRef(null)
   return (
-    <PageShortcutsContext.Provider value={{ shortcuts, setShortcuts, info, setInfo }}>
+    <PageShortcutsContext.Provider value={{ shortcuts, setShortcuts, info, setInfo, resetRef, retriggerRef }}>
       {children}
     </PageShortcutsContext.Provider>
   )
@@ -59,4 +67,43 @@ export function usePublishInfo(title, items) {
 // Overlay reader: the current page's info, or null.
 export function usePageInfo() {
   return useContext(PageShortcutsContext)?.info ?? null
+}
+
+// Page hook: register a reset-to-defaults handler fired by the global `r` key.
+// The fn is stored through a ref so callers don't need useCallback.
+export function usePublishReset(fn) {
+  const ctx = useContext(PageShortcutsContext)
+  const resetRef = ctx?.resetRef
+  const fnRef = useRef(fn)
+  fnRef.current = fn
+  useEffect(() => {
+    if (!resetRef) return undefined
+    resetRef.current = () => fnRef.current?.()
+    return () => { resetRef.current = null }
+  }, [resetRef])
+}
+
+// Overlay hook: returns the resetRef so the key handler can fire it without
+// triggering a re-render when it changes.
+export function usePageReset() {
+  return useContext(PageShortcutsContext)?.resetRef ?? null
+}
+
+// Page hook: register a retrigger handler fired by the global Shift+R key.
+// "Retrigger" = generate something new (fresh seed / reroll), distinct from
+// reset which restores defaults. Pages that don't have a reroll concept skip this.
+export function usePublishRetrigger(fn) {
+  const ctx = useContext(PageShortcutsContext)
+  const retriggerRef = ctx?.retriggerRef
+  const fnRef = useRef(fn)
+  fnRef.current = fn
+  useEffect(() => {
+    if (!retriggerRef) return undefined
+    retriggerRef.current = () => fnRef.current?.()
+    return () => { retriggerRef.current = null }
+  }, [retriggerRef])
+}
+
+export function usePageRetrigger() {
+  return useContext(PageShortcutsContext)?.retriggerRef ?? null
 }

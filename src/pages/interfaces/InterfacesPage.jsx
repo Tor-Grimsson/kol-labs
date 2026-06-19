@@ -11,7 +11,7 @@ import SegmentedToggle from '../../components/molecules/SegmentedToggle.jsx'
 import ButtonGroup from '../../components/molecules/ButtonGroup.jsx'
 import EditorRail from '../../components/framework/EditorRail.jsx'
 import EditorFooter from '../../components/framework/EditorFooter.jsx'
-import { usePublishShortcuts } from '../../components/framework/pageShortcuts.jsx'
+import { usePublishShortcuts, usePublishReset, usePublishRetrigger } from '../../components/framework/pageShortcuts.jsx'
 import RailNav from '../../components/framework/RailNav.jsx'
 import './synth.css'
 import { SCREENS, SCREEN_GROUPS, screenCat } from './screens'
@@ -376,6 +376,8 @@ export default function InterfacesPage() {
     setShowChrome(true); setAspectKey('9:16'); setThemeSel('random'); setGenFont('mono'); setEncodeMode('off'); setLayout(DEFAULT_LAYOUT)
     setTempo(60)
   }
+  usePublishReset(resetAll)
+  usePublishRetrigger(reroll)
   const saveComposition = () => {
     setSaved((s) => {
       const next = [{ seed: genSeed, aspectKey, theme: spec.theme, ts: Date.now() }, ...s].slice(0, 60)

@@ -26,8 +26,8 @@ import { FRAMES, FONTS, frameFor, setPalette, setOpacity, PALETTE } from './sett
 import { makeMapper, tintedContext } from './tint'
 import { resolveTheme, THEME_OPTIONS } from '../../lib/themes.js'
 import { randomSeed } from '../../lib/rng.js'
-import { defaultAspectFor, defaultTheme } from '../../lib/appSettings.js'
-import { usePublishShortcuts, usePublishInfo } from '../../components/framework/pageShortcuts.jsx'
+import { defaultAspectFor, defaultTheme, getAppSettings } from '../../lib/appSettings.js'
+import { usePublishShortcuts, usePublishInfo, usePublishReset, usePublishRetrigger } from '../../components/framework/pageShortcuts.jsx'
 import { CATEGORY_ORDER, categoryOf, categoryLabel, FOUNDATION_KEYS, TERRITORY_KEYS } from './prototypes/categories.js'
 
 const LOGICAL = 960 // logical artboard resolution (higher = crisper + finer detail)
@@ -324,7 +324,7 @@ function App() {
   const [showAxes, setShowAxes] = useState(false)   // 3D XYZ axis gizmo (tracks camera rotation)
   const [seedBase, setSeedBase] = useState(DEFAULT_SEED)
   const [res, setRes] = useState(LOGICAL) // logical artboard resolution (Design slider)
-  const [clipFrame, setClipFrame] = useState(true) // export cropped to the aspect frame (Output)
+  const [clipFrame] = useState(() => getAppSettings().clipToFrame !== false)
   const [genTab, setGenTab] = useState('design') // Design | Layout | Edit rail tabs
 
   // The subgroup keys in scope: a big category expands to its 4 subgroups, a
@@ -422,6 +422,8 @@ function App() {
   // Retrigger (the `r` key): roll a FRESH generation + restart the clock, so every
   // press gives a visibly new run (same-seed re-init looks identical on static specimens).
   const retrigger = () => { CLOCK.reset(); CLOCK.resume(); setPaused(false); setSeedBase(randomSeed()) }
+  usePublishReset(reset)
+  usePublishRetrigger(retrigger)
   const togglePause = () => { CLOCK.toggle(); setPaused(CLOCK.isPaused()) }
   const setClockSpeed = (v) => { CLOCK.setSpeed(v); setSpeed(v) }
   const camReset = () => cameraRef.current?.reset()
@@ -436,7 +438,7 @@ function App() {
   // along in the export and restores each specimen's knob state.
   const getSettings = () => ({
     themeId, invert, ov, opacity, letter, weight, font,
-    frameRatio, showGrid, showCross, showAxes, seedBase, speed, res, clipFrame,
+    frameRatio, showGrid, showCross, showAxes, seedBase, speed, res,
     paramStore,
   })
   const applySettings = (s) => {
@@ -453,7 +455,7 @@ function App() {
     if (typeof s.showCross === 'boolean') setShowCross(s.showCross)
     if (typeof s.showAxes === 'boolean') setShowAxes(s.showAxes)
     if (Number.isFinite(s.res)) setRes(s.res)
-    if (typeof s.clipFrame === 'boolean') setClipFrame(s.clipFrame)
+
     if (s.speed != null) setClockSpeed(s.speed)
     if (s.paramStore && typeof s.paramStore === 'object') {
       for (const id in s.paramStore) paramStore[id] = { ...paramStore[id], ...s.paramStore[id] }
@@ -490,9 +492,6 @@ function App() {
 
   useEffect(() => {
     const onKey = (e) => {
-      // r/R ALWAYS retriggers — wins over slider/input focus. The glyph Letter
-      // field stops propagation (so typing the letter 'r' there is unaffected).
-      if (e.key === 'r' || e.key === 'R') { e.preventDefault(); retrigger(); return }
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return
       if (e.key === 'ArrowLeft') go(-1)
       else if (e.key === 'ArrowRight') go(1)
@@ -603,7 +602,6 @@ function App() {
       {/* Chrome: KOL-tokened right rail, outside the lofi CSS scope */}
       <EditorRail
         footerBare
-        header={<RailHeader>Penrose</RailHeader>}
         footer={
           <EditorFooter
             tab={bottomTab}
@@ -621,10 +619,7 @@ function App() {
             }}
             exportProps={{ aspect: frameRatio, onAspect: setFrameRatio, aspects: FRAMES.map((f) => ({ value: f.id, label: f.label })), hideScale: true }}
             exportActions={
-              <>
-                <ToggleSwitch labeled variant="plain" label="Clip to frame" checked={clipFrame} onChange={setClipFrame} />
-                <Button variant="primary" size="sm" className="w-full" onClick={downloadPng} disabled={!single}>↓ PNG</Button>
-              </>
+              <Button variant="primary" size="sm" className="w-full" onClick={downloadPng} disabled={!single}>↓ PNG</Button>
             }
             settingsPage="penrose"
             getSettings={getSettings}
@@ -670,7 +665,7 @@ function App() {
         {view === 'generate' && (
           <>
             <RailNav
-              title="Generate"
+              title="Penrose"
               toggleLabel="Player"
               onToggle={() => navigate(pathFor('player', selectedCat))}
               index={Math.max(0, filtered.indexOf(idx))}

@@ -9,7 +9,7 @@
 import { useEffect, useState } from 'react'
 
 const KEY = 'kol-labs:settings'
-const DEFAULTS = { defaultAspect: '4:5', defaultTheme: 'kol' }
+const DEFAULTS = { defaultAspect: '4:5', defaultTheme: 'kol', autoplay: false, clipToFrame: true }
 
 function load() {
   try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) || '{}') } }
@@ -52,4 +52,20 @@ export function defaultAspectFor(surface = 'view') {
  */
 export function defaultTheme() {
   return state.defaultTheme || 'kol'
+}
+
+/**
+ * Whether pages should start playing on mount. Default false (paused).
+ * Pages that respect autoplay read this at mount via getAppSettings().autoplay.
+ */
+export function defaultAutoplay() {
+  return state.autoplay === true
+}
+
+/**
+ * Whether exports crop to the chosen aspect frame. Default true.
+ * Pages seed their clip state from this at mount via getAppSettings().clipToFrame.
+ */
+export function defaultClipToFrame() {
+  return state.clipToFrame !== false
 }

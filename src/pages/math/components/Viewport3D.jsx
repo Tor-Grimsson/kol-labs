@@ -46,6 +46,8 @@ const Viewport3D = forwardRef(function Viewport3D(
     seek(frac) { accumRef.current = Math.max(0, Math.min(1, frac)) * (stateRef.current.dur || 1) },
     exportBlob() { return new Promise((res) => canvasRef.current?.toBlob((b) => res(b), 'image/png')) },
     exportBlobAt(w, h) { return new Promise((res) => { exportReqRef.current = { w, h, resolve: res } }) },
+    getCamera() { return { ...camRef.current } },
+    setCamera(v) { Object.assign(camRef.current, v) },
   }), [])
 
   const dpr = () => Math.min(window.devicePixelRatio || 1, 2)

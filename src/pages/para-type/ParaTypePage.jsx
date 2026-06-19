@@ -10,6 +10,7 @@
    ════════════════════════════════════════════════════════════════════ */
 
 import { useMemo, useState } from 'react'
+import { usePublishReset } from '../../components/framework/pageShortcuts.jsx'
 
 import Button from '../../components/atoms/Button.jsx'
 import Divider from '../../components/atoms/Divider.jsx'
@@ -330,6 +331,7 @@ export default function ParametricTypeLab() {
   }
 
   const reset = () => applyPreset('Neutral')
+  usePublishReset(reset)
 
   const groups = useMemo(() => {
     const g = { metrics: [], weights: [], expressive: [] }

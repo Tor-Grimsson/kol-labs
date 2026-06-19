@@ -78,7 +78,7 @@ export default function AnimatePage() {
   return (
     <ClipEditor
       baseClip={baseClip}
-      headerLabel="animate"
+      headerLabel="Animate"
       settingsPage="math-animate"
       onRandomize={onRandomize}
       seed={seed}

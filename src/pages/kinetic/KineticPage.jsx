@@ -18,14 +18,13 @@ import ButtonGroup from '../../components/molecules/ButtonGroup.jsx'
 import Section from '../../components/molecules/Section.jsx'
 import Dropdown from '../../components/molecules/Dropdown.jsx'
 import SegmentedToggle from '../../components/molecules/SegmentedToggle.jsx'
-import ToggleSwitch from '../../components/atoms/ToggleSwitch.jsx'
 import Scrubber from '../../components/framework/Scrubber.jsx'
 import EditorRail from '../../components/framework/EditorRail.jsx'
 import EditorFooter from '../../components/framework/EditorFooter.jsx'
 import RailNav from '../../components/framework/RailNav.jsx'
-import { usePublishShortcuts } from '../../components/framework/pageShortcuts.jsx'
+import { usePublishShortcuts, usePublishReset, usePublishRetrigger } from '../../components/framework/pageShortcuts.jsx'
 import { LiveClock } from '../../lib/liveClock.jsx'
-import { defaultTheme } from '../../lib/appSettings.js'
+import { defaultTheme, getAppSettings } from '../../lib/appSettings.js'
 import { DEFAULT_THEME, resolveTheme } from '../../lib/themes.js'
 import { mulberry32, randomSeed } from '../../lib/rng.js'
 
@@ -89,7 +88,7 @@ export default function KineticPage() {
   const [themeId, setThemeId]     = useState(() => defaultTheme())
   const [invert, setInvert]       = useState(false)
   const [seed, setSeed]           = useState(1)
-  const [clip, setClip]           = useState(true) // clip type to the aspect frame (poster bleed)
+  const [clip]                    = useState(() => getAppSettings().clipToFrame !== false)
 
   // ── engine ──
   const [stage, setStage]   = useState({ w: 0, h: 0 })
@@ -225,7 +224,7 @@ export default function KineticPage() {
     setSelId(merged[0]?.id)
     setThemeId(e.themeId ?? DEFAULT_THEME)
     setInvert(!!e.invert)
-    setClip(e.clip !== false)
+
     setGenView('current')
   }
   const deleteComposition = (ts) => {
@@ -250,6 +249,8 @@ export default function KineticPage() {
   }
   const reroll   = () => { const s = randomSeed(); setSeed(s); rollFrom(s) }
   const resetAll = () => { setThemeId(DEFAULT_THEME); setInvert(false); loadPreset(presetById(presetId)) }
+  usePublishReset(resetAll)
+  usePublishRetrigger(reroll)
 
   // ── export ──
   const dl = (blob, name) => {
@@ -272,14 +273,14 @@ export default function KineticPage() {
     } finally { setRecording(false) }
   }
 
-  const getSettings  = () => ({ presetId, frameBg, instances, themeId, invert, clip, seed, tempo, aspect, scale })
+  const getSettings  = () => ({ presetId, frameBg, instances, themeId, invert, seed, tempo, aspect, scale })
   const applySettings = (s) => {
     if (s.presetId) setPresetId(s.presetId)
     if (s.frameBg  != null) setFrameBg(s.frameBg)
     if (s.instances) { const m = adoptInstances(s.instances); setInstances(m); setSelId(m[0]?.id) }
     if (s.themeId  != null) setThemeId(s.themeId)
     if (s.invert   != null) setInvert(s.invert)
-    if (s.clip     != null) setClip(s.clip)
+
     if (s.seed     != null) setSeed(s.seed)
     if (s.tempo    != null) setTempo(s.tempo)
     if (s.aspect   != null) setAspect(s.aspect)
@@ -316,7 +317,6 @@ export default function KineticPage() {
       exportProps={{ aspect, onAspect: setAspect, aspects: VIEW_ASPECTS, scale, onScale: setScale }}
       exportActions={
         <>
-          <ToggleSwitch variant="plain" labeled label="Clip to frame" checked={clip} onChange={setClip} />
           <Button variant="primary" size="sm" className="w-full" iconLeft="download" onClick={exportPng}>Export PNG</Button>
           <Button variant="primary" size="sm" className="w-full" iconLeft="download" onClick={exportVideo} disabled={recording}>
             {recording ? 'Recording loop…' : 'Export loop (webm)'}

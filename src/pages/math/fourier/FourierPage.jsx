@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import FourierScope from './FourierScope'
 import { VIEW_ASPECTS, DEFAULT_ASPECT, defaultAspectFor, DEFAULT_SCALE, ratioFor, dimsFor } from '../../_shared/exportSpecs.js'
-import { defaultTheme } from '../../../lib/appSettings.js'
+import { defaultTheme, defaultAutoplay } from '../../../lib/appSettings.js'
 import StylePanel from '../components/StylePanel'
 import { useMathStyle } from '../style/mathStyle'
 import { resolveTheme } from '../../../lib/themes.js'
@@ -13,10 +13,11 @@ import Slider from '../../../components/atoms/Slider.jsx'
 import Dropdown from '../../../components/molecules/Dropdown.jsx'
 import LabeledControl from '../../../components/molecules/LabeledControl.jsx'
 import Section from '../../../components/molecules/Section.jsx'
+import SegmentedToggle from '../../../components/molecules/SegmentedToggle.jsx'
 import EditorRail, { RailHeader } from '../../../components/framework/EditorRail.jsx'
 import EditorFooter from '../../../components/framework/EditorFooter.jsx'
 
-const WAVES = ['square', 'sawtooth', 'triangle']
+const WAVES = [{ value: 'square', label: 'Square' }, { value: 'sawtooth', label: 'Sawtooth' }, { value: 'triangle', label: 'Triangle' }]
 // The StylePanel "axis" enum is repurposed here as the epicycle-scaffold toggle.
 const SCAFFOLD_AXIS = [{ value: 'on', label: 'Circles' }, { value: 'none', label: 'Hidden' }]
 
@@ -32,7 +33,7 @@ export default function FourierPage() {
   const [themeId, setThemeId] = useState(() => defaultTheme())
   const [invert, setInvert] = useState(false)
   const [seed, setSeed] = useState(1)
-  const [playing, setPlaying] = useState(false)
+  const [playing, setPlaying] = useState(() => defaultAutoplay())
   const [tempo, setTempo] = useState(120)
   const [resetKey, setResetKey] = useState(0)
   const [footTab, setFootTab] = useState('transport')
@@ -45,10 +46,12 @@ export default function FourierPage() {
     patchStyle({ bg: t.bg, stroke: t.fg, gridColor: t.grid })
   }, [themeId, invert]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  const [tab, setTab] = useState('wave')
+
   const onRandomize = () => {
     const s = randomSeed(); setSeed(s)
     const rng = mulberry32(s)
-    setWave(WAVES[Math.floor(rng() * WAVES.length)])
+    setWave(WAVES[Math.floor(rng() * WAVES.length)].value)
     setHarmonics(1 + Math.floor(rng() * 12))
     setSpeed(0.1 + rng() * 1.4)
   }
@@ -91,7 +94,12 @@ export default function FourierPage() {
 
       <EditorRail
         footerBare
-        header={<RailHeader>Fourier</RailHeader>}
+        header={(
+          <>
+            <RailHeader>Fourier</RailHeader>
+            <SegmentedToggle value={tab} onChange={setTab} options={[{ value: 'wave', label: 'Wave' }, { value: 'style', label: 'Style' }]} />
+          </>
+        )}
         footer={
           <EditorFooter
             tab={footTab} onTab={setFootTab}
@@ -113,29 +121,34 @@ export default function FourierPage() {
           />
         }
       >
-        <Section label="Wave">
-          <LabeledControl inline label="Shape">
-            <Dropdown size="sm" variant="subtle" className="w-full" options={WAVES.map((w) => ({ value: w, label: w }))} value={wave} onChange={setWave} />
-          </LabeledControl>
-          <Slider labeled label="Harmonics" min={1} max={12} step={1} value={harmonics} onChange={(v) => setHarmonics(roundIfNum(v))} variant="default" />
-          <Slider labeled label="Speed" min={0.1} max={1.5} step={0.05} value={speed} onChange={setSpeed} variant="default" />
-        </Section>
-
-        <StylePanel style={style} onPatch={patchStyle} onTheme={applyTheme} axisOptions={SCAFFOLD_AXIS} strokeLabel="Trace" showTheme={false} />
-
-        <SettingsPanel
-          page="math-fourier"
-          theme={themeId}
-          onTheme={setThemeId}
-          invert={invert}
-          onInvert={setInvert}
-          onRandomize={onRandomize}
-          seed={seed}
-          onSeed={setSeed}
-          showIO={false}
-          getSettings={getSettings}
-          applySettings={applySettings}
-        />
+        {tab === 'wave' && (
+          <>
+            <Section label="Wave">
+              <LabeledControl inline label="Shape">
+                <Dropdown size="sm" variant="subtle" className="w-full" options={WAVES} value={wave} onChange={setWave} />
+              </LabeledControl>
+              <Slider labeled label="Harmonics" min={1} max={12} step={1} value={harmonics} onChange={(v) => setHarmonics(roundIfNum(v))} variant="default" />
+              <Slider labeled label="Speed" min={0.1} max={1.5} step={0.05} value={speed} onChange={setSpeed} variant="default" />
+            </Section>
+            <SettingsPanel
+              page="math-fourier"
+              theme={themeId}
+              onTheme={setThemeId}
+              invert={invert}
+              onInvert={setInvert}
+              onRandomize={onRandomize}
+              seed={seed}
+              onSeed={setSeed}
+              showIO={false}
+              showTheme={false}
+              getSettings={getSettings}
+              applySettings={applySettings}
+            />
+          </>
+        )}
+        {tab === 'style' && (
+          <StylePanel style={style} onPatch={patchStyle} onTheme={applyTheme} axisOptions={SCAFFOLD_AXIS} strokeLabel="Trace" showTheme />
+        )}
       </EditorRail>
     </div>
   )

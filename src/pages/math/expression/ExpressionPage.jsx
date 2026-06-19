@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import Oscilloscope from './Oscilloscope'
 import { compile } from './lib/expr'
 import { VIEW_ASPECTS, DEFAULT_ASPECT, defaultAspectFor, DEFAULT_SCALE, ratioFor, dimsFor } from '../../_shared/exportSpecs.js'
-import { defaultTheme } from '../../../lib/appSettings.js'
+import { defaultTheme, defaultAutoplay } from '../../../lib/appSettings.js'
 import StylePanel from '../components/StylePanel'
 import { useMathStyle, AXIS_2D } from '../style/mathStyle'
 import { resolveTheme, THEME_OPTIONS } from '../../../lib/themes.js'
@@ -21,7 +21,7 @@ import DropdownPopup from '../../../components/molecules/DropdownPopup.jsx'
 import Icon from '../../../components/loaders/Icon.jsx'
 import EditorRail, { RailHeader } from '../../../components/framework/EditorRail.jsx'
 import EditorFooter from '../../../components/framework/EditorFooter.jsx'
-import { usePublishShortcuts, usePublishInfo } from '../../../components/framework/pageShortcuts.jsx'
+import { usePublishShortcuts, usePublishInfo, usePublishReset } from '../../../components/framework/pageShortcuts.jsx'
 import { useViewportZoom } from '../../../components/framework/useViewportZoom.js'
 
 // A clickable expression token. Click → load into the input; Cmd/Ctrl+click →
@@ -87,6 +87,7 @@ export default function ExpressionPage() {
   const [min, setMin] = useState(0)
   const [max, setMax] = useState(100)
   const [duration, setDuration] = useState(5)
+  const [margin, setMargin] = useState(0)
   const [zoomX, setZoomX] = useState(1)
   const [zoomY, setZoomY] = useState(1)
   const [panX, setPanX] = useState(0)
@@ -102,7 +103,7 @@ export default function ExpressionPage() {
   const [invert, setInvert] = useState(false)
   const [seed, setSeed] = useState(1)
   const scopeRef = useRef(null)
-  const [playing, setPlaying] = useState(false)
+  const [playing, setPlaying] = useState(() => defaultAutoplay())
   const [tempo, setTempo] = useState(120)
   const [resetKey, setResetKey] = useState(0)
 
@@ -146,12 +147,13 @@ export default function ExpressionPage() {
   }
   const onRandomize = () => { const s = randomSeed(); setSeed(s); rollFrom(s) }
 
-  const getSettings = () => ({ expr, min, max, duration, zoomX, zoomY, panX, panY, aspect, scale, themeId, invert, seed })
+  const getSettings = () => ({ expr, min, max, duration, margin, zoomX, zoomY, panX, panY, aspect, scale, themeId, invert, seed })
   const applySettings = (s) => {
     if (s.expr != null) setExpr(s.expr)
     if (s.min != null) setMin(s.min)
     if (s.max != null) setMax(s.max)
     if (s.duration != null) setDuration(s.duration)
+    if (s.margin != null) setMargin(s.margin)
     if (s.zoomX != null) setZoomX(s.zoomX)
     if (s.zoomY != null) setZoomY(s.zoomY)
     if (s.panX != null) setPanX(s.panX)
@@ -194,6 +196,7 @@ export default function ExpressionPage() {
   }
 
   const reset = () => { setZoomX(1); setZoomY(1); setPanX(0); setPanY(0) }
+  usePublishReset(reset)
 
   // Zoom the scope, clamped to the slider range. Functional updates so the key
   // handler below stays mounted once without going stale.
@@ -223,7 +226,7 @@ export default function ExpressionPage() {
         <Oscilloscope
           ref={scopeRef}
           fn={fn}
-          min={min} max={max} duration={duration}
+          min={min} max={max} duration={duration} margin={margin}
           zoomX={zoomX} zoomY={zoomY} panX={panX} panY={panY}
           setPanX={setPanX} setPanY={setPanY}
           onZoom={zoomBy}
@@ -315,6 +318,7 @@ export default function ExpressionPage() {
               </Section>
 
               <Section label="View">
+                <Slider labeled label="Margin" labelWidth={96} min={0} max={120} step={1} value={margin} onChange={setMargin} variant="default" noExpr />
                 <Slider labeled label="X" labelWidth={96} min={0.1} max={10} step={0.1} value={zoomX} onChange={setZoomX} variant="default" noExpr />
                 <Slider labeled label="Y" labelWidth={96} min={0.1} max={10} step={0.1} value={zoomY} onChange={setZoomY} variant="default" noExpr />
                 <Slider labeled label="Scale" labelWidth={96} min={0.1} max={10} step={0.1} value={(zoomX + zoomY) / 2} onChange={(v) => { setZoomX(v); setZoomY(v) }} variant="default" noExpr />
