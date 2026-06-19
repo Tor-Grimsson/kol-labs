@@ -150,6 +150,7 @@ const Viewport3D = forwardRef(function Viewport3D(
     <div ref={wrapRef} className="relative h-full w-full flex items-center justify-center overflow-hidden">
       <canvas
         ref={canvasRef}
+        data-vcap="stage"
         className="block cursor-grab"
         style={{ touchAction: 'none' }}
         onPointerDown={onDown}

@@ -1,0 +1,8 @@
+/* Chunkier slider knobs for the Spinner rail — thumb/track are pseudo-elements
+ * (not Tailwind-able), so this is scoped CSS, page-only. Mirrors the global
+ * .slider-black sizing at a larger scale; affects nothing outside this wrapper. */
+.kol-spinner-rail input.slider-black { height: 18px; }
+.kol-spinner-rail .slider-black::-webkit-slider-runnable-track { height: 4px; }
+.kol-spinner-rail .slider-black::-moz-range-track { height: 4px; }
+.kol-spinner-rail .slider-black::-webkit-slider-thumb { height: 18px; width: 18px; margin-top: -7px; }
+.kol-spinner-rail .slider-black::-moz-range-thumb { height: 18px; width: 18px; }

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { defaultAutoplay } from '../../../lib/appSettings.js'
 import { useParams } from 'react-router-dom'
 import { usePublishReset, usePublishRetrigger } from '../../../components/framework/pageShortcuts.jsx'
 import MSTPEngine from './engine/MSTPEngine.js'
@@ -31,7 +32,7 @@ export default function AbstractMSTPPage() {
   const [colorId, setColorId] = useState('candy')
   const [colorMode, setColorMode] = useState('palette')
   const [relief, setRelief] = useState(3)
-  const [paused, setPaused] = useState(true)
+  const [paused, setPaused] = useState(() => !defaultAutoplay())
   const [tempo, setTempo] = useState(120)
   const [aspect, setAspect] = useState(() => defaultAspectFor('view'))
   const [scale, setScale] = useState(DEFAULT_SCALE)
@@ -136,7 +137,7 @@ export default function AbstractMSTPPage() {
   return (
     <div className="min-h-dvh bg-surface-secondary flex">
       <div ref={wrapRef} className="relative min-w-0 flex-1 overflow-hidden flex items-center justify-center">
-        <canvas ref={canvasRef} className="block" />
+        <canvas ref={canvasRef} data-vcap="stage" className="block" />
         <div className="pointer-events-none absolute left-5 top-5">
           <div className="kol-helper-12 text-emphasis">Multi-Scale</div>
           <div className="kol-helper-10 text-meta" style={{ marginTop: 2 }}>{mstpPresetById(presetId).label}</div>

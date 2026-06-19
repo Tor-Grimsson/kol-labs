@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { defaultAutoplay } from '../../../lib/appSettings.js'
 import { ImageProvider, useImage } from '../../radar/state/ImageContext.jsx'
 import SourcePlaceholder from '../../radar/components/SourcePlaceholder.jsx'
 import MediaPicker from '../../../components/framework/MediaPicker.jsx'
@@ -48,7 +49,7 @@ function DitherInner() {
   const [invert, setInvert] = useState(false)
   const [contrast, setContrast] = useState(1.4)
   const [palette, setPalette] = useState('ink')
-  const [paused, setPaused] = useState(true)
+  const [paused, setPaused] = useState(() => !defaultAutoplay())
   const [tempo, setTempo] = useState(120)
   const [aspect, setAspect] = useState(() => defaultAspectFor('view'))
   const [scale, setScale] = useState(DEFAULT_SCALE)
@@ -158,7 +159,7 @@ function DitherInner() {
   return (
     <div className="min-h-dvh bg-surface-secondary flex">
       <div ref={wrapRef} className="relative min-w-0 flex-1 overflow-hidden flex items-center justify-center">
-        <canvas ref={canvasRef} className="block" style={{ display: sourceImage ? 'block' : 'none' }} />
+        <canvas ref={canvasRef} data-vcap="stage" className="block" style={{ display: sourceImage ? 'block' : 'none' }} />
         {!sourceImage && <SourcePlaceholder onUpload={() => fileRef.current?.click()} />}
         <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => loadImageFromFile(e.target.files?.[0])} />
       </div>

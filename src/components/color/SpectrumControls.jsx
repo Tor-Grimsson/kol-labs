@@ -103,7 +103,7 @@ export function SBSquare({ hue, sat, val, onChange }) {
     }
   }, [update])
 
-  const sb = `linear-gradient(to bottom, transparent 0%, #000 100%), linear-gradient(to right, #fff 0%, hsl(${hue},100%,50%) 100%)`
+  const sb = `linear-gradient(to bottom, transparent 0%, var(--kol-color-absolute-black) 100%), linear-gradient(to right, var(--kol-color-absolute-white) 0%, hsl(${hue},100%,50%) 100%)`
   /* Gradient field is rectangular — rounding is the consumer's job (apply
    * `rounded-[2px] overflow-hidden` on the wrapper). */
   return (
@@ -130,7 +130,7 @@ function Handle({ left, top }) {
         left, top,
         width: 14, height: 14,
         transform: 'translate(-50%, -50%)',
-        boxShadow: '0 0 0 1px #000, 0 0 0 2px #505050',
+        boxShadow: 'var(--kol-shadow-halo)',
       }}
     />
   )

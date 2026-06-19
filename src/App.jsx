@@ -25,6 +25,8 @@ const DriftPage = lazy(() => import('./pages/drift/DriftPage.jsx'))
 const LivePage = lazy(() => import('./pages/live/LivePage.jsx'))
 const PatternPage = lazy(() => import('./pages/pattern/PatternPage.jsx'))
 const GradientsPage = lazy(() => import('./pages/gradients/GradientsPage.jsx'))
+const SoftFormsPage = lazy(() => import('./pages/softforms/SoftFormsPage.jsx'))
+const SoftForms3DPage = lazy(() => import('./pages/softforms/SoftForms3DPage.jsx'))
 const TypePage = lazy(() => import('./pages/type/TypePage.jsx'))
 
 export default function App() {
@@ -49,9 +51,11 @@ export default function App() {
         <Route path="/scanlines/*" element={<Suspense fallback={null}><ScanlinesPage /></Suspense>} />
         <Route path="/drift/*" element={<Suspense fallback={null}><DriftPage /></Suspense>} />
         <Route path="/live/*" element={<Suspense fallback={null}><LivePage /></Suspense>} />
-        <Route path="/pattern" element={<Suspense fallback={null}><PatternPage /></Suspense>} />
-        <Route path="/type" element={<Suspense fallback={null}><TypePage /></Suspense>} />
+        <Route path="/pattern/*" element={<Suspense fallback={null}><PatternPage /></Suspense>} />
+        <Route path="/type/*" element={<Suspense fallback={null}><TypePage /></Suspense>} />
         <Route path="/gradients/*" element={<Suspense fallback={null}><GradientsPage /></Suspense>} />
+        <Route path="/softforms/*" element={<Suspense fallback={null}><SoftFormsPage /></Suspense>} />
+        <Route path="/softforms-3d/*" element={<Suspense fallback={null}><SoftForms3DPage /></Suspense>} />
       </Route>
     </Routes>
   )

@@ -1,7 +1,0 @@
-/* react-color SketchPicker: hide its hue + alpha rows, leaving only the
- * saturation spectrum. Targets the third-party widget's internal divs — the
- * one styling case the DS can't express, so it stays app-local. */
-.sketch-picker.sketch-only-spectrum > div:nth-of-type(3),
-.sketch-picker.sketch-only-spectrum > div:nth-of-type(4) {
-  display: none !important;
-}

@@ -32,9 +32,10 @@ function catmullRom(points, w, h) {
   return d
 }
 
-// Arrangement options = the instance's "type" (Layout tab). `array` is a special
-// non-path arrangement (a repeating grid) handled directly by the engine; the
-// rest are real SVG paths the glyphs ride along.
+// Arrangement options = the instance's "type" (Layout tab). `array`, `radial` and
+// `rings` are non-path arrangements (grid / spokes / concentric circles) the engine
+// places by trig and rotates by `spin` for a seamless loop; the rest are real SVG
+// paths the glyphs ride along.
 export const PATH_OPTIONS = [
   { value: 'line', label: 'Line' },
   { value: 'arc', label: 'Arc' },
@@ -43,14 +44,19 @@ export const PATH_OPTIONS = [
   { value: 'sine', label: 'Sine wave' },
   { value: 'spiral', label: 'Spiral' },
   { value: 'zigzag', label: 'Zigzag' },
+  { value: 'radial', label: 'Radial (spokes)' },
+  { value: 'rings', label: 'Rings (vortex)' },
   { value: 'array', label: 'Array (grid)' },
   { value: 'custom', label: 'Custom' },
 ]
 
-// arrangement type is 'array' when the glyphs tile a grid instead of riding a path.
+// Engine-placed (no SVG path) arrangements — glyphs are positioned directly.
 export const isArray = (type) => type === 'array'
+export const isRadial = (type) => type === 'radial'
+export const isRings = (type) => type === 'rings'
+export const isPlaced = (type) => isArray(type) || isRadial(type) || isRings(type)
 
-export const PATH_DEFAULTS = { amp: 0.4, freq: 2, turns: 3, radius: 0.72, rows: 2, cols: 3 }
+export const PATH_DEFAULTS = { amp: 0.4, freq: 2, turns: 3, radius: 0.72, rows: 2, cols: 3, count: 12, inner: 0.12, spin: 1, twist: 0.5, grow: 0.6 }
 
 // → { d, closed }
 export function buildPath(type, w, h, p = {}) {

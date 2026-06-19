@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { defaultAutoplay } from '../../../lib/appSettings.js'
 import { GrayScott, RD_PRESETS, RD_PALETTES, RD_SEEDS } from './engine.js'
 import { resolveDeep } from '../../../lib/exprParam.js'
 import { VIEW_ASPECTS, defaultAspectFor, DEFAULT_SCALE, dimsFor } from '../../_shared/exportSpecs.js'
@@ -25,7 +26,7 @@ export default function ReactionPage() {
   const [gain, setGain] = useState(3.2)
   const [iters, setIters] = useState(10)
   const [palette, setPalette] = useState('lava')
-  const [playing, setPlaying] = useState(true)
+  const [playing, setPlaying] = useState(() => defaultAutoplay())
   const [aspect, setAspect] = useState(() => defaultAspectFor('view'))
   const [scale, setScale] = useState(DEFAULT_SCALE)
   const [footTab, setFootTab] = useState('transport')
@@ -111,7 +112,7 @@ export default function ReactionPage() {
   return (
     <div className="min-h-dvh bg-surface-secondary flex">
       <div className="flex-1 flex items-center justify-center p-4 overflow-hidden">
-        <canvas ref={displayRef} width={DISPLAY} height={DISPLAY} className="max-w-full max-h-[90vh] object-contain rounded" />
+        <canvas data-vcap="stage" ref={displayRef} width={DISPLAY} height={DISPLAY} className="max-w-full max-h-[90vh] object-contain rounded" />
       </div>
 
       <EditorRail

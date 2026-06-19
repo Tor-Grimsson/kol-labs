@@ -23,14 +23,19 @@ import { GROUPS as LOOP_GROUPS, SUBGROUPS as LOOP_SUBGROUPS } from './loops/regi
 import { SCENE_PRESETS } from './pages/radar/refract/scenes.js'
 import { CATEGORIES as SCANLINE_CATEGORIES, SUBPAGES as SCANLINE_SUBPAGES } from './pages/scanlines/registry.js'
 import { CATEGORIES as DRIFT_CATEGORIES, SUBPAGES as DRIFT_SUBPAGES } from './pages/drift/registry.js'
+import { CATEGORIES as TYPE_CATEGORIES, SUBPAGES as TYPE_SUBPAGES } from './pages/type/registry.js'
+import { CATEGORIES as PATTERN_CATEGORIES, SUBPAGES as PATTERN_SUBPAGES } from './pages/pattern/registry.js'
 import { FORMS } from './pages/gradient/forms/data/shapes.js'
 import { ENVIRONMENTS } from './pages/gradient/environments/data/scenes.js'
 import { SHAPES } from './pages/gradient/data/palettes.js'
 import { PRIMITIVES } from './pages/gradient/primitive/data/primitives.js'
+import { RIBBON_PRESETS } from './pages/gradient/ribbon/data/presets.js'
 import { RD_VARIATIONS } from './pages/gradient/abstract/data/models.js'
 import { MSTP_PRESETS } from './pages/gradient/abstract/data/mstp.js'
 import { AUDIO_CATEGORIES, EXAMPLES as AUDIO_EXAMPLES } from './pages/live/audio/examples.js'
 import { GRADIENT_CATEGORIES, GRADIENT_TYPES } from './pages/gradients/registry.js'
+import { SOFTFORM_CATEGORIES, SCENES as SOFTFORM_SCENES } from './pages/softforms/registry.js'
+import { CATEGORIES_3D, SCENES_3D } from './pages/softforms/registry3d.js'
 
 // SHAPES are bare value-strings (sphere/plane); author Capitalized nav labels here.
 const SHAPE_LABEL = { sphere: 'Sphere', plane: 'Plane' }
@@ -110,8 +115,23 @@ export const NAV_TREE = [
       label: g.label,
     })) },
   ] },
-  { id: 'type', label: 'Type', to: '/type', icon: 'font-01' },
-  { id: 'pattern', label: 'Pattern', to: '/pattern', icon: 'ptrn-checker' },
+  // Type — blank typesetting canvas at /type; loop sub-pages (Radial · Rings · Path)
+  // derive from the registry so nav + routes can't drift.
+  { id: 'type', label: 'Type', to: '/type', icon: 'font-01', children:
+    TYPE_CATEGORIES.map((c) => ({
+      label: c.label,
+      children: TYPE_SUBPAGES[c.id].map((s) => ({ to: s.route, label: s.label })),
+    })),
+  },
+  // Pattern — the kolkrabbi rule/tiling engine as a standalone vector-pattern
+  // studio. Five categories (Stripes · Tartan · Blocks · Organic · Interlace),
+  // ~20 sub-pages each; derived from the registry so nav + routes can't drift.
+  { id: 'pattern', label: 'Pattern', to: '/pattern', icon: 'ptrn-checker', children:
+    PATTERN_CATEGORIES.map((c) => ({
+      label: c.label,
+      children: PATTERN_SUBPAGES[c.id].map((s) => ({ to: s.route, label: s.label })),
+    })),
+  },
 
   { id: 'math', label: 'Math', to: '/math', icon: 'sum', children: [
     { label: 'Waveforms', children: [
@@ -122,6 +142,8 @@ export const NAV_TREE = [
     { label: 'Parametric', children: [
       { to: '/math/uzumaki', label: 'Curves' },
       { to: '/math/orbits', label: 'Orbits' },
+      { to: '/math/spinner', label: 'Spinner' },
+      { to: '/math/threads', label: 'Threads' },
     ]},
     { label: 'Surfaces', children: [
       { to: '/math/surface', label: 'Surface' },
@@ -152,6 +174,23 @@ export const NAV_TREE = [
       })),
     })),
   },
+  // Soft Forms — matcap-shaded SDF compositions on black (the "Apple wallpaper"
+  // look). Scenes derive from the registry so nav + routes can't drift.
+  { id: 'softforms', label: 'Soft Forms', to: '/softforms', icon: 'paint-drop', children:
+    SOFTFORM_CATEGORIES.map((c) => ({
+      label: c.label,
+      children: SOFTFORM_SCENES.filter((s) => s.cat === c.id).map((s) => ({
+        to: `/softforms/${s.id}`,
+        label: s.label,
+      })),
+    })),
+  },
+  { id: 'softforms-3d', label: 'Soft Forms 3D', to: '/softforms-3d', icon: 'ball', children:
+    CATEGORIES_3D.map((c) => ({
+      label: c.label,
+      children: SCENES_3D.filter((s) => s.cat === c.id).map((s) => ({ to: `/softforms-3d/${s.id}`, label: s.label })),
+    })),
+  },
   { id: '3d-scene', label: '3D Scene', to: '/3d-scene', icon: 'ball', children: [
     { label: 'Abstract', children: [
       { label: 'Field', children: SHAPES.map((s) => ({ to: `/3d-scene/gradient/${s}`, label: SHAPE_LABEL[s] ?? s })) },
@@ -160,6 +199,7 @@ export const NAV_TREE = [
       { label: 'Dither', children: [{ to: '/3d-scene/abstract/dither', label: 'Photo' }] },
     ] },
     { label: 'Primitive', children: PRIMITIVES.map((p) => ({ to: `/3d-scene/primitive/${p.id}`, label: p.label })) },
+    { label: 'Ribbon', children: RIBBON_PRESETS.map((p) => ({ to: `/3d-scene/ribbon/${p.id}`, label: p.label })) },
     { label: 'Forms', children: FORMS.map((f) => ({ to: `/3d-scene/forms/${f.id}`, label: f.label })) },
     { label: 'Environments', children: ENVIRONMENTS.map((e) => ({ to: `/3d-scene/environments/${e.id}`, label: e.label })) },
   ] },

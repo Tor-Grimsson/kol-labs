@@ -23,19 +23,29 @@ const CORNERS = [
 ]
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v))
 
-export default function SelectionFrame({ engineRef, selId, stage, instance, onAlign, onWeight, onItalic, onFill, onSize, onDelete }) {
+export default function SelectionFrame({ engineRef, selId, stage, instance, rectIds, onAlign, onWeight, onItalic, onFill, onSize, onDelete }) {
   const frameRef = useRef(null)
   const barRef = useRef(null)
   const raf = useRef(0)
   const drag = useRef(null)
+  const idsRef = useRef(rectIds)
+  idsRef.current = rectIds && rectIds.length ? rectIds : [selId]
 
   useEffect(() => {
     const tick = () => {
       raf.current = requestAnimationFrame(tick)
       const eng = engineRef.current
-      const r = eng?.getInstanceRect?.(selId)
       const frame = frameRef.current
       const bar = barRef.current
+      // union bbox over the selected instance(s) — one box around a whole group
+      let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity
+      for (const id of idsRef.current) {
+        const ir = eng?.getInstanceRect?.(id)
+        if (!ir) continue
+        x1 = Math.min(x1, ir.x); y1 = Math.min(y1, ir.y)
+        x2 = Math.max(x2, ir.x + ir.w); y2 = Math.max(y2, ir.y + ir.h)
+      }
+      const r = x1 === Infinity ? null : { x: x1, y: y1, w: x2 - x1, h: y2 - y1 }
       if (!r || !frame) { if (frame) frame.style.opacity = '0'; if (bar) bar.style.opacity = '0'; return }
       const pad = 10
       const w = r.w + pad * 2

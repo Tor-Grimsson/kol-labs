@@ -297,7 +297,7 @@ const Oscilloscope = forwardRef(function Oscilloscope({
           dragRef.current = null
         }}
       >
-        <canvas ref={canvasRef} className="block w-full h-full" />
+        <canvas data-vcap="stage" ref={canvasRef} className="block w-full h-full" />
       </div>
     </div>
   )

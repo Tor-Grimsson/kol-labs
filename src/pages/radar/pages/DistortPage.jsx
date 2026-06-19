@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { defaultAutoplay } from '../../../lib/appSettings.js'
 import Button from '../../../components/atoms/Button.jsx'
 import Slider from '../../../components/atoms/Slider.jsx'
 import Section from '../../../components/molecules/Section.jsx'
@@ -31,11 +32,11 @@ export default function DistortPage() {
   const chunksRef = useRef([])
   const [dragging, setDragging] = useState(false)
   const [recording, setRecording] = useState(false)
-  const [playing, setPlaying] = useState(false)
+  const [playing, setPlaying] = useState(false) // motion REPLAY (user-triggered, gated on hasMotion) — not the transport
   const [exporting, setExporting] = useState(false)
   const [hasMotion, setHasMotion] = useState(false)
   const [params, setParams] = useState(DEFAULTS)
-  const [paused, setPaused] = useState(false)
+  const [paused, setPaused] = useState(() => !defaultAutoplay()) // the live transport — seeds from the global autoplay setting
   const [tempo, setTempo] = useState(120)
   const [footTab, setFootTab] = useState('transport') // Transport | Output | File footer toggle
 
@@ -193,7 +194,7 @@ export default function DistortPage() {
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
-        <canvas ref={canvasRef} className="block h-full w-full" />
+        <canvas data-vcap="stage" ref={canvasRef} className="block h-full w-full" />
         {!sourceImage && (
           <div className="absolute inset-0 flex items-center justify-center p-4">
             <div

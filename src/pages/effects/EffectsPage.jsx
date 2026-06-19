@@ -3,6 +3,7 @@ import { Routes, Route } from 'react-router-dom'
 import { defaultAspectFor, DEFAULT_SCALE } from '../_shared/exportSpecs.js'
 import { EFFECT_GROUPS } from './effects.config.js'
 import EffectsEditor from './EffectsEditor.jsx'
+import { defaultAutoplay } from '../../lib/appSettings.js'
 
 // Effects — a Radar effect family, mounted at /radar/effects/* inside Radar's
 // ImageProvider (so the uploaded source is shared with every other Radar effect:
@@ -16,7 +17,7 @@ export default function EffectsShell() {
   const [sweeps, setSweeps] = useState([]) // motion (Radar sweep shape)
   const [animating, setAnimating] = useState(false)
   const [motionSpeed, setMotionSpeed] = useState(0.5)
-  const [playing, setPlaying] = useState(true)
+  const [playing, setPlaying] = useState(() => defaultAutoplay())
   const timeRef = useRef(0)
   const [exportAspect, setExportAspect] = useState(() => defaultAspectFor('source'))
   const [exportScale, setExportScale] = useState(DEFAULT_SCALE)

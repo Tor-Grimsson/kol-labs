@@ -27,7 +27,7 @@ import EditorFooter from '../../components/framework/EditorFooter.jsx'
 import RailNav from '../../components/framework/RailNav.jsx'
 import { usePublishShortcuts, usePublishReset, usePublishRetrigger } from '../../components/framework/pageShortcuts.jsx'
 import { LiveClock } from '../../lib/liveClock.jsx'
-import { defaultTheme, getAppSettings } from '../../lib/appSettings.js'
+import { defaultTheme, defaultAutoplay, defaultClipToFrame } from '../../lib/appSettings.js'
 import { DEFAULT_THEME, resolveTheme } from '../../lib/themes.js'
 import { mulberry32, randomSeed } from '../../lib/rng.js'
 
@@ -82,7 +82,7 @@ export default function KineticPage() {
   const addIdRef = useRef(1)
 
   // ── transport / export / scene ──
-  const [playing, setPlaying]     = useState(false)
+  const [playing, setPlaying]     = useState(() => defaultAutoplay())
   const [tempo, setTempo]         = useState(120)
   const [bottomTab, setBottomTab] = useState('transport')
   const [aspect, setAspect]       = useState(() => defaultAspectFor('view'))
@@ -91,7 +91,7 @@ export default function KineticPage() {
   const [themeId, setThemeId]     = useState(() => defaultTheme())
   const [invert, setInvert]       = useState(false)
   const [seed, setSeed]           = useState(1)
-  const [clip]                    = useState(() => getAppSettings().clipToFrame !== false)
+  const [clip]                    = useState(() => defaultClipToFrame())
   const [pattern, setPattern]     = useState(() => ({ on: false, ...patternLoop.defaults }))
   const onPattern = (k, v) => setPattern((s) => ({ ...s, [k]: v }))
 
@@ -169,6 +169,7 @@ export default function KineticPage() {
   const setInstMorphVf2 = (id, tag, v) => setInstances((arr) => arr.map((x) => x.id === id ? { ...x, morph: { ...x.morph, vf2: { ...x.morph?.vf2, [tag]: v } } } : x))
   const setInstPath   = (id, k, v)   => setInstances((arr) => arr.map((x) => x.id === id ? { ...x, path: { ...x.path, [k]: v } } : x))
   const setInstMotion = (id, k, v)   => setInstances((arr) => arr.map((x) => x.id === id ? { ...x, motion: { ...x.motion, [k]: v } } : x))
+  const setInstMotions = (id, next)  => setInstances((arr) => arr.map((x) => x.id === id ? { ...x, motions: next } : x))
   const setInstText   = (id, text)   => setInstances((arr) => arr.map((x) => x.id === id ? { ...x, text } : x))
 
   const addInstance = (type = 'line') => {
@@ -185,7 +186,7 @@ export default function KineticPage() {
       const idx = arr.findIndex((x) => x.id === id)
       if (idx < 0) return arr
       const s = arr[idx]
-      const clone = { ...s, id: nid, vf: { ...s.vf }, opentype: { ...s.opentype }, path: { ...s.path }, motion: { ...s.motion }, offset: { ...s.offset }, morph: { ...s.morph, vf2: { ...(s.morph?.vf2 || {}) } } }
+      const clone = { ...s, id: nid, vf: { ...s.vf }, opentype: { ...s.opentype }, path: { ...s.path }, motion: { ...s.motion }, motions: (s.motions || []).map((mm) => ({ ...mm })), offset: { ...s.offset }, morph: { ...s.morph, vf2: { ...(s.morph?.vf2 || {}) } } }
       const next = [...arr]; next.splice(idx + 1, 0, clone); return next
     })
     setSelId(nid)
@@ -366,7 +367,7 @@ export default function KineticPage() {
       <div className="flex-1 min-w-0 h-dvh bg-surface-secondary overflow-hidden">
         {stageVisible && (
           <div ref={wrapRef} className="relative h-full flex items-center justify-center">
-            <div ref={hostRef} className="flex items-center justify-center" />
+            <div ref={hostRef} data-vcap="stage" className="w-fit flex items-center justify-center" />
             {view === 'generate' && selected?.path?.type === 'custom' && (
               <CustomPathEditor
                 points={selected.path.points || DEFAULT_POINTS}
@@ -503,6 +504,7 @@ export default function KineticPage() {
                   onReorder={reorderInstances}
                   onPath={setInstPath}
                   onMotion={setInstMotion}
+                  onMotions={setInstMotions}
                   set={setInst}
                 />
               )}

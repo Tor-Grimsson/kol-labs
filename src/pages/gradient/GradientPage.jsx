@@ -19,7 +19,7 @@ import { SHAPES, DRIVERS, PALETTES, BG_STYLES, shiftHue } from './data/palettes.
 import { mulberry32 } from './engine/prng.js'
 import GradientEngine from './engine/GradientEngine.js'
 import { resolveTheme } from '../../lib/themes.js'
-import { defaultTheme } from '../../lib/appSettings.js'
+import { defaultTheme, defaultAutoplay } from '../../lib/appSettings.js'
 
 const VARIATIONS = 9
 
@@ -67,7 +67,7 @@ export default function GradientPage() {
   const [glow, setGlow] = useState(0.6)
   const [grain, setGrain] = useState(0.06)
   const [speed, setSpeed] = useState(0.5)
-  const [paused, setPaused] = useState(true)
+  const [paused, setPaused] = useState(() => !defaultAutoplay())
   const [bgOn, setBgOn] = useState(true)
   const [bg, setBg] = useState(0.85)
   const [bgStyle, setBgStyle] = useState(0)
@@ -172,7 +172,7 @@ export default function GradientPage() {
   return (
     <div className="flex h-dvh">
       <div ref={wrapRef} className="relative flex-1 min-w-0 overflow-hidden bg-surface-secondary">
-        <canvas ref={canvasRef} className={`block h-full w-full ${view === 'grid' ? 'cursor-pointer' : ''}`} onClick={onCanvasClick} />
+        <canvas ref={canvasRef} data-vcap="stage" className={`block h-full w-full ${view === 'grid' ? 'cursor-pointer' : ''}`} onClick={onCanvasClick} />
         {view === 'single' && (
           <div className="absolute bottom-3 left-3 kol-helper-10 text-body pointer-events-none">
             {String(idx + 1).padStart(2, '0')} / {String(VARIATIONS).padStart(2, '0')} · {spec.shape} · {spec.driver === 0 ? 'normal' : spec.driver === 1 ? 'rim' : 'height'} · seed {spec.seed}

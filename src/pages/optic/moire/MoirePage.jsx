@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { defaultAutoplay } from '../../../lib/appSettings.js'
 import { renderMoire, GRID_OPTIONS, COMBINE_OPTIONS, MOIRE_PALETTES } from './engine.js'
 import { resolveDeep, treeReferencesAudio } from '../../../lib/exprParam.js'
 import { isAudioEnabled, subscribeAudio } from '../../../lib/audioSource.js'
@@ -28,7 +29,7 @@ export default function MoirePage() {
   const [hardness, setHardness] = useState(0.3)
   const [palette, setPalette] = useState('bw')
   const [invert, setInvert] = useState(false)
-  const [playing, setPlaying] = useState(true)
+  const [playing, setPlaying] = useState(() => defaultAutoplay())
   const [tempo, setTempo] = useState(120)
   const [aspect, setAspect] = useState(() => defaultAspectFor('view'))
   const [scale, setScale] = useState(DEFAULT_SCALE)
@@ -98,7 +99,7 @@ export default function MoirePage() {
   return (
     <div className="min-h-dvh bg-surface-secondary flex">
       <div className="flex-1 flex items-center justify-center p-4 overflow-hidden">
-        <canvas ref={canvasRef} className="max-w-full max-h-[90vh] object-contain rounded" />
+        <canvas data-vcap="stage" ref={canvasRef} className="max-w-full max-h-[90vh] object-contain rounded" />
       </div>
 
       <EditorRail

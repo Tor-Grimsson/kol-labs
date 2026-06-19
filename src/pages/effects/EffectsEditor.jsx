@@ -187,7 +187,7 @@ export default function EffectsEditor({
             <SourcePlaceholder onUpload={() => fileInputRef.current?.click()} />
           </div>
         ) : (
-          <canvas ref={canvasRef} className="max-w-full max-h-[90vh] object-contain" />
+          <canvas data-vcap="stage" ref={canvasRef} className="max-w-full max-h-[90vh] object-contain" />
         )}
       </div>
 

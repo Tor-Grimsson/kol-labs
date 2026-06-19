@@ -12,6 +12,8 @@ const FieldPage = lazy(() => import('./field/FieldPage'))
 const ComplexPage = lazy(() => import('./complex/ComplexPage'))
 const FourierPage = lazy(() => import('./fourier/FourierPage'))
 const OrbitsPage = lazy(() => import('./orbits/OrbitsPage'))
+const SpinnerPage = lazy(() => import('./spinner/SpinnerPage'))
+const ThreadsPage = lazy(() => import('./threads/ThreadsPage'))
 
 const fallback = <div className="min-h-dvh bg-surface-secondary" />
 const lazyRoute = (el) => <Suspense fallback={fallback}>{el}</Suspense>
@@ -29,6 +31,8 @@ export default function MathPage() {
       <Route path="complex" element={lazyRoute(<ComplexPage />)} />
       <Route path="fourier" element={lazyRoute(<FourierPage />)} />
       <Route path="orbits" element={lazyRoute(<OrbitsPage />)} />
+      <Route path="spinner" element={lazyRoute(<SpinnerPage />)} />
+      <Route path="threads" element={lazyRoute(<ThreadsPage />)} />
     </Routes>
   )
 }

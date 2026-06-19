@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { defaultAutoplay } from '../../../lib/appSettings.js'
 import { useImage } from '../state/ImageContext'
 import SourcePlaceholder from '../components/SourcePlaceholder.jsx'
 import LibrarySourceButton from '../components/LibrarySourceButton.jsx'
@@ -7,7 +8,7 @@ import { SURFACE_BY_ID, GLASS_SHAPES } from './distorters.js'
 import { resolveDeep } from '../../../lib/exprParam.js'
 import LayersPanel from './LayersPanel.jsx'
 import Icon from '../../../components/loaders/Icon.jsx'
-import { ASPECT_SPECS, SOURCE_DEFAULT, DEFAULT_SCALE, ratioFor, dimsFor } from '../../_shared/exportSpecs.js'
+import { ASPECT_SPECS, defaultAspectFor, DEFAULT_SCALE, ratioFor, dimsFor } from '../../_shared/exportSpecs.js'
 import { downloadSettings, readSettingsFile } from '../../../lib/settingsIO.js'
 import EditorRail, { RailHeader } from '../../../components/framework/EditorRail.jsx'
 import EditorFooter from '../../../components/framework/EditorFooter.jsx'
@@ -34,7 +35,7 @@ export default function LensShell({ surface = 'glass', title = 'Glass', preset =
   const [ready, setReady] = useState(false)
   const [dragging, setDragging] = useState(false)
   const [footTab, setFootTab] = useState('transport')
-  const [playing, setPlaying] = useState(true)
+  const [playing, setPlaying] = useState(() => defaultAutoplay())
 
   // image layer — photo plane transform
   const [imgZoom, setImgZoom] = useState(1)
@@ -115,7 +116,7 @@ export default function LensShell({ surface = 'glass', title = 'Glass', preset =
   const [lightZ, setLightZ] = useState(3)
   // transport / export
   const [flow, setFlow] = useState(1)
-  const [aspect, setAspect] = useState(SOURCE_DEFAULT)
+  const [aspect, setAspect] = useState(() => defaultAspectFor('source'))
   const [expScale, setExpScale] = useState(DEFAULT_SCALE)
   const [imgAspect, setImgAspect] = useState(null)
 
@@ -357,7 +358,7 @@ export default function LensShell({ surface = 'glass', title = 'Glass', preset =
           className="relative overflow-hidden rounded"
           style={{ aspectRatio: r, width: `min(100%, calc(90vh * ${r}))`, maxHeight: '90vh' }}
         >
-          <div ref={containerRef} className="absolute inset-0" />
+          <div ref={containerRef} data-vcap="stage" className="absolute inset-0" />
 
           {!sourceImage && (
             <div
@@ -569,9 +570,9 @@ export default function LensShell({ surface = 'glass', title = 'Glass', preset =
                             onChange={set('type')}
                           />
                         )}
-                        <ColorField label={t === 'radial' ? 'Center' : 'Color'} value={b.color} onChange={set('color')} />
+                        <ColorField raised label={t === 'radial' ? 'Center' : 'Color'} value={b.color} onChange={set('color')} />
                         {(t === 'linear' || t === 'radial') && (
-                          <ColorField label={t === 'radial' ? 'Edge' : 'Color B'} value={b.color2 ?? '#000000'} onChange={set('color2')} />
+                          <ColorField raised label={t === 'radial' ? 'Edge' : 'Color B'} value={b.color2 ?? '#000000'} onChange={set('color2')} />
                         )}
                         <Slider raised labeled label="Brightness" min={0} max={1.5} step={0.01} value={b.brightness ?? 1} onChange={set('brightness')} variant="default" />
 
@@ -594,7 +595,7 @@ export default function LensShell({ surface = 'glass', title = 'Glass', preset =
                           <Slider raised labeled label="Sharpness" min={0} max={1} step={0.01} value={b.sharpness ?? 0.5} onChange={set('sharpness')} variant="default" />
                         </>}
                         {t === 'glass' && <>
-                          <ColorField label="Tint" value={b.color2 ?? '#ffffff'} onChange={set('color2')} />
+                          <ColorField raised label="Tint" value={b.color2 ?? '#ffffff'} onChange={set('color2')} />
                           <Slider raised labeled label="Frost" min={0} max={1} step={0.01} value={b.frost ?? 0.5} onChange={set('frost')} variant="default" />
                           <Slider raised labeled label="Sheen" min={0} max={1} step={0.01} value={b.sheen ?? 0.5} onChange={set('sheen')} variant="default" />
                         </>}

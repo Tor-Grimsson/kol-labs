@@ -22,6 +22,7 @@ export default function Stage({
       <div className="relative inline-block max-w-full">
         <video
           ref={videoRef}
+          data-vcap="stage"
           src={srcUrl}
           className="block max-h-[62vh] max-w-full rounded"
           playsInline

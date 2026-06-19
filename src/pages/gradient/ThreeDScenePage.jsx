@@ -6,6 +6,7 @@ import GradientPage from './GradientPage'
 // own router (one shell per form, sidebar nav hop between them) — both lazy
 // so the default Gradient route doesn't bundle them.
 const PrimitiveScenePage = lazy(() => import('./primitive/PrimitiveScenePage'))
+const RibbonPage = lazy(() => import('./ribbon/RibbonPage.jsx'))
 const FormsPage = lazy(() => import('./forms/FormsPage.jsx'))
 const EnvironmentsPage = lazy(() => import('./environments/EnvironmentsPage.jsx'))
 const AbstractRDPage = lazy(() => import('./abstract/AbstractRDPage.jsx'))
@@ -38,6 +39,12 @@ export default function ThreeDScenePage() {
       <AbstractMSTPPage />
     </Suspense>
   )
+  // Ribbon — the swept-glass "Puddle" studio; sidebar Ribbon category deep-links a form.
+  const ribbonEl = (
+    <Suspense fallback={<div className="min-h-dvh bg-surface-secondary" />}>
+      <RibbonPage />
+    </Suspense>
+  )
   return (
     <Routes>
       <Route path="/" element={<GradientPage />} />
@@ -50,6 +57,8 @@ export default function ThreeDScenePage() {
       <Route path="abstract/:variant" element={abstractEl} />
       <Route path="primitive" element={primitiveEl} />
       <Route path="primitive/:primitiveId" element={primitiveEl} />
+      <Route path="ribbon" element={ribbonEl} />
+      <Route path="ribbon/:ribbonId" element={ribbonEl} />
       <Route
         path="forms/*"
         element={

@@ -12,6 +12,15 @@ import { SHAPE_OPTIONS } from '../../loops/pattern/shapes.js'
 import { newRule, randomRule } from '../../loops/pattern/rules.js'
 import { FONT_OPTIONS, fontByKey } from '../kinetic/lib/vfAxes.js'
 
+const CURVE_PRESETS = [
+  { label: 'Sine',  expr: '' },
+  { label: 'In',    expr: 'k*k' },
+  { label: 'Out',   expr: '1-(1-k)*(1-k)' },
+  { label: 'S',     expr: 'k<0.5?2*k*k:1-2*(1-k)*(1-k)' },
+  { label: 'Step',  expr: 'round(k)' },
+  { label: 'Peak',  expr: 'pow(sin(PI*k),2)' },
+]
+
 const SWEEP_AXES = [
   { value: 'none', label: 'None' },
   { value: 'diag', label: 'Diagonal' },
@@ -60,6 +69,20 @@ export default function PatternControls({ values, onChange, tab = 'pattern', gly
           </LabeledControl>
           <Slider labeled label="Cycles" min={1} max={4} step={1} value={v.animCycles ?? 1} onChange={(x) => onChange('animCycles', roundIfNum(x))} variant="default" />
           <Slider labeled label="Waves" min={0} max={8} step={0.5} value={v.animWaves ?? 2} onChange={(x) => onChange('animWaves', x)} variant="default" />
+          <LabeledControl inline label="Curve">
+            <Input
+              value={v.animCurveExpr ?? ''}
+              onChange={(e) => onChange('animCurveExpr', e.target.value)}
+              placeholder="k · k*k · 1-(1-k)*(1-k)"
+              style={{ background: 'var(--kol-surface-primary)' }}
+            />
+          </LabeledControl>
+          <div className="flex flex-wrap gap-1">
+            {CURVE_PRESETS.map(({ label, expr }) => (
+              <Button key={label} variant="primary" size="sm"
+                onClick={() => onChange('animCurveExpr', expr)}>{label}</Button>
+            ))}
+          </div>
           <Slider labeled label="Pulse" min={0} max={1} step={0.05} value={v.pulse ?? 0} onChange={(x) => onChange('pulse', x)} variant="default" />
           <Slider labeled label="Fade" min={0} max={1} step={0.05} value={v.fade ?? 0} onChange={(x) => onChange('fade', x)} variant="default" />
           <Slider labeled label="Swing" min={0} max={180} step={5} value={v.swing ?? 0} onChange={(x) => onChange('swing', roundIfNum(x))} variant="default" />

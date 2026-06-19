@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
+import { defaultAutoplay } from '../../../lib/appSettings.js'
 import { renderAscii, ALGORITHM_OPTIONS, CHARSET_OPTIONS, DEFAULT_ASCII_PARAMS } from '../effects/asciiEngine'
 import { makeSweep } from '../effects/sweeps'
 import { ASPECT_SPECS, SOURCE_DEFAULT as DEFAULT_ASPECT, defaultAspectFor, DEFAULT_SCALE, dimsFor, ratioFor } from '../../_shared/exportSpecs.js'
@@ -34,7 +35,7 @@ export default function AsciiPage() {
   const [sweeps, setSweeps] = useState([])
   const [animating, setAnimating] = useState(false)
   const [motionSpeed, setMotionSpeed] = useState(0.5)
-  const [playing, setPlaying] = useState(true)
+  const [playing, setPlaying] = useState(() => defaultAutoplay())
   const timeRef = useRef(0)
   const recorderRef = useRef(null)
   const chunksRef = useRef([])
@@ -246,7 +247,7 @@ export default function AsciiPage() {
             <SourcePlaceholder onUpload={() => fileInputRef.current?.click()} />
           </div>
         ) : (
-          <canvas ref={canvasRef} className="max-w-full max-h-[90vh] object-contain" />
+          <canvas data-vcap="stage" ref={canvasRef} className="max-w-full max-h-[90vh] object-contain" />
         )}
       </div>
 

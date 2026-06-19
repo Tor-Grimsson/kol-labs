@@ -17,6 +17,7 @@ export const INSTANCE_DEFAULTS = {
   case: 'none',             // none | upper | lower | title (content-layer transform)
   letterSpacing: 0,
   align: 'center',
+  group: null,              // group id — grouped instances move/scale together
   multiply: 1,              // type multiplier — render N copies of the word in one instance
   flow: 'flow',             // 'flow' = type ignores the frame edges (default) · 'contain' = Paragraph mode, kept inside
   offset: { x: 0, y: 0 },   // normalized position offset from frame centre (drag to move)
@@ -25,6 +26,7 @@ export const INSTANCE_DEFAULTS = {
   showPath: false,
   path: { type: 'line', ...PATH_DEFAULTS },
   motion: { mode: 'none', cycles: 1, phase: 0.5, amp: 0.3, axis: 'wght', field: 'x' },
+  motions: [],              // additional motion layers, composed on top of `motion`
   // morph render mode — glyph-outline interpolation (the "morph monster"). off by
   // default (autoplay-off discipline). Cut A = this instance's font + vf; Cut B =
   // vf2 (same font, defaults to axis maxes) OR face2 (a different font, cross-face).
@@ -196,6 +198,7 @@ export function mergeInstance(p = {}, i = 0) {
     ...p,
     path: { ...INSTANCE_DEFAULTS.path, ...(p.path || {}) },
     motion: { ...INSTANCE_DEFAULTS.motion, ...(p.motion || {}) },
+    motions: Array.isArray(p.motions) ? p.motions.map((mm) => ({ ...INSTANCE_DEFAULTS.motion, ...mm })) : [],
     offset: { ...INSTANCE_DEFAULTS.offset, ...(p.offset || {}) },
     opentype: { ...(p.opentype || {}) },
     morph: { ...INSTANCE_DEFAULTS.morph, ...(p.morph || {}), vf2: { ...(p.morph?.vf2 || {}) } },

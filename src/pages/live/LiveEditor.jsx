@@ -590,7 +590,7 @@ export default function LiveEditor() {
   return (
     <div className="min-h-dvh bg-surface-secondary flex">
       <div className="flex-1 flex items-center justify-center p-4 overflow-hidden relative">
-        <canvas ref={canvasRef} className="max-w-full max-h-[90vh] object-contain rounded" />
+        <canvas data-vcap="stage" ref={canvasRef} className="max-w-full max-h-[90vh] object-contain rounded" />
         <video ref={videoRef} className="hidden" playsInline muted />
         {!mediaReady && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 pointer-events-none">

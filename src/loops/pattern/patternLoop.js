@@ -1,4 +1,4 @@
-import { TAU, mixHex } from '../lib/util.js'
+import { TAU, mixHex, hexToRgb } from '../lib/util.js'
 import { resolveShape, DEFAULT_SHAPE_ID } from './shapes.js'
 import { composeCell, compileRules } from './rules.js'
 import { glyphShape, ensureGlyphFontUrl } from '../../lib/glyphPath.js'
@@ -16,6 +16,18 @@ import { glyphShape, ensureGlyphFontUrl } from '../../lib/glyphPath.js'
 // Controls are the custom `pattern` panel (PatternControls.jsx).
 
 let cache = null // { key, viewBox, paths:[Path2D] }
+let curveCache = null // { expr, fn }
+let rulesCache = null // { key, compiled }
+function compileCurve(expr) {
+  if (!expr) return null
+  if (curveCache && curveCache.expr === expr) return curveCache.fn
+  try {
+    // eslint-disable-next-line no-new-func
+    const fn = new Function('k', 't', 'sp', `with(Math){ return (${expr}) }`)
+    curveCache = { expr, fn }
+    return fn
+  } catch { return null }
+}
 const EMPTY = { key: '', viewBox: [0, 0, 1, 1], paths: [] }
 function buildPaths(viewBox, paths) {
   const built = []
@@ -102,6 +114,7 @@ export default {
     animAxis: 'none', // none | diag | col | row | radial
     animCycles: 1, // whole time cycles over the loop ⇒ seamless
     animWaves: 2, // spatial frequency of the sweep (cosmetic)
+    animCurveExpr: '', // optional k→k shaper: 'k*k' ease-in · '1-(1-k)*(1-k)' ease-out · 'Math.round(k)' step
     pulse: 0, // 0..1 size breathe
     fade: 0, // 0..1 opacity sweep
     swing: 0, // 0..180 rotation sway (deg)
@@ -120,7 +133,9 @@ export default {
     const cell = Math.max(8, p.cell)
     const period = cell + p.gap
     if (period <= 0) return
-    const compiled = compileRules(p.rules)
+    const rulesKey = (p.rules || []).map(r => r.selectKind === 'expression' ? r.expression || '' : '_').join('|')
+    if (!rulesCache || rulesCache.key !== rulesKey) rulesCache = { key: rulesKey, compiled: compileRules(p.rules) }
+    const compiled = rulesCache.compiled
 
     const z = p.camZoom || 1
     const ang = (p.camAngle || 0) * Math.PI / 180
@@ -135,12 +150,19 @@ export default {
     const cyc = Math.round(p.animCycles || 0)
     const wav = p.animWaves || 0
     const tphase = u * TAU * cyc
+    const curveFn = compileCurve(p.animCurveExpr)
 
     ctx.save()
     ctx.translate(w / 2, h / 2)
     ctx.rotate(ang)
     ctx.scale(z, z)
     ctx.translate(-panX, -panY)
+    const baseMatrix = ctx.getTransform()
+
+    // Pre-parse hex colors once so per-cell colorMix can inline-lerp without string parsing.
+    const _c1 = hexToRgb(p.color)
+    const _c2 = hexToRgb(p.color2 || p.color)
+    const _c3 = hexToRgb(p.color3 || p.color2 || p.color)
 
     // World cells covering the (rotated, zoomed) viewport + margin.
     const reach = (Math.hypot(w, h) / 2) / z + period * 2
@@ -184,14 +206,18 @@ export default {
               : axis === 'radial' ? Math.hypot(gx, gy)
                 : gx + gy
           const sw = Math.sin(tphase - sp * 0.5 * wav) // -1..1
-          const k = 0.5 + 0.5 * sw // 0..1
+          let k = 0.5 + 0.5 * sw // 0..1
+          if (curveFn) { try { k = Math.max(0, Math.min(1, curveFn(k, tphase, sp))) } catch {} }
           if (p.pulse) aScale = 1 - p.pulse + p.pulse * k
           if (p.fade) aOpacity = c.opacity * (1 - p.fade + p.fade * k)
-          if (p.swing) aRot = p.swing * sw
-          if (p.colorMix) aColor = mixHex(baseColor, p.color2, p.colorMix * k)
+          if (p.swing) aRot = p.swing * (2 * k - 1)
+          if (p.colorMix) {
+            const base = baseColor === p.color2 ? _c2 : baseColor === p.color3 ? _c3 : _c1
+            const t = p.colorMix * k
+            aColor = `rgb(${base[0]+t*(_c2[0]-base[0])|0},${base[1]+t*(_c2[1]-base[1])|0},${base[2]+t*(_c2[2]-base[2])|0})`
+          }
         }
 
-        ctx.save()
         ctx.translate(gx * period + cell / 2, gy * period + cell / 2)
         ctx.rotate((c.rotate + cellSpin + aRot) * Math.PI / 180)
         ctx.scale(c.scaleX * aScale, c.scaleY * aScale)
@@ -201,7 +227,8 @@ export default {
         ctx.globalAlpha = aOpacity
         ctx.fillStyle = aColor
         for (const path of shp.paths) ctx.fill(path)
-        ctx.restore()
+        ctx.setTransform(baseMatrix)
+        ctx.globalAlpha = 1
       }
     }
 

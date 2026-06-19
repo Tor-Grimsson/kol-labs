@@ -26,7 +26,7 @@ import EditorFooter from '../../../components/framework/EditorFooter.jsx'
 import { LiveClock } from '../../../lib/liveClock.jsx'
 import SettingsPanel from '../../../components/framework/SettingsPanel.jsx'
 import { resolveTheme } from '../../../lib/themes.js'
-import { defaultTheme } from '../../../lib/appSettings.js'
+import { defaultTheme, defaultAutoplay, defaultAudioReactive } from '../../../lib/appSettings.js'
 import { randomSeed } from '../../../lib/rng.js'
 
 const SHAPE_PARAM = { torus: 'tube', torusKnot: 'pq', icosahedron: 'detail', octahedron: 'detail', dodecahedron: 'detail' }
@@ -63,10 +63,10 @@ export default function PrimitiveScenePage() {
   const [selKf, setSelKf] = useState(0)
   const [loop, setLoop] = useState(true)
   const [duration, setDuration] = useState(8)
-  const [playing, setPlaying] = useState(false)
+  const [playing, setPlaying] = useState(() => defaultAutoplay())
   const [tempo, setTempo] = useState(120)
   // audio
-  const [audioReactive, setAudioReactive] = useState(false)
+  const [audioReactive, setAudioReactive] = useState(() => defaultAudioReactive())
   const [audioAmount, setAudioAmount] = useState(1)
   const [audioSource, setAudioSource] = useState('off')
   // style
@@ -294,7 +294,7 @@ export default function PrimitiveScenePage() {
   return (
     <div className="min-h-dvh bg-surface-secondary flex">
       <div ref={wrapRef} className="relative min-w-0 flex-1 overflow-hidden flex items-center justify-center">
-        <canvas ref={canvasRef} className="block max-w-full max-h-full" />
+        <canvas ref={canvasRef} data-vcap="stage" className="block max-w-full max-h-full" />
         <div className="pointer-events-none absolute left-5 top-5">
           <div className="kol-helper-12 text-emphasis">{primLabel}{count > 1 ? ` ×${count}` : ''}</div>
           <div className="kol-helper-10 text-meta" style={{ marginTop: 2 }}>{subLabel}</div>

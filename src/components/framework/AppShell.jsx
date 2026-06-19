@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import SideNav from './SideNav.jsx'
 import Icon from '../loaders/Icon.jsx'
@@ -6,6 +6,40 @@ import { ModalProvider } from '../molecules/Modal.jsx'
 import ShortcutsOverlay from './ShortcutsOverlay.jsx'
 import InfoOverlay from './InfoOverlay.jsx'
 import { PageShortcutsProvider } from './pageShortcuts.jsx'
+
+function FpsCounter() {
+  const [visible, setVisible] = useState(false)
+  const [fps, setFps] = useState(0)
+  const frame = useRef({ last: 0, count: 0, raf: null })
+
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'f') setVisible((v) => !v) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
+  useEffect(() => {
+    if (!visible) return
+    const s = frame.current
+    s.last = performance.now()
+    s.count = 0
+    const tick = (now) => {
+      s.count++
+      const elapsed = now - s.last
+      if (elapsed >= 500) { setFps(Math.round(s.count * 1000 / elapsed)); s.count = 0; s.last = now }
+      s.raf = requestAnimationFrame(tick)
+    }
+    s.raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(s.raf)
+  }, [visible])
+
+  if (!visible) return null
+  return (
+    <div className="fixed bottom-3 right-3 z-50 kol-mono-12 text-emphasis bg-surface-primary border border-fg-08 rounded px-2 py-1 pointer-events-none tabular-nums">
+      {fps} fps
+    </div>
+  )
+}
 
 export default function AppShell({ navTree = [], getActivePage }) {
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -46,6 +80,7 @@ export default function AppShell({ navTree = [], getActivePage }) {
         </div>
         <ShortcutsOverlay />
         <InfoOverlay />
+        <FpsCounter />
       </div>
      </PageShortcutsProvider>
     </ModalProvider>

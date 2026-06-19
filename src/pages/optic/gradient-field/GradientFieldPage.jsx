@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { defaultAutoplay } from '../../../lib/appSettings.js'
 import { MeshGradientEngine, MG_PALETTES } from './engine.js'
 import { resolveDeep } from '../../../lib/exprParam.js'
 import { VIEW_ASPECTS, defaultAspectFor, DEFAULT_SCALE, ratioFor, dimsFor } from '../../_shared/exportSpecs.js'
@@ -22,7 +23,7 @@ export default function GradientFieldPage() {
   const [sheen, setSheen] = useState(0.6)
   const [contrast, setContrast] = useState(1)
   const [duotone, setDuotone] = useState(false)
-  const [playing, setPlaying] = useState(true)
+  const [playing, setPlaying] = useState(() => defaultAutoplay())
   const [tempo, setTempo] = useState(120)
   const [aspect, setAspect] = useState(() => defaultAspectFor('view'))
   const [scale, setScale] = useState(DEFAULT_SCALE)
@@ -95,7 +96,7 @@ export default function GradientFieldPage() {
   return (
     <div className="min-h-dvh bg-surface-secondary flex">
       <div className="flex-1 flex items-center justify-center p-4 overflow-hidden">
-        <canvas ref={canvasRef} className="max-w-full max-h-[90vh] object-contain rounded" />
+        <canvas data-vcap="stage" ref={canvasRef} className="max-w-full max-h-[90vh] object-contain rounded" />
       </div>
 
       <EditorRail

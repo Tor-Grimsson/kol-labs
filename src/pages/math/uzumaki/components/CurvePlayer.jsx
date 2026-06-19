@@ -199,7 +199,7 @@ const CurvePlayer = forwardRef(function CurvePlayer({ clip, paused = false, spee
     }
   }, [])
 
-  return <canvas ref={canvasRef} className="block h-full w-full" />
+  return <canvas ref={canvasRef} data-vcap="stage" className="block h-full w-full" />
 })
 
 export default CurvePlayer

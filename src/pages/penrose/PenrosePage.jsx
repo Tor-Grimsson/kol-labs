@@ -26,7 +26,7 @@ import { FRAMES, FONTS, frameFor, setPalette, setOpacity, PALETTE } from './sett
 import { makeMapper, tintedContext } from './tint'
 import { resolveTheme, THEME_OPTIONS } from '../../lib/themes.js'
 import { randomSeed } from '../../lib/rng.js'
-import { defaultAspectFor, defaultTheme, getAppSettings } from '../../lib/appSettings.js'
+import { defaultAspectFor, defaultTheme, defaultAutoplay, defaultClipToFrame } from '../../lib/appSettings.js'
 import { usePublishShortcuts, usePublishInfo, usePublishReset, usePublishRetrigger } from '../../components/framework/pageShortcuts.jsx'
 import { CATEGORY_ORDER, categoryOf, categoryLabel, FOUNDATION_KEYS, TERRITORY_KEYS } from './prototypes/categories.js'
 
@@ -323,8 +323,12 @@ function App() {
   const [showAxes, setShowAxes] = useState(false)   // 3D XYZ axis gizmo (tracks camera rotation)
   const [seedBase, setSeedBase] = useState(DEFAULT_SEED)
   const [res, setRes] = useState(LOGICAL) // logical artboard resolution (Design slider)
-  const [clipFrame] = useState(() => getAppSettings().clipToFrame !== false)
+  const [clipFrame] = useState(() => defaultClipToFrame())
   const [genTab, setGenTab] = useState('design') // Design | Layout | Edit rail tabs
+
+  // Honor the global autoplay setting at mount: penrose's generation runs off the
+  // shared CLOCK, so resume/pause it (and mirror into `paused`) per Home › Settings.
+  useEffect(() => { if (defaultAutoplay()) CLOCK.resume(); else CLOCK.pause(); setPaused(CLOCK.isPaused()) }, [])
 
   // The subgroup keys in scope: a big category expands to its 4 subgroups, a
   // single subgroup is itself, 'all' is everything.
@@ -561,7 +565,7 @@ function App() {
           {/* canvas-wrap = the fixed artboard frame: it owns the background +
               grid + ratio + clip; the camera transforms the canvas *inside* it,
               so zoom/pan/rotate move the letterform within a frame that stays put. */}
-          <div className="canvas-wrap" style={wrapStyle}>
+          <div className="canvas-wrap" data-vcap="stage" style={wrapStyle}>
             <canvas
               id="stage"
               ref={canvasRef}

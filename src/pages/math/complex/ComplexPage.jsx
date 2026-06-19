@@ -322,6 +322,7 @@ export default function ComplexPage() {
         <div ref={boxRef} className="relative overflow-hidden" style={{ width: '100%', height: '100%' }}>
           <canvas
             ref={canvasRef}
+            data-vcap="stage"
             className="block w-full h-full cursor-grab"
             style={{ touchAction: 'none' }}
             onPointerDown={onDown}

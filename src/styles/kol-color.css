@@ -52,6 +52,11 @@
   --kol-border-default: color-mix(in srgb, var(--kol-surface-on-primary) 8%, transparent);
   --kol-border-focus: color-mix(in srgb, var(--kol-accent-primary) 70%, var(--kol-surface-on-primary));
   --kol-focus-ring: var(--kol-accent-primary);
+
+  /* Double box-shadow halo on colour-picker chips + spectrum handles (macOS-port
+   * look): 1px absolute-black core ring + 2px mid-grey outer. Single source for
+   * ColorSwatch + SpectrumControls. */
+  --kol-shadow-halo: 0 0 0 1px var(--kol-color-absolute-black), 0 0 0 2px #505050;
 }
 
 :root[data-theme="light"] {

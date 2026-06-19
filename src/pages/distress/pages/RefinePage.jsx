@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import paper from 'paper'
-import { SketchPicker } from 'react-color'
+import ColorPicker from '../../../components/color/ColorPicker.jsx'
 import { useLocation, useNavigate } from 'react-router-dom'
 import Button from '../../../components/atoms/Button.jsx'
 import ColorSwatch from '../../../components/atoms/ColorSwatch.jsx'
@@ -830,6 +830,7 @@ function RefinePage() {
               <div className="relative z-10 flex h-full w-full items-center justify-center">
                 <svg
                   ref={svgRef}
+                  data-vcap="stage"
                   viewBox={viewBox}
                   className={`h-full w-full ${isPanning ? 'cursor-grabbing' : spaceDown ? 'cursor-grab' : 'cursor-default'}`}
                   onPointerDown={(event) => {
@@ -1199,26 +1200,16 @@ function RefinePage() {
                         </span>
                       </div>
                       {showStrokePicker && (
-                        <div className="absolute left-0 bottom-full z-20 mb-2">
-                          <SketchPicker
-                            color={strokeColor}
-                            presetColors={[]}
-                            styles={{
-                              default: {
-                                picker: {
-                                  boxShadow: '0 16px 40px rgba(0, 0, 0, 0.4)',
-                                  borderRadius: '12px',
-                                  padding: '10px',
-                                  background: 'var(--kol-surface-primary)',
-                                },
-                              },
+                        <div
+                          className="absolute left-0 bottom-full z-20 mb-2 rounded-xl p-2.5 bg-surface-primary"
+                          style={{ boxShadow: '0 16px 40px rgba(0, 0, 0, 0.4)' }}
+                        >
+                          <ColorPicker
+                            value={strokeColor}
+                            onChange={(hex) => {
+                              setStrokeColor(hex)
+                              applyColor('stroke', hex)
                             }}
-                            onChange={(color) => {
-                              const rgba = `rgba(${color.rgb.r}, ${color.rgb.g}, ${color.rgb.b}, ${color.rgb.a})`
-                              setStrokeColor(rgba)
-                              applyColor('stroke', rgba)
-                            }}
-                            className="sketch-only-spectrum"
                           />
                         </div>
                       )}
@@ -1259,26 +1250,16 @@ function RefinePage() {
                         </span>
                       </div>
                       {showFillPicker && (
-                        <div className="absolute left-0 bottom-full z-20 mb-2">
-                          <SketchPicker
-                            color={fillColor}
-                            presetColors={[]}
-                            styles={{
-                              default: {
-                                picker: {
-                                  boxShadow: '0 16px 40px rgba(0, 0, 0, 0.4)',
-                                  borderRadius: '12px',
-                                  padding: '10px',
-                                  background: 'var(--kol-surface-primary)',
-                                },
-                              },
+                        <div
+                          className="absolute left-0 bottom-full z-20 mb-2 rounded-xl p-2.5 bg-surface-primary"
+                          style={{ boxShadow: '0 16px 40px rgba(0, 0, 0, 0.4)' }}
+                        >
+                          <ColorPicker
+                            value={fillColor}
+                            onChange={(hex) => {
+                              setFillColor(hex)
+                              applyColor('fill', hex)
                             }}
-                            onChange={(color) => {
-                              const rgba = `rgba(${color.rgb.r}, ${color.rgb.g}, ${color.rgb.b}, ${color.rgb.a})`
-                              setFillColor(rgba)
-                              applyColor('fill', rgba)
-                            }}
-                            className="sketch-only-spectrum"
                           />
                         </div>
                       )}

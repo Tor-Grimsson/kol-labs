@@ -60,7 +60,7 @@ export default function AudioExample() {
           {on ? 'Stop listening' : 'Enable audio'}
         </Button>
       </div>
-      <canvas ref={canvasRef} className="text-fg flex-1 w-full" />
+      <canvas ref={canvasRef} data-vcap="stage" className="text-fg flex-1 w-full" />
       {!on && (
         <p className="kol-mono-12 text-meta text-center pb-4">Enable audio, then make a sound — or use it as <code>{ex.formula}</code> in any expression slider.</p>
       )}

@@ -13,6 +13,7 @@ import EditorRail from '../../components/framework/EditorRail.jsx'
 import EditorFooter from '../../components/framework/EditorFooter.jsx'
 import { usePublishShortcuts, usePublishReset, usePublishRetrigger } from '../../components/framework/pageShortcuts.jsx'
 import RailNav from '../../components/framework/RailNav.jsx'
+import { defaultAspectFor, defaultAutoplay } from '../../lib/appSettings.js'
 import './synth.css'
 import { SCREENS, SCREEN_GROUPS, screenCat } from './screens'
 import { WIDGETS, CHROME, GROUPS, CATALOG, widgetFor } from './widgets/registry.js'
@@ -118,7 +119,7 @@ function PlayerStage({ def, playing, stopNonce, encodeMode, stageHostRef }) {
   // surface the wrapper (holds .screen) so the Output tab can record the player too
   return (
     <ScaleToFit className="w-full h-[80vh]">
-      <div className="interfaces-page bare" ref={stageHostRef}><div className={`screen theme-${def.theme ?? 'default'}`} ref={hostRef} /></div>
+      <div className="interfaces-page bare" ref={stageHostRef}><div className={`screen theme-${def.theme ?? 'default'}`} ref={hostRef} data-vcap="stage" /></div>
     </ScaleToFit>
   )
 }
@@ -155,7 +156,7 @@ function GenerateStage({ spec, playing, onRemove, onSelect, onInfo, selSec, enco
   }
   return (
     <ScaleToFit className="w-full h-[80vh]">
-      <div className="interfaces-page bare" onClick={onClick} onDoubleClick={onDouble}><div ref={hostRef} /></div>
+      <div className="interfaces-page bare" onClick={onClick} onDoubleClick={onDouble}><div ref={hostRef} data-vcap="stage" /></div>
     </ScaleToFit>
   )
 }
@@ -243,14 +244,14 @@ export default function InterfacesPage() {
   const [idx, setIdx] = useState(draft.idx ?? 0)
   const [libIdx, setLibIdx] = useState(draft.libIdx ?? 0)
   const [savedIdx, setSavedIdx] = useState(0)
-  const [playing, setPlaying] = useState(draft.playing ?? true)
+  const [playing, setPlaying] = useState(draft.playing ?? defaultAutoplay())
   const [stopNonce, setStopNonce] = useState(0)
   const [selKey, setSelKey] = useState(draft.selKey ?? null)
   const [opts, setOpts] = useState(draft.opts ?? {})
   const [recording, setRecording] = useState(false)
   // generate
   const [genSeed, setGenSeed] = useState(() => draft.genSeed ?? Math.floor(Math.random() * 1e9))
-  const [aspectKey, setAspectKey] = useState(draft.aspectKey ?? '9:16')
+  const [aspectKey, setAspectKey] = useState(() => { if (draft.aspectKey) return draft.aspectKey; const a = defaultAspectFor('view'); return ASPECTS.some((x) => x.key === a) ? a : '9:16' })
   const [themeSel, setThemeSel] = useState(draft.themeSel ?? 'random')
   const [genView, setGenView] = useState(draft.genView ?? 'current')
   const [saved, setSaved] = useState(readSaved)

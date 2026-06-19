@@ -174,7 +174,7 @@ function Glyph({ name, params, engine, showGuides, showAnatomy, big = false }) {
   const baselineY = params.ascender + 20
 
   return (
-    <svg viewBox={`0 0 ${totalW} ${totalH}`} className={`block w-auto ${big ? 'h-full max-h-72' : 'h-full max-h-24'}`}>
+    <svg {...(big ? { 'data-vcap': 'stage' } : {})} viewBox={`0 0 ${totalW} ${totalH}`} className={`block w-auto ${big ? 'h-full max-h-72' : 'h-full max-h-24'}`}>
       {showGuides && <Guides totalW={totalW} baselineY={baselineY} params={params} />}
       <g transform={`translate(${padX}, ${baselineY}) scale(1, -1)`}>
         {g.paths.map((pth, i) => (

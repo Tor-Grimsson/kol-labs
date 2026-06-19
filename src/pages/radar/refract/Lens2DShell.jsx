@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
+import { defaultAutoplay } from '../../../lib/appSettings.js'
 import { useImage } from '../state/ImageContext'
 import SourcePlaceholder from '../components/SourcePlaceholder.jsx'
 import LibrarySourceButton from '../components/LibrarySourceButton.jsx'
 import { RefractEngine } from './engine.js'
 import { SURFACE2D_BY_ID } from './surfaces2d.js'
 import { resolveDeep } from '../../../lib/exprParam.js'
-import { ASPECT_SPECS, SOURCE_DEFAULT, DEFAULT_SCALE, ratioFor, dimsFor } from '../../_shared/exportSpecs.js'
+import { ASPECT_SPECS, defaultAspectFor, DEFAULT_SCALE, ratioFor, dimsFor } from '../../_shared/exportSpecs.js'
 import ImagePlacement from '../../_shared/ImagePlacement.jsx'
 import EditorRail, { RailHeader } from '../../../components/framework/EditorRail.jsx'
 import EditorFooter from '../../../components/framework/EditorFooter.jsx'
@@ -28,7 +29,7 @@ export default function Lens2DShell({ surface = 'glass', title = 'Glass' }) {
   const [ready, setReady] = useState(false)
   const [dragging, setDragging] = useState(false)
   const [footTab, setFootTab] = useState('transport')
-  const [playing, setPlaying] = useState(true)
+  const [playing, setPlaying] = useState(() => defaultAutoplay())
 
   // the glass OBJECT (layer 2)
   const [shape, setShape] = useState('panel')
@@ -58,7 +59,7 @@ export default function Lens2DShell({ surface = 'glass', title = 'Glass' }) {
   const [tintAmt, setTintAmt] = useState(0)
   // transport / export
   const [flow, setFlow] = useState(1)
-  const [aspect, setAspect] = useState(SOURCE_DEFAULT)
+  const [aspect, setAspect] = useState(() => defaultAspectFor('source'))
   const [expScale, setExpScale] = useState(DEFAULT_SCALE)
   const [imgAspect, setImgAspect] = useState(null)
 
@@ -144,7 +145,7 @@ export default function Lens2DShell({ surface = 'glass', title = 'Glass' }) {
           className="relative overflow-hidden rounded"
           style={{ aspectRatio: r, width: `min(100%, calc(90vh * ${r}))`, maxHeight: '90vh' }}
         >
-          <div ref={containerRef} className="absolute inset-0" />
+          <div data-vcap="stage" ref={containerRef} className="absolute inset-0" />
           {!sourceImage && (
             <div
               className="absolute inset-0 flex items-center justify-center border border-dashed rounded"

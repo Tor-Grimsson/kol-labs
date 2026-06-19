@@ -11,6 +11,7 @@ import Stage from './Stage.jsx'
 import { api, fileUrl, toPixelCrop } from './lib/api.js'
 import { saveClip, loadClip, saveState, loadState } from './lib/persist.js'
 import { PROJECTS, projectFor, outputDims, windowRect, DEFAULT_WINDOW } from './data/projects.js'
+import { defaultAutoplay } from '../../lib/appSettings.js'
 
 const DEFAULT_CROP = { x: 0.1, y: 0.1, w: 0.8, h: 0.8 }
 
@@ -21,7 +22,7 @@ export default function VideoPage() {
   const [inPoint, setInPoint] = useState(0)
   const [outPoint, setOutPoint] = useState(0)
   const [current, setCurrent] = useState(0)
-  const [playing, setPlaying] = useState(false)
+  const [playing, setPlaying] = useState(() => defaultAutoplay())
   const [loop, setLoop] = useState(true)
   const [projectKey, setProjectKey] = useState('source')
   const [win, setWin] = useState(DEFAULT_WINDOW)

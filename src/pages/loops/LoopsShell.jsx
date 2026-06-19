@@ -14,7 +14,7 @@ import { LiveClock } from '../../lib/liveClock.jsx'
 import EditorRail, { RailHeader } from '../../components/framework/EditorRail.jsx'
 import EditorFooter from '../../components/framework/EditorFooter.jsx'
 import SettingsPanel from '../../components/framework/SettingsPanel.jsx'
-import { defaultTheme } from '../../lib/appSettings.js'
+import { defaultTheme, defaultAutoplay } from '../../lib/appSettings.js'
 import { mulberry32, randomSeed, randomizeSchema } from '../../lib/rng.js'
 import { isExpr } from '../../lib/exprParam.js'
 import { themeParams } from '../../loops/theme.js'
@@ -36,7 +36,7 @@ export default function LoopsShell({ group, sub }) {
   const activeLoop = loopById(activePreset.loop)
 
   const [params, setParams] = useState(() => presetParams(activePreset))
-  const [playing, setPlaying] = useState(false)
+  const [playing, setPlaying] = useState(() => defaultAutoplay())
   const [tempo, setTempo] = useState(120)
   const [aspect, setAspect] = useState(() => defaultAspectFor('view'))
   const [scale, setScale] = useState(DEFAULT_SCALE)
@@ -220,7 +220,7 @@ export default function LoopsShell({ group, sub }) {
   return (
     <div className="min-h-dvh bg-surface-secondary flex">
       <div ref={wrapRef} className="relative min-w-0 flex-1 overflow-hidden flex items-center justify-center">
-        <canvas ref={canvasRef} className="block max-w-full max-h-full" />
+        <canvas ref={canvasRef} data-vcap="stage" className="block max-w-full max-h-full" />
         <div className="pointer-events-none absolute left-5 top-5">
           <div className="kol-helper-12 text-emphasis">{activePreset.label}</div>
           <div className="kol-helper-10 text-meta" style={{ marginTop: 2 }}>{sub ? `${groupLabel} · ${sub}` : groupLabel}</div>

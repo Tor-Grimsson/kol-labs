@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { defaultAutoplay } from '../../lib/appSettings.js'
 import { Routes, Route, useParams } from 'react-router-dom'
 import { IridescentEngine, GRAD_PALETTES, BACKDROPS } from './engine.js'
 import { TYPE_BY_ID, DEFAULT_TYPE, LOOK_PRESETS, CTRL_SPEC, BASE_PARAMS, NUMERIC_KEYS, catIndex } from './registry.js'
@@ -22,7 +23,7 @@ function GradientsEditor({ typeId }) {
   const [look, setLook] = useState('')
 
   const [res, setRes] = useState(1600)
-  const [playing, setPlaying] = useState(true)
+  const [playing, setPlaying] = useState(() => defaultAutoplay())
   const [tempo, setTempo] = useState(120)
   const [aspect, setAspect] = useState(() => defaultAspectFor('view'))
   const [scale, setScale] = useState(DEFAULT_SCALE)
@@ -106,7 +107,7 @@ function GradientsEditor({ typeId }) {
   return (
     <div className="min-h-dvh bg-surface-secondary flex">
       <div className="flex-1 flex items-center justify-center p-4 overflow-hidden">
-        <canvas ref={canvasRef} className="max-w-full max-h-[90vh] object-contain rounded" />
+        <canvas data-vcap="stage" ref={canvasRef} className="max-w-full max-h-[90vh] object-contain rounded" />
       </div>
 
       <EditorRail

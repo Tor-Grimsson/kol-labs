@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { defaultAutoplay } from '../../../lib/appSettings.js'
 import Button from '../../../components/atoms/Button.jsx'
 import Slider from '../../../components/atoms/Slider.jsx'
 import { roundIfNum } from '../../../lib/exprParam.js'
@@ -32,7 +33,7 @@ export default function SynthShell({ engineClass, title, name, defaults, childre
   const [dragging, setDragging] = useState(false)
   const [recording, setRecording] = useState(false)
   const [clipLen, setClipLen] = useState(6)
-  const [playing, setPlaying] = useState(true)
+  const [playing, setPlaying] = useState(() => defaultAutoplay())
   const [tempo, setTempo] = useState(120)
   const [params, setParams] = useState(defaults)
   const [footTab, setFootTab] = useState('transport') // Transport · Output · File
@@ -94,7 +95,7 @@ export default function SynthShell({ engineClass, title, name, defaults, childre
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
-        <canvas ref={canvasRef} className="block h-full w-full" />
+        <canvas ref={canvasRef} data-vcap="stage" className="block h-full w-full" />
         {!sourceImage && (
           <div className="absolute inset-0 flex items-center justify-center p-4">
             <div

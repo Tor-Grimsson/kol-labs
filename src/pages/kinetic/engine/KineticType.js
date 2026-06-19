@@ -1,4 +1,4 @@
-import { buildPath, isArray } from './paths.js'
+import { buildPath, isArray, isRadial, isRings } from './paths.js'
 import { glyphAnim } from './animations.js'
 import { featureString } from './opentype.js'
 import { fontByKey, vfString } from '../lib/vfAxes.js'
@@ -25,6 +25,7 @@ import patternLoop from '../../../loops/pattern/patternLoop.js'
  * it identically. Loads paused.
  */
 const NS = 'http://www.w3.org/2000/svg'
+const TAU = Math.PI * 2
 const clamp01 = (x) => Math.max(0, Math.min(1, x))
 const el = (name) => document.createElementNS(NS, name)
 
@@ -163,8 +164,10 @@ export default class KineticType {
     const motion = resolveParams(raw.motion, t)
     const morph = resolveParams(raw.morph, t)
     const offset = resolveParams(raw.offset, t)
-    if (top === raw && vf === raw.vf && path === raw.path && motion === raw.motion && morph === raw.morph && offset === raw.offset) return raw
-    return { ...top, vf, path, motion, morph, offset }
+    const motions = Array.isArray(raw.motions) ? raw.motions.map((mm) => resolveParams(mm, t)) : raw.motions
+    const motionsSame = !Array.isArray(raw.motions) || motions.every((mm, i) => mm === raw.motions[i])
+    if (top === raw && vf === raw.vf && path === raw.path && motion === raw.motion && morph === raw.morph && offset === raw.offset && motionsSame) return raw
+    return { ...top, vf, path, motion, morph, offset, motions }
   }
 
   tick = () => {
@@ -316,7 +319,8 @@ export default class KineticType {
     // ── morph render mode: real glyph-outline interpolation (<path> glyphs) ──
     // Needs opentype outlines; if they aren't parsed yet, kick the load and fall
     // back to the live <text> render so nothing blanks while it streams in.
-    if (p.morph?.on) {
+    // Radial/rings arrangements are <text>-only (no morph), so they skip this.
+    if (p.morph?.on && !isRadial(type) && !isRings(type)) {
       const urlA = font.url
       const face2 = p.morph.face2 ? fontByKey(p.morph.face2) : null
       const urlB = face2 ? face2.url : urlA
@@ -342,6 +346,18 @@ export default class KineticType {
       if (!text.length) return
       this._measure(rt, p, font, text)
       this._placeArray(p, rt, font, u, rt.glyphEls, rows, cols)
+      return
+    }
+
+    if (isRadial(type) || isRings(type)) {
+      rt.pathEl.setAttribute('d', '')
+      rt.pathEl.style.opacity = 0
+      const count = Math.max(1, Math.round(p.path?.count ?? 12))
+      this._ensureGlyphs(rt, text, font, count)
+      if (!text.length) return
+      this._measure(rt, p, font, text)
+      if (isRadial(type)) this._placeRadial(p, rt, font, u, rt.glyphEls, count)
+      else this._placeRings(p, rt, font, u, rt.glyphEls, count)
       return
     }
 
@@ -373,6 +389,21 @@ export default class KineticType {
     return font.axes.find((a) => a.tag === (motion.axis || (font.axes[0] && font.axes[0].tag)))
   }
 
+  // Compose every motion layer for one glyph — the primary `motion` plus the
+  // `motions` stack. Displacements add, scale/opacity multiply, vf axes merge.
+  _anim(p, base, font) {
+    const list = p.motions && p.motions.length ? [p.motion, ...p.motions] : [p.motion]
+    let dLen = 0, dNormal = 0, dRot = 0, scale = 1, opacity = 1, vf = null
+    for (const m of list) {
+      if (!m || (m.mode || 'none') === 'none') continue
+      const ax = font.axes.find((a) => a.tag === (m.axis || (font.axes[0] && font.axes[0].tag)))
+      const a = glyphAnim(m.mode, { ...base, m, axisTag: ax ? ax.tag : 'wght', axisMin: ax ? ax.min : 100, axisMax: ax ? ax.max : 900 })
+      dLen += a.dLen; dNormal += a.dNormal; dRot += a.dRot; scale *= a.scale; opacity *= a.opacity
+      if (a.vf) vf = { ...(vf || {}), ...a.vf }
+    }
+    return { dLen, dNormal, scale, dRot, opacity, vf }
+  }
+
   // Place glyphs `els` along this instance's path (geometry from rt.pathEl, which
   // is attached for getPointAtLength). Used live AND for export clones (els = clone).
   _placeOnPath(p, rt, font, u, els) {
@@ -383,8 +414,6 @@ export default class KineticType {
     const { centers, total } = cache
     const align = p.align || 'center'
     const startLen = align === 'start' ? 0 : align === 'end' ? pathLen - total : (pathLen - total) / 2
-    const motion = p.motion || { mode: 'none' }
-    const axis = this._motionAxis(p, font)
     const eps = 0.75
     const closed = rt.closed
     // 'flow' = let glyphs run past an open path's ends (overflow the frame) by
@@ -411,11 +440,7 @@ export default class KineticType {
       // base point (pre-motion) → the glyph's normalized position for field sweeps
       const L0 = startLen + centers[i]
       const pBase = ptAt(L0)
-      const a = glyphAnim(motion.mode || 'none', {
-        i, n: centers.length, u, m: motion, sizePx: p.fontSize, pathLen,
-        axisTag: axis ? axis.tag : 'wght', axisMin: axis ? axis.min : 100, axisMax: axis ? axis.max : 900,
-        nx: this.w ? pBase.x / this.w : 0.5, ny: this.h ? pBase.y / this.h : 0.5,
-      })
+      const a = this._anim(p, { i, n: centers.length, u, sizePx: p.fontSize, pathLen, nx: this.w ? pBase.x / this.w : 0.5, ny: this.h ? pBase.y / this.h : 0.5 }, font)
       const L = L0 + a.dLen
       const pt = ptAt(L)
       const A = ptAt(L - eps)
@@ -439,8 +464,6 @@ export default class KineticType {
     const m = Math.min(this.w, this.h) * 0.08
     const cellW = (this.w - 2 * m) / cols
     const cellH = (this.h - 2 * m) / rows
-    const motion = p.motion || { mode: 'none' }
-    const axis = this._motionAxis(p, font)
 
     for (let cell = 0; cell < rows * cols; cell++) {
       const r = Math.floor(cell / cols)
@@ -453,14 +476,84 @@ export default class KineticType {
         const el2 = els[idx]
         if (!el2) continue
         const x = originX + centers[j]
-        const a = glyphAnim(motion.mode || 'none', {
-          i: cell * len + j, n: rows * cols * len, u, m: motion, sizePx: p.fontSize, pathLen: 0,
-          axisTag: axis ? axis.tag : 'wght', axisMin: axis ? axis.min : 100, axisMax: axis ? axis.max : 900,
-          nx: this.w ? x / this.w : 0.5, ny: this.h ? cy / this.h : 0.5,
-        })
+        const a = this._anim(p, { i: cell * len + j, n: rows * cols * len, u, sizePx: p.fontSize, pathLen: 0, nx: this.w ? x / this.w : 0.5, ny: this.h ? cy / this.h : 0.5 }, font)
         const y = cy - a.dNormal
         el2.setAttribute('transform',
           `translate(${x.toFixed(2)} ${y.toFixed(2)}) rotate(${a.dRot.toFixed(2)}) scale(${a.scale.toFixed(3)})`)
+        this._styleGlyph(el2, p, font, a)
+      }
+    }
+  }
+
+  // Place glyphs as N radial spokes (the 'radial' sunburst). Each spoke is the
+  // whole run, read from the centre outward (glyph 0 nearest the middle), spaced by
+  // its natural advance from an inner radius. The whole burst rotates by `spin` full
+  // turns over u → seamless. Per-glyph motion still applies (dLen pushes outward).
+  _placeRadial(p, rt, font, u, els, count) {
+    const cache = rt.cache
+    if (!cache) return
+    const { centers } = cache
+    const len = centers.length
+    if (!len) return
+    const cx = this.w / 2, cy = this.h / 2
+    const base = Math.min(this.w, this.h) * 0.5
+    const inner = base * Math.max(0, Math.min(0.95, p.path?.inner ?? 0.12))
+    const spinRad = u * TAU * Math.round(p.path?.spin ?? 1)
+    for (let s = 0; s < count; s++) {
+      const theta = (s / count) * TAU + spinRad
+      const dx = Math.cos(theta), dy = Math.sin(theta)
+      const deg = theta * 180 / Math.PI
+      for (let j = 0; j < len; j++) {
+        const idx = s * len + j
+        const el2 = els[idx]
+        if (!el2) continue
+        const rho0 = inner + centers[j]
+        const bx = cx + dx * rho0, by = cy + dy * rho0
+        const a = this._anim(p, { i: idx, n: count * len, u, sizePx: p.fontSize, pathLen: base, nx: this.w ? bx / this.w : 0.5, ny: this.h ? by / this.h : 0.5 }, font)
+        const rho = rho0 + a.dLen
+        const x = cx + dx * rho, y = cy + dy * rho
+        el2.setAttribute('transform',
+          `translate(${x.toFixed(2)} ${y.toFixed(2)}) rotate(${(deg + a.dRot).toFixed(2)}) translate(0 ${(-a.dNormal).toFixed(2)}) scale(${a.scale.toFixed(3)})`)
+        this._styleGlyph(el2, p, font, a)
+      }
+    }
+  }
+
+  // Place glyphs on N concentric rings (the 'rings' vortex). The run wraps around
+  // each circle (arc-length → angle), each successive ring is rotated by `twist`
+  // (→ spiral arms) and its glyphs scale up by `grow` toward the rim. The whole
+  // field rotates by `spin` full turns over u → seamless.
+  _placeRings(p, rt, font, u, els, count) {
+    const cache = rt.cache
+    if (!cache) return
+    const { centers, total } = cache
+    const len = centers.length
+    if (!len) return
+    const cx = this.w / 2, cy = this.h / 2
+    const base = Math.min(this.w, this.h) * 0.5
+    const maxR = base * Math.max(0.1, Math.min(1, p.path?.radius ?? 0.92))
+    const inner = maxR * Math.max(0.02, Math.min(0.95, p.path?.inner ?? 0.14))
+    const spinRad = u * TAU * Math.round(p.path?.spin ?? 1)
+    const twist = p.path?.twist ?? 0.5
+    const grow = p.path?.grow ?? 0.6
+    for (let r = 0; r < count; r++) {
+      const frac = count > 1 ? r / (count - 1) : 0
+      const radius = Math.max(1, inner + frac * (maxR - inner))
+      const ringStart = spinRad + frac * twist * TAU
+      const gscale = 1 + grow * frac
+      for (let j = 0; j < len; j++) {
+        const idx = r * len + j
+        const el2 = els[idx]
+        if (!el2) continue
+        const ang0 = ringStart + (centers[j] - total / 2) / radius
+        const bx = cx + Math.cos(ang0) * radius, by = cy + Math.sin(ang0) * radius
+        const a = this._anim(p, { i: idx, n: count * len, u, sizePx: p.fontSize, pathLen: TAU * radius, nx: this.w ? bx / this.w : 0.5, ny: this.h ? by / this.h : 0.5 }, font)
+        const ang = ang0 + a.dLen / radius
+        const rr = radius - a.dNormal
+        const x = cx + Math.cos(ang) * rr, y = cy + Math.sin(ang) * rr
+        const deg = ang * 180 / Math.PI + 90 + a.dRot
+        el2.setAttribute('transform',
+          `translate(${x.toFixed(2)} ${y.toFixed(2)}) rotate(${deg.toFixed(2)}) scale(${(a.scale * gscale).toFixed(3)})`)
         this._styleGlyph(el2, p, font, a)
       }
     }
@@ -646,8 +739,6 @@ export default class KineticType {
     if (!pathLen) return
     const align = p.align || 'center'
     const startLen = align === 'start' ? 0 : align === 'end' ? pathLen - total : (pathLen - total) / 2
-    const motion = p.motion || { mode: 'none' }
-    const axis = this._motionAxis(p, font)
     const eps = 0.75
     const closed = rt.closed
     const flow = p.flow === 'flow' && !closed
@@ -671,11 +762,7 @@ export default class KineticType {
     for (let i = 0; i < n; i++) {
       const L0 = startLen + centers[i]
       const pBase = ptAt(L0)
-      const a = glyphAnim(motion.mode || 'none', {
-        i, n: centers.length, u, m: motion, sizePx: p.fontSize, pathLen,
-        axisTag: axis ? axis.tag : 'wght', axisMin: axis ? axis.min : 100, axisMax: axis ? axis.max : 900,
-        nx: this.w ? pBase.x / this.w : 0.5, ny: this.h ? pBase.y / this.h : 0.5,
-      })
+      const a = this._anim(p, { i, n: centers.length, u, sizePx: p.fontSize, pathLen, nx: this.w ? pBase.x / this.w : 0.5, ny: this.h ? pBase.y / this.h : 0.5 }, font)
       const L = L0 + a.dLen
       const pt = ptAt(L)
       const A = ptAt(L - eps)
@@ -696,8 +783,6 @@ export default class KineticType {
     const m = Math.min(this.w, this.h) * 0.08
     const cellW = (this.w - 2 * m) / cols
     const cellH = (this.h - 2 * m) / rows
-    const motion = p.motion || { mode: 'none' }
-    const axis = this._motionAxis(p, font)
     const sk = p.italic ? ' skewX(-12)' : ''
     for (let cell = 0; cell < rows * cols; cell++) {
       const r = Math.floor(cell / cols)
@@ -710,11 +795,7 @@ export default class KineticType {
         const e = els[idx]
         if (!e) continue
         const x = originX + centers[j]
-        const a = glyphAnim(motion.mode || 'none', {
-          i: idx, n: rows * cols * runLen, u, m: motion, sizePx: p.fontSize, pathLen: 0,
-          axisTag: axis ? axis.tag : 'wght', axisMin: axis ? axis.min : 100, axisMax: axis ? axis.max : 900,
-          nx: this.w ? x / this.w : 0.5, ny: this.h ? cy / this.h : 0.5,
-        })
+        const a = this._anim(p, { i: idx, n: rows * cols * runLen, u, sizePx: p.fontSize, pathLen: 0, nx: this.w ? x / this.w : 0.5, ny: this.h ? cy / this.h : 0.5 }, font)
         const y = cy - a.dNormal
         e.setAttribute('transform', `translate(${x.toFixed(2)} ${y.toFixed(2)}) rotate(${a.dRot.toFixed(2)}) scale(${a.scale.toFixed(3)})${sk}`)
         e.setAttribute('opacity', a.opacity)
@@ -826,6 +907,10 @@ export default class KineticType {
           else this._placeMorphOnPath(rt.live, rt, font, u, els)
         } else if (isArray(type)) {
           this._placeArray(rt.live, rt, font, u, els, rows, cols)
+        } else if (isRadial(type) || isRings(type)) {
+          const count = Math.max(1, Math.round(rt.live.path?.count ?? 12))
+          if (isRadial(type)) this._placeRadial(rt.live, rt, font, u, els, count)
+          else this._placeRings(rt.live, rt, font, u, els, count)
         } else {
           this._placeOnPath(rt.live, rt, font, u, els)
         }

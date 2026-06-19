@@ -18,13 +18,27 @@ export const FILL_PARAMS = [
   { key: 'fillStops', label: 'Polar stops', type: 'range', min: 2, max: 16, step: 1, default: 6, tab: 'color', noRandom: true },
 ]
 
+// Extra params for loops that fill a single closed curve (vs concentric discs):
+// an on/off toggle, opacity, and a winding rule (matters for self-intersecting
+// curves like rose / lissajous). Spread alongside FILL_PARAMS.
+export const SHAPE_FILL_PARAMS = [
+  { key: 'fillShape', label: 'Fill shape', type: 'toggle', default: false, tab: 'color' },
+  { key: 'fillAlpha', label: 'Fill opacity', type: 'range', min: 0.05, max: 1, step: 0.05, default: 0.5, tab: 'color', noRandom: true },
+  { key: 'fillRule', label: 'Fill rule', type: 'select', options: [{ value: 'nonzero', label: 'Nonzero' }, { value: 'evenodd', label: 'Even-odd' }], default: 'nonzero', tab: 'color' },
+]
+
+// Canvas winding rule from the loop's param (defaults to nonzero).
+export const fillRuleOf = (p) => (p.fillRule === 'evenodd' ? 'evenodd' : 'nonzero')
+
 // Build a canvas fillStyle from the loop's fill params, anchored at (cx,cy) with
 // radius r. Recreated each frame (gradients are ctx-bound). Returns a solid colour
-// for 'solid' or when conic gradients aren't supported.
-export function paintFill(ctx, p, cx, cy, r) {
+// for 'solid' or when conic gradients aren't supported. colA/colB override the
+// loop's p.colA/p.colB for loops whose colour keys are named differently (e.g.
+// lissajous' line/dot).
+export function paintFill(ctx, p, cx, cy, r, colA, colB) {
   const type = p.fill || 'solid'
-  const A = p.colA
-  const B = p.colB
+  const A = colA ?? p.colA
+  const B = colB ?? p.colB
   const a = ((p.fillAngle || 0) * Math.PI) / 180
   const rr = Math.max(1, r)
 

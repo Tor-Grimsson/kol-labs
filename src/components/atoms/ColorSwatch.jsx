@@ -48,7 +48,7 @@ const RADIUS_CLASSES = {
   full:  'rounded-full',
 }
 
-const HALO_SHADOW = '0 0 0 1px #000, 0 0 0 2px #505050'
+const HALO_SHADOW = 'var(--kol-shadow-halo)'
 
 export default function ColorSwatch({
   hex,
@@ -94,7 +94,7 @@ export default function ColorSwatch({
   ].filter(Boolean).join(' ')
 
   const style = {
-    background: showTransparent ? '#FFFFFF' : (hex || 'transparent'),
+    background: showTransparent ? 'var(--kol-color-absolute-white)' : (hex || 'transparent'),
     ...(isHalo && { boxShadow: HALO_SHADOW }),
     ...sizeStyle,
   }

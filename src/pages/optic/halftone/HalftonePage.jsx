@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { defaultAutoplay } from '../../../lib/appSettings.js'
 import { renderHalftone, FIELD_OPTIONS, LAYOUT_OPTIONS, SHAPE_OPTIONS, PALETTES } from './engine.js'
 import { resolveDeep, treeReferencesAudio } from '../../../lib/exprParam.js'
 import { isAudioEnabled, subscribeAudio } from '../../../lib/audioSource.js'
@@ -28,7 +29,7 @@ export default function HalftonePage() {
   const [palette, setPalette] = useState('drekker')
   const [invert, setInvert] = useState(false)
   const [light, setLight] = useState(false)
-  const [playing, setPlaying] = useState(true)
+  const [playing, setPlaying] = useState(() => defaultAutoplay())
   const [tempo, setTempo] = useState(120)
   const [aspect, setAspect] = useState(() => defaultAspectFor('view'))
   const [scale, setScale] = useState(DEFAULT_SCALE)
@@ -94,7 +95,7 @@ export default function HalftonePage() {
   return (
     <div className="min-h-dvh bg-surface-secondary flex">
       <div className="flex-1 flex items-center justify-center p-4 overflow-hidden">
-        <canvas ref={canvasRef} className="max-w-full max-h-[90vh] object-contain rounded" />
+        <canvas data-vcap="stage" ref={canvasRef} className="max-w-full max-h-[90vh] object-contain rounded" />
       </div>
 
       <EditorRail

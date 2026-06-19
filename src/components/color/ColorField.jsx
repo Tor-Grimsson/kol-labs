@@ -26,7 +26,7 @@ import { clampHex } from './hsv'
  *   swatchSize  — chip size in px (default 24).
  *   className   — extra classes on the row wrapper.
  */
-export default function ColorField({ value, onChange, label, labeled = false, presets, swatchSize = 24, className = '' }) {
+export default function ColorField({ value, onChange, label, labeled = false, presets, swatchSize = 24, className = '', raised = false }) {
   const hex = clampHex(value)
   const [open, setOpen] = useState(false)
   const popover = usePopover({ open, onOpenChange: setOpen, placement: 'bottom-start', offset: 6 })
@@ -83,6 +83,7 @@ export default function ColorField({ value, onChange, label, labeled = false, pr
         onBlur={() => { focused.current = false; setText(hex.replace(/^#/, '')) }}
         maxLength={6}
         className={label ? '' : 'flex-1'}
+        style={raised ? { backgroundColor: 'var(--kol-surface-primary)' } : undefined}
       />
 
       <PopoverPanel popover={popover}>

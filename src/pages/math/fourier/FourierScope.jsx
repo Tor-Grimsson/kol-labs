@@ -180,7 +180,7 @@ const FourierScope = forwardRef(function FourierScope({
     <div className="flex flex-col gap-2 h-full w-full">
       <div ref={stageRef} className="flex-1 relative flex items-center justify-center overflow-hidden" style={{ minHeight: 200 }}>
         <div ref={boxRef} className="bg-surface-tertiary relative overflow-hidden" style={{ width: '100%', height: '100%', borderRadius: 2, backgroundColor: vstyle?.bg || undefined }}>
-          <canvas ref={canvasRef} className="block w-full h-full" />
+          <canvas data-vcap="stage" ref={canvasRef} className="block w-full h-full" />
         </div>
       </div>
     </div>

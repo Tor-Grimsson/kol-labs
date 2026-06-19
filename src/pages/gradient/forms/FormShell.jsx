@@ -14,7 +14,7 @@ import EditorRail, { RailHeader } from '../../../components/framework/EditorRail
 import EditorFooter from '../../../components/framework/EditorFooter.jsx'
 import SettingsPanel from '../../../components/framework/SettingsPanel.jsx'
 import { resolveTheme } from '../../../lib/themes.js'
-import { defaultTheme } from '../../../lib/appSettings.js'
+import { defaultTheme, defaultAutoplay } from '../../../lib/appSettings.js'
 
 // One shell, one form per sub-page (`form` prop = the sub-page identity, like
 // Lens2DShell's `surface`) — switching forms is a sidebar nav hop, not an
@@ -38,7 +38,7 @@ export default function FormShell({ form, title }) {
   const [aspect, setAspect] = useState(() => defaultAspectFor('view'))
   const [scale, setScale] = useState(DEFAULT_SCALE)
   const [recording, setRecording] = useState(false)
-  const [playing, setPlaying] = useState(false)
+  const [playing, setPlaying] = useState(() => defaultAutoplay())
   const [tempo, setTempo] = useState(120)
   const [panel, setPanel] = useState('scene')
   const [footTab, setFootTab] = useState('transport')
@@ -150,7 +150,7 @@ export default function FormShell({ form, title }) {
   return (
     <div className="min-h-dvh bg-surface-secondary flex">
       <div ref={wrapRef} className="relative min-w-0 flex-1 overflow-hidden flex items-center justify-center">
-        <canvas ref={canvasRef} className="block max-w-full max-h-full" />
+        <canvas ref={canvasRef} data-vcap="stage" className="block max-w-full max-h-full" />
         <Scrubber progressRef={progressRef} playerRef={engineRef} />
       </div>
 

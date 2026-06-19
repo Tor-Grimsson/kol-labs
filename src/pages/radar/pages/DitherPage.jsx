@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
+import { defaultAutoplay } from '../../../lib/appSettings.js'
 import { renderDither, MODE_OPTIONS, SHAPE_OPTIONS, DEFAULT_PARAMS } from '../effects/ditherEngine'
 import { makeSweep } from '../effects/sweeps'
 import { CANVAS_FX_DEFS, getDefaultCanvasFxParams, applyCanvasFx } from '../hooks/useCanvasFx'
@@ -37,7 +38,7 @@ export default function DitherPage() {
   const [sweeps, setSweeps] = useState([])
   const [animating, setAnimating] = useState(false)
   const [motionSpeed, setMotionSpeed] = useState(0.5)
-  const [playing, setPlaying] = useState(true)
+  const [playing, setPlaying] = useState(() => defaultAutoplay())
   const timeRef = useRef(0)
   const recorderRef = useRef(null)
   const chunksRef = useRef([])
@@ -297,7 +298,7 @@ export default function DitherPage() {
             <SourcePlaceholder onUpload={() => fileInputRef.current?.click()} />
           </div>
         ) : (
-          <canvas ref={canvasRef} className="max-w-full max-h-[90vh] object-contain" />
+          <canvas data-vcap="stage" ref={canvasRef} className="max-w-full max-h-[90vh] object-contain" />
         )}
       </div>
 

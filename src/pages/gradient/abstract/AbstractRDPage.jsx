@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { defaultAutoplay } from '../../../lib/appSettings.js'
 import { useParams } from 'react-router-dom'
 import { usePublishReset, usePublishRetrigger } from '../../../components/framework/pageShortcuts.jsx'
 import RDEngine from './engine/RDEngine.js'
@@ -30,7 +31,7 @@ export default function AbstractRDPage() {
   const [params, setParams] = useState({ ...MODEL_DEFAULTS[variation.model], ...variation.params })
   const [seedStyle, setSeedStyle] = useState(variation.seed || 'scatter')
   const [palette, setPalette] = useState(variation.palette || 'lava')
-  const [paused, setPaused] = useState(true)
+  const [paused, setPaused] = useState(() => !defaultAutoplay())
   const [tempo, setTempo] = useState(120)
   const [aspect, setAspect] = useState(() => defaultAspectFor('view'))
   const [scale, setScale] = useState(DEFAULT_SCALE)
@@ -135,7 +136,7 @@ export default function AbstractRDPage() {
   return (
     <div className="min-h-dvh bg-surface-secondary flex">
       <div ref={wrapRef} className="relative min-w-0 flex-1 overflow-hidden flex items-center justify-center">
-        <canvas ref={canvasRef} className="block" />
+        <canvas ref={canvasRef} data-vcap="stage" className="block" />
         <div className="pointer-events-none absolute left-5 top-5">
           <div className="kol-helper-12 text-emphasis">{variation.label}</div>
           <div className="kol-helper-10 text-meta" style={{ marginTop: 2 }}>{model.label}</div>

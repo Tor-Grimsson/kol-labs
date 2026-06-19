@@ -1,7 +1,9 @@
-import { TAU } from '../lib/util.js'
+import { TAU, mixHex } from '../lib/util.js'
+import { FILL_PARAMS, paintFill, isGradient } from '../lib/fill.js'
 
 // Arc sweep — a radar-style wedge sweeping a whole number of turns per loop, with
-// a fading trailing fan and a fixed grid. Integer turns ⇒ seamless.
+// a fading trailing fan and a fixed grid. Integer turns ⇒ seamless. The grid-ring
+// discs can be filled (off by default) for concentric bands under the sweep.
 export default {
   id: 'arc-sweep',
   label: 'Arc sweep',
@@ -12,6 +14,9 @@ export default {
     { key: 'bg', label: 'Background', type: 'color', role: 'bg', default: '#0b0b0e' },
     { key: 'ring', label: 'Grid', type: 'color', role: 'accent', default: '#2a3550' },
     { key: 'sweep', label: 'Sweep', type: 'color', role: 'fg', default: '#7fd1ff' },
+    ...FILL_PARAMS,
+    { key: 'ringFill', label: 'Fill rings', type: 'toggle', default: false, tab: 'color' },
+    { key: 'ringAlpha', label: 'Fill opacity', type: 'range', min: 0.05, max: 1, step: 0.05, default: 0.5, tab: 'color', noRandom: true },
     { key: 'turns', label: 'Turns', type: 'range', min: 1, max: 4, step: 1, default: 1 },
     { key: 'trail', label: 'Trail', type: 'range', min: 1, max: 9, step: 1, default: 5 },
     { key: 'rings', label: 'Rings', type: 'range', min: 0, max: 6, step: 1, default: 3, noRandom: true },
@@ -26,6 +31,23 @@ export default {
     const cy = h / 2
     const R = Math.min(w, h) * 0.5 * p.size
     const rings = Math.round(p.rings)
+
+    // Optional disc fill — concentric bands at the grid radii, largest → smallest
+    // so inner discs layer over outer ones; grid + sweep draw on top. Off by
+    // default ⇒ existing presets are unchanged.
+    if (p.ringFill && rings > 0) {
+      const fa = p.ringAlpha ?? 0.5
+      for (let k = rings; k >= 1; k--) {
+        const f = rings === 1 ? 0 : (k - 1) / (rings - 1)
+        const r = (R * k) / rings
+        ctx.globalAlpha = fa
+        ctx.fillStyle = isGradient(p) ? paintFill(ctx, p, cx, cy, r, p.sweep, p.ring) : mixHex(p.sweep, p.ring, f)
+        ctx.beginPath()
+        ctx.arc(cx, cy, r, 0, TAU)
+        ctx.fill()
+      }
+      ctx.globalAlpha = 1
+    }
 
     if (p.showGrid !== false) {
       ctx.strokeStyle = p.ring

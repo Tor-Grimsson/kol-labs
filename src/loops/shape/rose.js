@@ -1,7 +1,9 @@
 import { TAU, lerp, mixHex } from '../lib/util.js'
+import { FILL_PARAMS, SHAPE_FILL_PARAMS, paintFill, isGradient, fillRuleOf } from '../lib/fill.js'
 
 // Rose curve — a rhodonea r=cos(kθ); integer k sets the petals. A periodic
-// amplitude breathe + whole-turn spin keep it seamless.
+// amplitude breathe + whole-turn spin keep it seamless. The petals can be left as
+// an outline or filled (off by default).
 export default {
   id: 'rose-curve',
   label: 'Rose curve',
@@ -12,6 +14,8 @@ export default {
     { key: 'bg', label: 'Background', type: 'color', role: 'bg', default: '#0b0b0e' },
     { key: 'colA', label: 'Colour A', type: 'color', role: 'fg', default: '#e8e4dc' },
     { key: 'colB', label: 'Colour B', type: 'color', role: 'accent', default: '#8f5ad0' },
+    ...FILL_PARAMS,
+    ...SHAPE_FILL_PARAMS,
     { key: 'k', label: 'Petals (k)', type: 'range', min: 2, max: 9, step: 1, default: 5, noRandom: true },
     { key: 'spin', label: 'Spin', type: 'range', min: 0, max: 3, step: 1, default: 1 },
     { key: 'weight', label: 'Weight', type: 'range', min: 1, max: 24, step: 0.5, default: 2.5 },
@@ -62,6 +66,12 @@ export default {
       const y = Math.sin(th) * r
       if (i === 0) ctx.moveTo(x, y)
       else ctx.lineTo(x, y)
+    }
+    if (p.fillShape) {
+      ctx.globalAlpha = p.fillAlpha ?? 0.5
+      ctx.fillStyle = isGradient(p) ? paintFill(ctx, p, 0, 0, R) : mixHex(p.colA, p.colB, ease)
+      ctx.fill(fillRuleOf(p))
+      ctx.globalAlpha = 1
     }
     ctx.stroke()
     ctx.restore()
