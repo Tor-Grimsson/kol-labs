@@ -7,7 +7,6 @@ import { VIEW_ASPECTS, DEFAULT_SCALE, defaultAspectFor, ratioFor, dimsFor } from
 import Button from '../../../components/atoms/Button.jsx'
 import ToggleSwitch from '../../../components/atoms/ToggleSwitch.jsx'
 import Slider from '../../../components/atoms/Slider.jsx'
-import Divider from '../../../components/atoms/Divider.jsx'
 import Section from '../../../components/molecules/Section.jsx'
 import ColorField from '../../../components/color/ColorField.jsx'
 import SegmentedToggle from '../../../components/molecules/SegmentedToggle.jsx'
@@ -214,21 +213,7 @@ export default function RibbonPage() {
       <LiveClock getT={() => progressRef.current.t}>
       <EditorRail
         footerBare
-        header={
-          <>
-            <RailHeader>Ribbon</RailHeader>
-            <SegmentedToggle
-              value={panel}
-              onChange={setPanel}
-              options={[
-                { value: 'form', label: 'Form' },
-                { value: 'material', label: 'Material' },
-                { value: 'post', label: 'Post' },
-                { value: 'camera', label: 'Camera' },
-              ]}
-            />
-          </>
-        }
+        header={<RailHeader>Ribbon</RailHeader>}
         footer={
           <EditorFooter
             tab={footTab}
@@ -258,6 +243,17 @@ export default function RibbonPage() {
           />
         }
       >
+        <SegmentedToggle
+          value={panel}
+          onChange={setPanel}
+          options={[
+            { value: 'form', label: 'Form' },
+            { value: 'material', label: 'Material' },
+            { value: 'post', label: 'Post' },
+            { value: 'camera', label: 'Camera' },
+          ]}
+        />
+
         {panel === 'form' && (
           <>
             <Section label="Generate">
@@ -343,16 +339,6 @@ export default function RibbonPage() {
             </Section>
           </>
         )}
-
-        <Divider />
-
-        <div className="kol-helper-10 text-body flex flex-col gap-1">
-          <div>space = play / pause</div>
-          <div>drag = orbit</div>
-          <div>wheel = zoom</div>
-          <div>C = reset cam</div>
-          <div>scrub the timeline below</div>
-        </div>
       </EditorRail>
       </LiveClock>
     </div>

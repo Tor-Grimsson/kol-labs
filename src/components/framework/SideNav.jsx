@@ -75,7 +75,7 @@ function GroupNode({ group, basePath, activeSectionId, indent }) {
   return (
     <li>
       <div
-        className={`kol-sidenav-group kol-helper-10 uppercase ${isAncestor ? 'text-emphasis' : 'text-subtle'}`}
+        className={`kol-sidenav-group kol-helper-10 ${isAncestor ? 'text-emphasis' : 'text-subtle'}`}
         style={{ paddingLeft: indent }}
       >
         {group.label}
@@ -183,7 +183,7 @@ export default function SideNav({ drawerOpen = false, onCloseDrawer, navTree = [
           {navTree.map((page, idx) => {
             if (page.section) {
               return (
-                <li key={`sec-${page.section}`} className="kol-sidenav-section kol-helper-10 uppercase text-subtle pl-6 pr-4 pt-4 pb-1 mt-1">
+                <li key={`sec-${page.section}`} className="kol-sidenav-section kol-helper-10 text-subtle pl-6 pr-4 pt-4 pb-1 mt-1">
                   {page.section}
                 </li>
               )

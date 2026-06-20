@@ -6,10 +6,10 @@
 export const PRESETS = [
   { id: 'ig-square',    platform: 'Instagram', label: 'Feed square',    ratio: '1:1',    w: 1080, h: 1080 },
   { id: 'ig-portrait',  platform: 'Instagram', label: 'Feed portrait',  ratio: '4:5',    w: 1080, h: 1350 },
-  { id: 'ig-landscape', platform: 'Instagram', label: 'Feed landscape', ratio: '1.91:1', w: 1080, h: 566 },
+  { id: 'ig-landscape', platform: 'Instagram', label: 'Feed landscape', ratio: '16:9',   w: 1080, h: 608 },
   { id: 'ig-53',        platform: 'Instagram', label: 'Wide 5:3',       ratio: '5:3',    w: 1080, h: 648 },
   { id: 'ig-story',     platform: 'Instagram', label: 'Story / Reel',   ratio: '9:16',   w: 1080, h: 1920 },
-  { id: 'fb-feed',      platform: 'Facebook',  label: 'Feed link',      ratio: '1.91:1', w: 1200, h: 630 },
+  { id: 'fb-feed',      platform: 'Facebook',  label: 'Feed link',      ratio: '16:9',   w: 1200, h: 675 },
   { id: 'fb-square',    platform: 'Facebook',  label: 'Feed square',    ratio: '1:1',    w: 1200, h: 1200 },
   { id: 'fb-story',     platform: 'Facebook',  label: 'Story',          ratio: '9:16',   w: 1080, h: 1920 },
 ]

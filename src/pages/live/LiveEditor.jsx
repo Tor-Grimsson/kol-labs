@@ -612,7 +612,7 @@ export default function LiveEditor() {
             exportActions={
               <div className="flex flex-col gap-2">
                 <Button variant="primary" size="sm" className="w-full" iconLeft="download" onClick={exportPng}>Export PNG</Button>
-                <Button variant={recording ? 'secondary' : 'primary'} size="sm" className="w-full" iconLeft={recording ? 'stop' : 'video'} onClick={recording ? stopRecord : startRecord}>{recording ? 'Stop recording' : 'Record WebM'}</Button>
+                <Button variant={recording ? 'accent' : 'primary'} size="sm" className="w-full" iconLeft={recording ? 'stop' : 'video'} onClick={recording ? stopRecord : startRecord}>{recording ? 'Stop recording' : 'Record WebM'}</Button>
               </div>
             }
             settingsPage="live"
@@ -662,7 +662,7 @@ export default function LiveEditor() {
                   <button type="button" className="underline shrink-0" onClick={() => clearAction(a.id)}>clear</button>
                 </div>
               ))}
-              <Dropdown options={ADD_ACTION_OPTIONS} value="" onChange={startActionLearn} variant="subtle" raised className="w-full" />
+              <Dropdown options={ADD_ACTION_OPTIONS} value="" onChange={startActionLearn} variant="subtle" raised openUp className="w-full" />
               {learningAction && <span className="kol-helper-10 text-meta">Press a button to bind “{ACTION_LABEL[learningAction]}”…</span>}
             </>
           ) : (
@@ -680,7 +680,7 @@ export default function LiveEditor() {
         </Section>
 
         <Section label="Effects">
-          <Dropdown options={ADD_OPTIONS} value="" onChange={addFx} variant="subtle" raised className="w-full" />
+          <Dropdown options={ADD_OPTIONS} value="" onChange={addFx} variant="subtle" raised openUp className="w-full" />
           <Button variant="secondary" size="sm" className="w-full" iconLeft="shuffle" onClick={randomiseParams}>Randomise params</Button>
         </Section>
 

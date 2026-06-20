@@ -19,7 +19,6 @@ import Slider from '../../../components/atoms/Slider.jsx'
 import ToggleSwitch from '../../../components/atoms/ToggleSwitch.jsx'
 import Dropdown from '../../../components/molecules/Dropdown.jsx'
 import Section from '../../../components/molecules/Section.jsx'
-import SegmentedToggle from '../../../components/molecules/SegmentedToggle.jsx'
 import ColorField from '../../../components/color/ColorField.jsx'
 import { useViewportZoom } from '../../../components/framework/useViewportZoom.js'
 
@@ -103,7 +102,6 @@ export default function FieldPage() {
   const [tempo, setTempo] = useState(120)
   const [aspect, setAspect] = useState(() => defaultAspectFor('view'))
   const [scale, setScale] = useState(DEFAULT_SCALE)
-  const [tab, setTab] = useState('field')
   const [footTab, setFootTab] = useState('transport') // Transport · Output · File
 
   useEffect(() => {
@@ -336,12 +334,7 @@ export default function FieldPage() {
       <LiveClock getT={() => clockRef.current}>
       <EditorRail
         footerBare
-        header={(
-          <>
-            <RailHeader>Field</RailHeader>
-            <SegmentedToggle value={tab} onChange={setTab} options={[{ value: 'field', label: 'Field' }, { value: 'flow', label: 'Flow' }, { value: 'style', label: 'Style' }]} />
-          </>
-        )}
+        header={<RailHeader>Field</RailHeader>}
         footer={
           <EditorFooter
             tab={footTab}
@@ -364,79 +357,65 @@ export default function FieldPage() {
           />
         }
       >
-          {tab === 'field' && (
-            <>
-              <Section label="f(x, y)">
-                <Input
-                  size="sm"
-                  width="100%"
-                  value={draft}
-                  onChange={(e) => setDraft(e.target.value)}
-                  onBlur={commitExpr}
-                  onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur() }}
+          <Section label="f(x, y)">
+            <Input
+              size="sm"
+              width="100%"
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onBlur={commitExpr}
+              onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur() }}
+            />
+            <Dropdown
+              size="sm"
+              variant="subtle"
+              className="w-full"
+              options={EXAMPLES.map((ex) => ({ value: ex, label: ex }))}
+              value={expr}
+              onChange={(v) => loadExample(v)}
+              placeholder="Examples…"
+            />
+          </Section>
+          <Section label="View">
+            <Slider labeled label="Range" min={1} max={40} step={0.5} value={range} onChange={setRange} variant="default" noExpr />
+            <Button variant="primary" size="sm" onClick={() => { setCenter({ x: 0, y: 0 }); setRange(8) }}>Reset view</Button>
+          </Section>
+          <Section label="Flow">
+            <ToggleSwitch variant="plain" label="Particles" checked={flow} onChange={setFlow} />
+            <ToggleSwitch variant="plain" label="Dots" checked={dots} onChange={setDots} />
+            <Slider labeled label="Count" min={100} max={3000} step={100} value={count} onChange={setCount} variant="default" noExpr />
+            <Slider labeled label="Speed" min={0.1} max={4} step={0.1} value={flowSpeed} onChange={setFlowSpeed} variant="default" />
+          </Section>
+          <Section label="Color">
+            <ColorField label="Low" value={low} onChange={setLow} />
+            <ColorField label="High" value={high} onChange={setHigh} />
+            <div className="flex flex-wrap gap-1">
+              {RAMPS.map(([lo, hi], i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => { setLow(lo); setHigh(hi) }}
+                  aria-label="ramp preset"
+                  className="h-6 w-10 cursor-pointer"
+                  style={{ background: `linear-gradient(90deg, ${lo}, ${hi})`, borderRadius: 3, border: '1px solid var(--kol-border-default)' }}
                 />
-                <Dropdown
-                  size="sm"
-                  variant="subtle"
-                  className="w-full"
-                  options={EXAMPLES.map((ex) => ({ value: ex, label: ex }))}
-                  value={expr}
-                  onChange={(v) => loadExample(v)}
-                  placeholder="Examples…"
-                />
-              </Section>
-              <Section label="View">
-                <Slider labeled label="Range" min={1} max={40} step={0.5} value={range} onChange={setRange} variant="default" noExpr />
-                <Button variant="primary" size="sm" onClick={() => { setCenter({ x: 0, y: 0 }); setRange(8) }}>Reset view</Button>
-              </Section>
-            </>
-          )}
-
-          {tab === 'flow' && (
-            <>
-              <Section label="Flow">
-                <ToggleSwitch variant="plain" label="Particles" checked={flow} onChange={setFlow} />
-                <ToggleSwitch variant="plain" label="Dots" checked={dots} onChange={setDots} />
-                <Slider labeled label="Count" min={100} max={3000} step={100} value={count} onChange={setCount} variant="default" noExpr />
-                <Slider labeled label="Speed" min={0.1} max={4} step={0.1} value={flowSpeed} onChange={setFlowSpeed} variant="default" />
-              </Section>
-              <Section label="Color">
-                <ColorField label="Low" value={low} onChange={setLow} />
-                <ColorField label="High" value={high} onChange={setHigh} />
-                <div className="flex flex-wrap gap-1">
-                  {RAMPS.map(([lo, hi], i) => (
-                    <button
-                      key={i}
-                      type="button"
-                      onClick={() => { setLow(lo); setHigh(hi) }}
-                      aria-label="ramp preset"
-                      className="h-6 w-10 cursor-pointer"
-                      style={{ background: `linear-gradient(90deg, ${lo}, ${hi})`, borderRadius: 3, border: '1px solid var(--kol-border-default)' }}
-                    />
-                  ))}
-                </div>
-              </Section>
-            </>
-          )}
-
-          {tab === 'style' && (
-            <>
-              <StylePanel style={style} onPatch={patchStyle} onTheme={applyTheme} axisOptions={AXIS_2D} showBg={false} showWeight={false} strokeLabel="Particles" showTheme={false} />
-              <SettingsPanel
-                page="math-field"
-                theme={themeId}
-                onTheme={setThemeId}
-                invert={invert}
-                onInvert={setInvert}
-                onRandomize={onRandomize}
-                seed={seed}
-                onSeed={(n) => { setSeed(n); rollFrom(n) }}
-                getSettings={getSettings}
-                applySettings={applySettings}
-                showIO={false}
-              />
-            </>
-          )}
+              ))}
+            </div>
+          </Section>
+          <StylePanel style={style} onPatch={patchStyle} onTheme={applyTheme} axisOptions={AXIS_2D} showBg={false} showWeight={false} strokeLabel="Particles" showTheme={false} />
+          <SettingsPanel
+            page="math-field"
+            theme={themeId}
+            onTheme={setThemeId}
+            invert={invert}
+            onInvert={setInvert}
+            onRandomize={onRandomize}
+            seed={seed}
+            onSeed={(n) => { setSeed(n); rollFrom(n) }}
+            getSettings={getSettings}
+            applySettings={applySettings}
+            showIO={false}
+          />
 
           <div className="kol-helper-10 text-body">flow ⟂∇f · export is the heatmap</div>
       </EditorRail>

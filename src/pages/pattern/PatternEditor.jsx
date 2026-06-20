@@ -179,7 +179,7 @@ export default function PatternEditor({ page }) {
                 </div>
               )
             })}
-            {fxChain.length === 0 && <div className="kol-helper-10 text-body">Stack an effect on the pattern to preview it.</div>}
+            {fxChain.length === 0 && <div className="kol-mono-10 text-body">Stack an effect on the pattern to preview it.</div>}
             <Dropdown size="sm" options={[{ value: '', label: 'Add FX...' }, ...CANVAS_FX_DEFS.map((d) => ({ value: d.id, label: d.label }))]} value="" onChange={addFx} variant="subtle" className="w-full" />
           </Section>
         ) : (

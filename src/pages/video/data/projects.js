@@ -1,19 +1,13 @@
+import { RATIO_ASPECTS } from '../../_shared/exportSpecs.js'
+
 /* Output formats for the reframe model. `ratio` = w/h; null means the frame
- * follows the source (Source = trim only, Free = draggable crop box). */
+ * follows the source (Source = trim only, Free = draggable crop box). The seven
+ * aspect rows derive from the canonical export-spec set (no hand-added ratios —
+ * there is no 2:3/3:2/etc). */
 export const PROJECTS = [
   { key: 'source', label: 'Source', ratio: null },
   { key: 'free', label: 'Free', ratio: null },
-  { key: '1:1', label: '1:1', ratio: 1 },
-  { key: '4:5', label: '4:5', ratio: 4 / 5 },
-  { key: '5:4', label: '5:4', ratio: 5 / 4 },
-  { key: '2:3', label: '2:3', ratio: 2 / 3 },
-  { key: '3:2', label: '3:2', ratio: 3 / 2 },
-  { key: '9:16', label: '9:16', ratio: 9 / 16 },
-  { key: '16:9', label: '16:9', ratio: 16 / 9 },
-  { key: '5:3', label: '5:3', ratio: 5 / 3 },
-  { key: '3:4', label: '3:4', ratio: 3 / 4 },
-  { key: '4:3', label: '4:3', ratio: 4 / 3 },
-  { key: '2:1', label: '2:1', ratio: 2 },
+  ...RATIO_ASPECTS.map((a) => ({ key: a.value, label: a.value, ratio: a.ratio })),
 ]
 
 export const projectFor = (key) => PROJECTS.find((p) => p.key === key) || PROJECTS[0]

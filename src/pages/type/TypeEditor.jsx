@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import KineticType from '../kinetic/engine/KineticType.js'
-import { defaultInstance, normalizeVf } from '../kinetic/data/presets.js'
+import { defaultInstance, mergeInstance, normalizeVf } from '../kinetic/data/presets.js'
 import { loadFonts } from '../kinetic/lib/vfAxes.js'
 import { PATH_OPTIONS } from '../kinetic/engine/paths.js'
 import DesignControls from '../kinetic/DesignControls.jsx'
@@ -52,12 +52,13 @@ export default function TypeEditor({ page = null }) {
   const [themeId, setThemeId] = useState(() => defaultTheme())
   const [invert, setInvert] = useState(false)
   const [pattern, setPattern] = useState(() => ({ on: false, ...patternLoop.defaults }))
-  const [tab, setTab] = useState('type')   // type | motion | layout | frame
+  const [tab, setTab] = useState('edit')   // design | layout | edit | motion (mirrors Kinetic)
   const [editing, setEditing] = useState(false) // inline text-edit on the canvas
   const [marked, setMarked] = useState([])       // rows ticked for grouping
   const groupRef = useRef(1)
   const [addType, setAddType] = useState('line')
   const idRef = useRef(seed.insts.length + 1)
+  const maxInstId = (arr) => (arr || []).reduce((m, x) => { const n = parseInt(String(x.id).replace(/\D/g, ''), 10); return Number.isFinite(n) ? Math.max(m, n) : m }, 0)
 
   const [playing, setPlaying] = useState(() => defaultAutoplay())
   const [tempo, setTempo] = useState(120)
@@ -198,7 +199,7 @@ export default function TypeEditor({ page = null }) {
   useEffect(() => { engineRef.current?.setParams(params) }, [params])
   useEffect(() => { engineRef.current?.setTransport({ paused: !playing, speed: tempo / 120 }) }, [playing, tempo])
 
-  usePublishShortcuts('Type', [['space', 'play / pause'], ['Design', 'text + colour'], ['Layout', 'blocks + arrangement'], ['Edit', 'type, morph, pattern']])
+  usePublishShortcuts('Type', [['space', 'play / pause'], ['Design', 'frame · colour · pattern'], ['Layout', 'blocks + arrangement'], ['Edit', 'type · axes · morph'], ['Motion', 'animate the block']])
 
   // ── export ──
   const dl = (blob, name) => { if (!blob) return; const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = name; a.click(); URL.revokeObjectURL(url) }
@@ -211,7 +212,7 @@ export default function TypeEditor({ page = null }) {
 
   const getSettings = () => ({ instances, frameBg, themeId, invert, pattern, aspect, scale, tempo })
   const applySettings = (s) => {
-    if (s.instances) { setInstances(s.instances); setSelId(s.instances[0]?.id) }
+    if (s.instances) { const m = (s.instances).map((p, i) => mergeInstance(p, i)); idRef.current = Math.max(idRef.current, maxInstId(m) + 1); setInstances(m); setSelId(m[0]?.id) }
     if (s.frameBg != null) setFrameBg(s.frameBg)
     if (s.themeId != null) setThemeId(s.themeId)
     if (s.invert != null) setInvert(s.invert)
@@ -236,13 +237,14 @@ export default function TypeEditor({ page = null }) {
     />
   )
 
+  // Per-instance selector — lives in the BODY of the per-instance tabs (Edit ·
+  // Motion), mirroring Kinetic. The header holds ONE mode toggle, nothing else.
+  const instancePicker = instances.length > 1 ? (
+    <SegmentedToggle value={selId} onChange={setSelId} options={instances.map((ins, i) => ({ value: ins.id, label: String(i + 1) }))} />
+  ) : null
+
   const header = (
-    <>
-      <SegmentedToggle value={tab} onChange={setTab} options={[{ value: 'type', label: 'Type' }, { value: 'motion', label: 'Motion' }, { value: 'layout', label: 'Layout' }, { value: 'frame', label: 'Frame' }]} />
-      {instances.length > 1 && (tab === 'type' || tab === 'motion') && (
-        <SegmentedToggle value={selId} onChange={setSelId} options={instances.map((ins, i) => ({ value: ins.id, label: String(i + 1) }))} />
-      )}
-    </>
+    <SegmentedToggle value={tab} onChange={setTab} options={[{ value: 'design', label: 'Design' }, { value: 'layout', label: 'Layout' }, { value: 'edit', label: 'Edit' }, { value: 'motion', label: 'Motion' }]} />
   )
 
   return (
@@ -282,8 +284,9 @@ export default function TypeEditor({ page = null }) {
 
       <LiveClock getT={() => progressRef.current.t}>
         <EditorRail header={header} footerBare footer={footer}>
-          {tab === 'type' && (
+          {tab === 'edit' && (
             <>
+              {instancePicker}
               {/* the word itself */}
               <Section label="Text">
                 <Textarea value={selected?.text ?? ''} onChange={(e) => setInstText(selId, e.target.value)} rows={2} resize="vertical" placeholder="Type…" />
@@ -310,21 +313,21 @@ export default function TypeEditor({ page = null }) {
 
           {tab === 'motion' && (
             selected
-              ? <MotionControls params={selected} setMotion={(k, v) => setInstMotion(selId, k, v)} setMotions={(next) => setInstMotions(selId, next)} />
+              ? <>{instancePicker}<MotionControls params={selected} setMotion={(k, v) => setInstMotion(selId, k, v)} setMotions={(next) => setInstMotions(selId, next)} /></>
               : <div className="kol-mono-12 text-meta">Add a text block first.</div>
           )}
 
           {tab === 'layout' && (
             <>
               <Section label="Add">
-                <Dropdown size="sm" variant="subtle" className="w-full" value={addType} onChange={setAddType} options={PATH_OPTIONS} />
+                <Dropdown size="sm" variant="subtle" openUp className="w-full" value={addType} onChange={setAddType} options={PATH_OPTIONS} />
                 <Button variant="primary" size="sm" className="w-full" iconLeft="plus" onClick={() => addInstance(addType)}>Add text</Button>
               </Section>
               <Divider />
               <LayoutControls
                 instances={instances} selId={selId}
                 onSelect={setSelId}
-                onEdit={(id) => { setSelId(id); setTab('type') }}
+                onEdit={(id) => { setSelId(id); setTab('edit') }}
                 onRemove={removeInstance}
                 onDuplicate={duplicateInstance}
                 onReorder={reorderInstances}
@@ -341,7 +344,7 @@ export default function TypeEditor({ page = null }) {
             </>
           )}
 
-          {tab === 'frame' && (
+          {tab === 'design' && (
             <DesignControls
               themeId={themeId} onTheme={onTheme}
               invert={invert} onInvert={onInvert}

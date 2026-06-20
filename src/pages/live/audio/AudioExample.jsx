@@ -56,7 +56,7 @@ export default function AudioExample() {
           <span className="kol-helper-12 uppercase tracking-widest text-body">{ex.label}</span>
           <span className="kol-mono-12 text-meta">{ex.formula}</span>
         </div>
-        <Button variant={on ? 'outline' : 'primary'} onClick={toggle}>
+        <Button variant={on ? 'accent' : 'primary'} onClick={toggle}>
           {on ? 'Stop listening' : 'Enable audio'}
         </Button>
       </div>

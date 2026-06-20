@@ -118,7 +118,7 @@ export default function PatternControls({ values, onChange, tab = 'pattern', gly
           }}
         />
         {v.shape === 'glyph' && (glyphBound ? (
-          <div className="kol-helper-10 text-meta">Tiling the text instance — change the word, font and axes in Content / Edit.</div>
+          <div className="kol-mono-10 text-meta">Tiling the text instance — change the word, font and axes in Content / Edit.</div>
         ) : (
           <>
             <Input value={v.glyphChar ?? 'A'} onChange={(e) => onChange('glyphChar', e.target.value)} placeholder="A" />

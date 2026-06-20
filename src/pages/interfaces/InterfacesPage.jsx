@@ -375,7 +375,7 @@ export default function InterfacesPage() {
   const resetAll = () => {
     setRemoved(new Set()); setDeleted(new Set()); setAdded([]); setEdits({}); setOrder([]); setSelSec(null); setAddPick('eqBars')
     setShowChrome(true); setAspectKey('9:16'); setThemeSel('random'); setGenFont('mono'); setEncodeMode('off'); setLayout(DEFAULT_LAYOUT)
-    setTempo(60)
+    setTempo(120)
   }
   usePublishReset(resetAll)
   usePublishRetrigger(reroll)
@@ -532,14 +532,7 @@ export default function InterfacesPage() {
   // `s` overlay, not inline noise.
   const recordOutput = (
     <>
-      <div className="flex gap-1.5">
-        {[5, 10, 20, 30, 60].map((s) => (
-          <button key={s} type="button" onClick={() => setRecLen(s)}
-            className={`flex-1 rounded kol-helper-10 py-1 border transition-colors ${recLen === s ? 'bg-surface-secondary text-emphasis border-fg-48' : 'text-meta border-fg-08 hover:text-emphasis hover:border-fg-24'}`}>
-            {s}s
-          </button>
-        ))}
-      </div>
+      <SegmentedToggle value={recLen} onChange={setRecLen} options={[5, 10, 20, 30, 60].map((s) => ({ value: s, label: `${s}s` }))} />
       <Slider labeled label="Length (s)" min={1} max={120} step={1} value={recLen} onChange={setRecLen} />
       {audioActive() && audioIsFile() && audioDuration() > 0 && (
         <button type="button" onClick={() => setRecLen(Math.ceil(audioDuration()))} className="kol-helper-10 text-meta hover:text-emphasis text-left">

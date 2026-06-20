@@ -6,9 +6,7 @@ import Button from '../../../components/atoms/Button.jsx'
 import ToggleSwitch from '../../../components/atoms/ToggleSwitch.jsx'
 import Slider from '../../../components/atoms/Slider.jsx'
 import { roundIfNum } from '../../../lib/exprParam.js'
-import Divider from '../../../components/atoms/Divider.jsx'
 import Section from '../../../components/molecules/Section.jsx'
-import SegmentedToggle from '../../../components/molecules/SegmentedToggle.jsx'
 import Scrubber from '../../../components/framework/Scrubber.jsx'
 import EditorRail, { RailHeader } from '../../../components/framework/EditorRail.jsx'
 import EditorFooter from '../../../components/framework/EditorFooter.jsx'
@@ -40,7 +38,6 @@ export default function FormShell({ form, title }) {
   const [recording, setRecording] = useState(false)
   const [playing, setPlaying] = useState(() => defaultAutoplay())
   const [tempo, setTempo] = useState(120)
-  const [panel, setPanel] = useState('scene')
   const [footTab, setFootTab] = useState('transport')
 
   const wrapRef = useRef(null)
@@ -186,69 +183,46 @@ export default function FormShell({ form, title }) {
           />
         }
       >
-        <SegmentedToggle
-          value={panel}
-          onChange={setPanel}
-          options={[
-            { value: 'scene', label: 'Scene' },
-            { value: 'camera', label: 'Camera' },
-          ]}
+        <SettingsPanel
+          page={`forms-${form}`}
+          theme={themeId}
+          onTheme={setThemeId}
+          invert={invert}
+          onInvert={setInvert}
+          onRandomize={onRandomize}
+          seed={seed}
+          onSeed={setSeed}
+          showIO={false}
+          getSettings={getSettings}
+          applySettings={applySettings}
         />
 
-        {panel === 'scene' && (
-          <>
-            <SettingsPanel
-              page={`forms-${form}`}
-              theme={themeId}
-              onTheme={setThemeId}
-              invert={invert}
-              onInvert={setInvert}
-              onRandomize={onRandomize}
-              seed={seed}
-              onSeed={setSeed}
-              showIO={false}
-              getSettings={getSettings}
-              applySettings={applySettings}
-            />
+        <Section label="Cloud">
+          <Slider labeled label="Density" min={8} max={64} step={1} value={samples} onChange={(v) => setSamples(roundIfNum(v))} variant="default" />
+          <Slider labeled label="Point size" min={0.01} max={0.16} step={0.005} value={pointSize} onChange={setPointSize} variant="default" />
+          <Slider labeled label="Flap amount" min={0} max={1} step={0.02} value={amp} onChange={setAmp} variant="default" />
+          <Slider labeled label="Flap rate" min={1} max={6} step={1} value={cycles} onChange={(v) => setCycles(roundIfNum(v))} variant="default" />
+        </Section>
 
-            <Section label="Cloud">
-              <Slider labeled label="Density" min={8} max={64} step={1} value={samples} onChange={(v) => setSamples(roundIfNum(v))} variant="default" />
-              <Slider labeled label="Point size" min={0.01} max={0.16} step={0.005} value={pointSize} onChange={setPointSize} variant="default" />
-              <Slider labeled label="Flap amount" min={0} max={1} step={0.02} value={amp} onChange={setAmp} variant="default" />
-              <Slider labeled label="Flap rate" min={1} max={6} step={1} value={cycles} onChange={(v) => setCycles(roundIfNum(v))} variant="default" />
-            </Section>
-
-            {form === 'helix' && (
-              <Section label="Helix">
-                <Slider labeled label="Turns" min={1} max={6} step={0.5} value={turns} onChange={setTurns} variant="default" />
-                <Slider labeled label="Radius" min={0.3} max={1.6} step={0.05} value={radius} onChange={setRadius} variant="default" />
-                <Slider labeled label="Height" min={1} max={4} step={0.1} value={height} onChange={setHeight} variant="default" />
-              </Section>
-            )}
-
-            <Section label="Loop">
-              <ToggleSwitch variant="plain" label="Loop animation" checked={loop} onChange={setLoop} />
-              <Slider labeled label="Duration (s)" min={1} max={20} step={0.5} value={duration} onChange={setDuration} variant="default" />
-            </Section>
-          </>
-        )}
-
-        {panel === 'camera' && (
-          <Section label="Camera">
-            <ToggleSwitch variant="plain" label="Auto-rotate" checked={spin} onChange={setSpin} />
-            {spin && <Slider labeled label="Orbit speed" min={0} max={4} step={0.1} value={spinSpeed} onChange={setSpinSpeed} variant="default" />}
-            <Slider labeled label="Field of view" min={20} max={90} step={1} value={fov} onChange={(v) => setFov(roundIfNum(v))} variant="default" />
-            <Button variant="primary" size="sm" onClick={() => engineRef.current?.resetCamera()}>Cam reset</Button>
+        {form === 'helix' && (
+          <Section label="Helix">
+            <Slider labeled label="Turns" min={1} max={6} step={0.5} value={turns} onChange={setTurns} variant="default" />
+            <Slider labeled label="Radius" min={0.3} max={1.6} step={0.05} value={radius} onChange={setRadius} variant="default" />
+            <Slider labeled label="Height" min={1} max={4} step={0.1} value={height} onChange={setHeight} variant="default" />
           </Section>
         )}
 
-        <Divider />
+        <Section label="Loop">
+          <ToggleSwitch variant="plain" label="Loop animation" checked={loop} onChange={setLoop} />
+          <Slider labeled label="Duration (s)" min={1} max={20} step={0.5} value={duration} onChange={setDuration} variant="default" />
+        </Section>
 
-        <div className="kol-helper-10 text-body flex flex-col gap-1">
-          <div>space = play / pause</div>
-          <div>drag = orbit · wheel = zoom</div>
-          <div>C = reset cam · scrub below</div>
-        </div>
+        <Section label="Camera">
+          <ToggleSwitch variant="plain" label="Auto-rotate" checked={spin} onChange={setSpin} />
+          {spin && <Slider labeled label="Orbit speed" min={0} max={4} step={0.1} value={spinSpeed} onChange={setSpinSpeed} variant="default" />}
+          <Slider labeled label="Field of view" min={20} max={90} step={1} value={fov} onChange={(v) => setFov(roundIfNum(v))} variant="default" />
+          <Button variant="primary" size="sm" onClick={() => engineRef.current?.resetCamera()}>Cam reset</Button>
+        </Section>
       </EditorRail>
     </div>
   )

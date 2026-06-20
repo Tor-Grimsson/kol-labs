@@ -528,7 +528,7 @@ export default function KineticPage() {
                   />
                   <Divider />
                   <Section label="Add instance">
-                    <Dropdown size="sm" variant="subtle" className="w-full" value={addType} onChange={setAddType} options={PATH_OPTIONS} />
+                    <Dropdown size="sm" variant="subtle" openUp className="w-full" value={addType} onChange={setAddType} options={PATH_OPTIONS} />
                     <Button variant="primary" size="sm" className="w-full" onClick={() => addInstance(addType)}>Add to composition</Button>
                   </Section>
                   <Button variant="primary" size="sm" className="w-full" onClick={saveComposition}>Save composition</Button>

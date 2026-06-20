@@ -16,7 +16,6 @@ import Dropdown from '../../../components/molecules/Dropdown.jsx'
 import LabeledControl from '../../../components/molecules/LabeledControl.jsx'
 import Section from '../../../components/molecules/Section.jsx'
 import ButtonGroup from '../../../components/molecules/ButtonGroup.jsx'
-import SegmentedToggle from '../../../components/molecules/SegmentedToggle.jsx'
 import DropdownPopup from '../../../components/molecules/DropdownPopup.jsx'
 import Icon from '../../../components/loaders/Icon.jsx'
 import EditorRail, { RailHeader } from '../../../components/framework/EditorRail.jsx'
@@ -92,8 +91,6 @@ export default function ExpressionPage() {
   const [zoomY, setZoomY] = useState(1)
   const [panX, setPanX] = useState(0)
   const [panY, setPanY] = useState(0)
-  const [tab, setTab] = useState('scope')
-  const [libTab, setLibTab] = useState('presets')
   const [bottomTab, setBottomTab] = useState('transport') // pinned bottom panel: transport | output
   const [aspect, setAspect] = useState(() => defaultAspectFor('view'))
   const [scale, setScale] = useState(DEFAULT_SCALE)
@@ -238,21 +235,7 @@ export default function ExpressionPage() {
 
       <EditorRail
         footerBare
-        header={(
-          <>
-            <RailHeader>Oscilloscope</RailHeader>
-            {/* The tab toggle lives in the fixed header — never scrolls away. */}
-            <SegmentedToggle
-              value={tab}
-              onChange={setTab}
-              options={[
-                { value: 'scope', label: 'Scope' },
-                { value: 'style', label: 'Style' },
-                { value: 'library', label: 'Library' },
-              ]}
-            />
-          </>
-        )}
+        header={<RailHeader>Oscilloscope</RailHeader>}
         footer={(
           <EditorFooter
             tab={bottomTab}
@@ -280,138 +263,108 @@ export default function ExpressionPage() {
           />
         )}
       >
-          {tab === 'scope' && (
-            <>
-              <Section label="Expression">
-                <div className="flex items-stretch gap-2">
-                  <Input
-                    size="sm"
-                    value={expr}
-                    onChange={(e) => setExpr(e.target.value)}
-                    onClick={(e) => { if (e.altKey) setExpr('') }}
-                    placeholder="wave(t)"
-                    className="flex-1"
-                  />
-                  {/* Examples picker — load an example into the field
-                      (⌘/Ctrl+click appends). References live in the Library tab. */}
-                  <DropdownPopup
-                    trigger={<Icon name="list-unordered" size={16} />}
-                    ariaLabel="Examples"
-                    title="Load an example"
-                    items={EXAMPLES}
-                    getLabel={(it) => it.code}
-                    getHint={(it) => it.desc}
-                    onSelect={(it, e) => pick(it.code, e)}
-                  />
-                </div>
-                {/* Randomise → load a random example expression. */}
-                <Button variant="primary" size="sm" iconLeft="cycle" onClick={onRandomize} className="w-full">Randomise</Button>
-              </Section>
-
-              <Section label="Bounds">
-                <div className="grid grid-cols-2 gap-2">
-                  <NumField label="Min" value={min} onChange={setMin} />
-                  <NumField label="Max" value={max} onChange={setMax} />
-                  <NumField label="Sec" value={duration} onChange={setDuration} />
-                  <NumField label="Ofs" value={panX} onChange={setPanX} />
-                </div>
-              </Section>
-
-              <Section label="View">
-                <Slider labeled label="Margin" labelWidth={96} min={0} max={120} step={1} value={margin} onChange={setMargin} variant="default" noExpr />
-                <Slider labeled label="X" labelWidth={96} min={0.1} max={10} step={0.1} value={zoomX} onChange={setZoomX} variant="default" noExpr />
-                <Slider labeled label="Y" labelWidth={96} min={0.1} max={10} step={0.1} value={zoomY} onChange={setZoomY} variant="default" noExpr />
-                <Slider labeled label="Scale" labelWidth={96} min={0.1} max={10} step={0.1} value={(zoomX + zoomY) / 2} onChange={(v) => { setZoomX(v); setZoomY(v) }} variant="default" noExpr />
-              </Section>
-
-              {/* Fit (f) auto-ranges Y to the curve; Reset (r / 0) restores framing.
-                  Keyboard shortcuts mirror these — see the s overlay. */}
-              <ButtonGroup className="w-full">
-                <Button variant="primary" size="sm" iconLeft="maximize" onClick={fit} className="flex-1">Fit</Button>
-                <Button variant="primary" size="sm" iconLeft="refresh" onClick={reset} className="flex-1">Reset</Button>
-              </ButtonGroup>
-            </>
-          )}
-
-          {tab === 'style' && (
-            <>
-              {/* Settings — above Style. Theme → Axis → Randomise → Export/Import. */}
-              <Section label="Settings">
-                {/* Theme / Axis / Grid opacity share one LabeledControl label
-                    (style + width) so the labels match and the column aligns. */}
-                <LabeledControl inline label="Theme" labelWidth={96}>
-                  <Dropdown size="sm" variant="subtle" className="w-full" options={THEME_OPTIONS} value={themeId} onChange={setThemeId} />
-                </LabeledControl>
-                <LabeledControl inline label="Axis" labelWidth={96}>
-                  <Dropdown size="sm" variant="subtle" className="w-full" options={AXIS_2D} value={style.axis} onChange={(v) => patchStyle({ axis: v })} />
-                </LabeledControl>
-                {style.axis !== 'none' && (
-                  <Slider labeled label="Grid opacity" labelWidth={96} min={0} max={1} step={0.02} value={style.gridOpacity} onChange={(v) => patchStyle({ gridOpacity: v })} variant="default" />
-                )}
-                {/* All weights grouped: Grid weight = the rest of the scope
-                    (grid / reference / playhead); Trace weight = the curve. */}
-                <Slider labeled label="Grid weight" labelWidth={96} min={0.5} max={10} step={0.1} value={style.uiWeight ?? 1} onChange={(v) => patchStyle({ uiWeight: v })} variant="default" />
-                <Slider labeled label="Trace weight" labelWidth={96} min={0.4} max={10} step={0.1} value={style.weight} onChange={(v) => patchStyle({ weight: v })} variant="default" />
-              </Section>
-
-              {/* Style — Background · Trace · Grid colour + Invert. Axis lives in Settings. */}
-              <StylePanel
-                style={style}
-                onPatch={patchStyle}
-                axisOptions={AXIS_2D}
-                strokeLabel="Trace"
-                showWeight={false}
-                showTheme={false}
-                showAxis={false}
-                invert={invert}
-                onInvert={setInvert}
+          <Section label="Expression">
+            <div className="flex items-stretch gap-2">
+              <Input
+                size="sm"
+                value={expr}
+                onChange={(e) => setExpr(e.target.value)}
+                onClick={(e) => { if (e.altKey) setExpr('') }}
+                placeholder="wave(t)"
+                className="flex-1"
               />
-            </>
-          )}
-
-          {tab === 'library' && (
-            <>
-              <SegmentedToggle
-                value={libTab}
-                onChange={setLibTab}
-                options={[
-                  { value: 'presets', label: 'Presets' },
-                  { value: 'reference', label: 'Reference' },
-                ]}
+              {/* Examples picker — load an example into the field
+                  (⌘/Ctrl+click appends). References live in the Library tab. */}
+              <DropdownPopup
+                trigger={<Icon name="list-unordered" size={16} />}
+                ariaLabel="Examples"
+                title="Load an example"
+                items={EXAMPLES}
+                getLabel={(it) => it.code}
+                getHint={(it) => it.desc}
+                onSelect={(it, e) => pick(it.code, e)}
               />
+            </div>
+            {/* Randomise → load a random example expression. */}
+            <Button variant="primary" size="sm" iconLeft="cycle" onClick={onRandomize} className="w-full">Randomise</Button>
+          </Section>
 
-              {libTab === 'presets' && (
-                <>
-                  <Section label="Examples">
-                    <div className="flex flex-col">{EXAMPLES.map((it, i) => <Row key={i} item={it} onPick={pick} />)}</div>
-                  </Section>
-                  <Section label="Range">
-                    <div className="flex flex-col">{RANGES.map((it, i) => <Row key={i} item={it} onPick={pick} />)}</div>
-                  </Section>
-                  <Section label="Speed">
-                    <div className="flex flex-col">{SPEED.map((it, i) => <Row key={i} item={it} onPick={pick} />)}</div>
-                  </Section>
-                </>
-              )}
+          <Section label="Bounds">
+            <div className="grid grid-cols-2 gap-2">
+              <NumField label="Min" value={min} onChange={setMin} />
+              <NumField label="Max" value={max} onChange={setMax} />
+              <NumField label="Sec" value={duration} onChange={setDuration} />
+              <NumField label="Ofs" value={panX} onChange={setPanX} />
+            </div>
+          </Section>
 
-              {libTab === 'reference' && (
-                <>
-                  <Section label="Waves">
-                    <div className="flex flex-col">{WAVES.map((it, i) => <Row key={i} item={it} onPick={pick} />)}</div>
-                  </Section>
-                  <Section label="Functions">
-                    <div className="grid grid-cols-2 gap-x-3">{FUNCTIONS.map((it, i) => <Row key={i} item={it} onPick={pick} />)}</div>
-                  </Section>
-                  <Section label="Variables">
-                    <div className="flex flex-col">{VARIABLES.map((it, i) => <Row key={i} item={it} onPick={pick} />)}</div>
-                  </Section>
-                  <Section label="Curves">
-                    <div className="flex flex-col">{CURVES.map((it, i) => <Row key={i} item={it} onPick={pick} />)}</div>
-                  </Section>
-                </>
-              )}
-            </>
-          )}
+          <Section label="View">
+            <Slider labeled label="Margin" labelWidth={96} min={0} max={120} step={1} value={margin} onChange={setMargin} variant="default" noExpr />
+            <Slider labeled label="X" labelWidth={96} min={0.1} max={10} step={0.1} value={zoomX} onChange={setZoomX} variant="default" noExpr />
+            <Slider labeled label="Y" labelWidth={96} min={0.1} max={10} step={0.1} value={zoomY} onChange={setZoomY} variant="default" noExpr />
+            <Slider labeled label="Scale" labelWidth={96} min={0.1} max={10} step={0.1} value={(zoomX + zoomY) / 2} onChange={(v) => { setZoomX(v); setZoomY(v) }} variant="default" noExpr />
+          </Section>
+
+          {/* Fit (f) auto-ranges Y to the curve; Reset (r / 0) restores framing.
+              Keyboard shortcuts mirror these — see the s overlay. */}
+          <ButtonGroup className="w-full">
+            <Button variant="primary" size="sm" iconLeft="maximize" onClick={fit} className="flex-1">Fit</Button>
+            <Button variant="primary" size="sm" iconLeft="refresh" onClick={reset} className="flex-1">Reset</Button>
+          </ButtonGroup>
+
+          {/* Settings — above Style. Theme → Axis → Randomise → Export/Import. */}
+          <Section label="Settings">
+            {/* Theme / Axis / Grid opacity share one LabeledControl label
+                (style + width) so the labels match and the column aligns. */}
+            <LabeledControl inline label="Theme" labelWidth={96}>
+              <Dropdown size="sm" variant="subtle" className="w-full" options={THEME_OPTIONS} value={themeId} onChange={setThemeId} />
+            </LabeledControl>
+            <LabeledControl inline label="Axis" labelWidth={96}>
+              <Dropdown size="sm" variant="subtle" className="w-full" options={AXIS_2D} value={style.axis} onChange={(v) => patchStyle({ axis: v })} />
+            </LabeledControl>
+            {style.axis !== 'none' && (
+              <Slider labeled label="Grid opacity" labelWidth={96} min={0} max={1} step={0.02} value={style.gridOpacity} onChange={(v) => patchStyle({ gridOpacity: v })} variant="default" />
+            )}
+            {/* All weights grouped: Grid weight = the rest of the scope
+                (grid / reference / playhead); Trace weight = the curve. */}
+            <Slider labeled label="Grid weight" labelWidth={96} min={0.5} max={10} step={0.1} value={style.uiWeight ?? 1} onChange={(v) => patchStyle({ uiWeight: v })} variant="default" />
+            <Slider labeled label="Trace weight" labelWidth={96} min={0.4} max={10} step={0.1} value={style.weight} onChange={(v) => patchStyle({ weight: v })} variant="default" />
+          </Section>
+
+          {/* Style — Background · Trace · Grid colour + Invert. Axis lives in Settings. */}
+          <StylePanel
+            style={style}
+            onPatch={patchStyle}
+            axisOptions={AXIS_2D}
+            strokeLabel="Trace"
+            showWeight={false}
+            showTheme={false}
+            showAxis={false}
+            invert={invert}
+            onInvert={setInvert}
+          />
+
+          <Section label="Examples">
+            <div className="flex flex-col">{EXAMPLES.map((it, i) => <Row key={i} item={it} onPick={pick} />)}</div>
+          </Section>
+          <Section label="Range">
+            <div className="flex flex-col">{RANGES.map((it, i) => <Row key={i} item={it} onPick={pick} />)}</div>
+          </Section>
+          <Section label="Speed">
+            <div className="flex flex-col">{SPEED.map((it, i) => <Row key={i} item={it} onPick={pick} />)}</div>
+          </Section>
+          <Section label="Waves">
+            <div className="flex flex-col">{WAVES.map((it, i) => <Row key={i} item={it} onPick={pick} />)}</div>
+          </Section>
+          <Section label="Functions">
+            <div className="grid grid-cols-2 gap-x-3">{FUNCTIONS.map((it, i) => <Row key={i} item={it} onPick={pick} />)}</div>
+          </Section>
+          <Section label="Variables">
+            <div className="flex flex-col">{VARIABLES.map((it, i) => <Row key={i} item={it} onPick={pick} />)}</div>
+          </Section>
+          <Section label="Curves">
+            <div className="flex flex-col">{CURVES.map((it, i) => <Row key={i} item={it} onPick={pick} />)}</div>
+          </Section>
       </EditorRail>
     </div>
   )

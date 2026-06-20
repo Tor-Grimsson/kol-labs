@@ -293,18 +293,6 @@ export default function GradientPage() {
             <Slider labeled label="Glow" min={0} max={1.5} step={0.05} value={glow} onChange={setGlow} className="w-full" />
             <Slider labeled label="Grain" min={0} max={0.3} step={0.01} value={grain} onChange={setGrain} className="w-full" />
           </Section>
-
-          <Divider />
-
-          <div className="kol-helper-10 text-body flex flex-col gap-1">
-            <div>← / →</div>
-            <div>G grid</div>
-            <div>R randomize</div>
-            <div>space pause</div>
-            <div>drag = orbit</div>
-            <div>wheel = zoom</div>
-            <div>C = reset cam</div>
-          </div>
       </EditorRail>
       </LiveClock>
     </div>

@@ -7,7 +7,6 @@ import { MSTP_PRESETS, MSTP_COLORS, mstpPresetById } from './data/mstp.js'
 import { VIEW_ASPECTS, defaultAspectFor, DEFAULT_SCALE, ratioFor, dimsFor } from '../../_shared/exportSpecs.js'
 import { roundIfNum } from '../../../lib/exprParam.js'
 import Button from '../../../components/atoms/Button.jsx'
-import Divider from '../../../components/atoms/Divider.jsx'
 import Slider from '../../../components/atoms/Slider.jsx'
 import Dropdown from '../../../components/molecules/Dropdown.jsx'
 import LabeledControl from '../../../components/molecules/LabeledControl.jsx'
@@ -186,14 +185,6 @@ export default function AbstractMSTPPage() {
           <Section label="Relief">
             <Slider labeled label="Depth" min={0} max={8} step={0.5} value={relief} onChange={(v) => setRelief(roundIfNum(v))} className="w-full" />
           </Section>
-
-          <Divider />
-
-          <div className="kol-helper-10 text-body flex flex-col gap-1">
-            <div>space = play / pause</div>
-            <div>R = re-grow</div>
-            <div>tempo = sim speed</div>
-          </div>
       </EditorRail>
       </LiveClock>
     </div>

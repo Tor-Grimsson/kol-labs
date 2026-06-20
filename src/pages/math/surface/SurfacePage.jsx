@@ -60,7 +60,6 @@ export default function SurfacePage() {
   const [tempo, setTempo] = useState(120)
   const [aspect, setAspect] = useState(() => defaultAspectFor('view'))
   const [scale, setScale] = useState(DEFAULT_SCALE)
-  const [tab, setTab] = useState('surface')
   const [footTab, setFootTab] = useState('transport')
   const viewRef = useRef(null)
   usePublishReset(() => viewRef.current?.resetCamera())
@@ -271,12 +270,7 @@ export default function SurfacePage() {
       <LiveClock getT={() => viewRef.current?.now()}>
       <EditorRail
         footerBare
-        header={(
-          <>
-            <RailHeader>Surface</RailHeader>
-            <SegmentedToggle value={tab} onChange={setTab} options={[{ value: 'surface', label: 'Surface' }, { value: 'render', label: 'Render' }, { value: 'style', label: 'Style' }]} />
-          </>
-        )}
+        header={<RailHeader>Surface</RailHeader>}
         footer={
           <EditorFooter
             tab={footTab}
@@ -299,67 +293,53 @@ export default function SurfacePage() {
           />
         }
       >
-          {tab === 'surface' && (
-            <>
-              <Section label="z = f(x, y, t)">
-                <Input
-                  size="sm"
-                  width="100%"
-                  value={draft}
-                  onChange={(e) => setDraft(e.target.value)}
-                  onBlur={commitExpr}
-                  onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur() }}
-                />
-                <Dropdown
-                  size="sm"
-                  variant="subtle"
-                  className="w-full"
-                  options={EXAMPLES.map((ex) => ({ value: ex, label: ex }))}
-                  value={expr}
-                  onChange={(v) => loadExample(v)}
-                  placeholder="Examples…"
-                />
-              </Section>
-              <Section label="Mesh">
-                <Slider labeled label="Domain" min={1} max={8} step={0.2} value={domain} onChange={setDomain} variant="default" />
-                <Slider labeled label="Resolution" min={12} max={80} step={2} value={res} onChange={setRes} variant="default" noExpr />
-                <Slider labeled label="Height" min={0.1} max={4} step={0.1} value={height} onChange={setHeight} variant="default" />
-              </Section>
-              <Section label="Render">
-                <SegmentedToggle value={mode} onChange={setMode} options={[{ value: 'wire', label: 'Wire' }, { value: 'fill', label: 'Filled' }]} />
-                <ToggleSwitch variant="plain" label="Contours" checked={contours} onChange={setContours} />
-              </Section>
-            </>
-          )}
-
-          {tab === 'render' && (
-            <>
-              <Section label="Color">
-                <ColorField label="Low" value={low} onChange={setLow} />
-                <ColorField label="High" value={high} onChange={setHigh} />
-              </Section>
-              <CameraPanel viewRef={viewRef} spin={spin} onSpin={setSpin} />
-            </>
-          )}
-
-          {tab === 'style' && (
-            <>
-              <StylePanel style={style} onPatch={patchStyle} onTheme={applyTheme} axisOptions={AXIS_3D} showStroke={false} showTheme={false} />
-              <SettingsPanel
-                page="math-surface"
-                showIO={false}
-                theme={themeId}
-                onTheme={setThemeId}
-                invert={invert}
-                onInvert={setInvert}
-                onRandomize={onRandomize}
-                seed={seed}
-                onSeed={(n) => { setSeed(n); rollFrom(n) }}
-                getSettings={getSettings}
-                applySettings={applySettings}
-              />
-            </>
-          )}
+          <Section label="z = f(x, y, t)">
+            <Input
+              size="sm"
+              width="100%"
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onBlur={commitExpr}
+              onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur() }}
+            />
+            <Dropdown
+              size="sm"
+              variant="subtle"
+              className="w-full"
+              options={EXAMPLES.map((ex) => ({ value: ex, label: ex }))}
+              value={expr}
+              onChange={(v) => loadExample(v)}
+              placeholder="Examples…"
+            />
+          </Section>
+          <Section label="Mesh">
+            <Slider labeled label="Domain" min={1} max={8} step={0.2} value={domain} onChange={setDomain} variant="default" />
+            <Slider labeled label="Resolution" min={12} max={80} step={2} value={res} onChange={setRes} variant="default" noExpr />
+            <Slider labeled label="Height" min={0.1} max={4} step={0.1} value={height} onChange={setHeight} variant="default" />
+          </Section>
+          <Section label="Render">
+            <SegmentedToggle value={mode} onChange={setMode} options={[{ value: 'wire', label: 'Wire' }, { value: 'fill', label: 'Filled' }]} />
+            <ToggleSwitch variant="plain" label="Contours" checked={contours} onChange={setContours} />
+          </Section>
+          <Section label="Color">
+            <ColorField label="Low" value={low} onChange={setLow} />
+            <ColorField label="High" value={high} onChange={setHigh} />
+          </Section>
+          <CameraPanel viewRef={viewRef} spin={spin} onSpin={setSpin} />
+          <StylePanel style={style} onPatch={patchStyle} onTheme={applyTheme} axisOptions={AXIS_3D} showStroke={false} showTheme={false} />
+          <SettingsPanel
+            page="math-surface"
+            showIO={false}
+            theme={themeId}
+            onTheme={setThemeId}
+            invert={invert}
+            onInvert={setInvert}
+            onRandomize={onRandomize}
+            seed={seed}
+            onSeed={(n) => { setSeed(n); rollFrom(n) }}
+            getSettings={getSettings}
+            applySettings={applySettings}
+          />
       </EditorRail>
       </LiveClock>
     </div>

@@ -21,8 +21,12 @@ function buildTerms(wave, n) {
 // term — traces a band-limited wave scrolling right. Pausable tempo clock +
 // exportBlobAt + aspect letterbox, mirroring Oscilloscope. `vstyle.axis !== 'none'`
 // shows the epicycle scaffold (circles/spokes); the trace always draws.
+// Fundamental cycle rate (Hz) baked from the old Speed knob's 0.3 default so the
+// wave moves at a sensible rate when the tempo clock runs at realtime (120).
+const BASE_RATE = 0.3
+
 const FourierScope = forwardRef(function FourierScope({
-  harmonics = 5, wave = 'square', speed = 0.6,
+  harmonics = 5, wave = 'square',
   playing = false, tempo = 120, resetKey = 0, aspect = null, vstyle = null,
 }, ref) {
   const canvasRef = useRef(null)
@@ -36,7 +40,6 @@ const FourierScope = forwardRef(function FourierScope({
 
   const playingRef = useRef(playing); playingRef.current = playing
   const tempoRef = useRef(tempo); tempoRef.current = tempo
-  const speedRef = useRef(speed); speedRef.current = speed
   const aspectRef = useRef(aspect); aspectRef.current = aspect
   const vstyleRef = useRef(vstyle); vstyleRef.current = vstyle
 
@@ -124,7 +127,7 @@ const FourierScope = forwardRef(function FourierScope({
       const baseR = maxR / (tms[0]?.amp || 1)
       const originX = maxR + 4
       const cy = h / 2
-      const tt = elapsed * speedRef.current * Math.PI * 2
+      const tt = elapsed * BASE_RATE * Math.PI * 2
 
       // epicycle chain
       let x = originX, y = cy

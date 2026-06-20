@@ -4,7 +4,7 @@
 
 export default function AnatomyOverlay({ params, totalW, baselineY, visible }) {
   if (!visible) return null
-  const labelStyle = { font: '8px ui-monospace, monospace', fill: 'currentColor', textTransform: 'uppercase' }
+  const labelStyle = { font: '8px ui-monospace, monospace', fill: 'currentColor' }
   const lineStyle = { stroke: 'currentColor', strokeWidth: 0.4, strokeDasharray: '2 3', opacity: 0.6 }
   const lines = [
     { label: 'asc',   y: baselineY - params.ascender },

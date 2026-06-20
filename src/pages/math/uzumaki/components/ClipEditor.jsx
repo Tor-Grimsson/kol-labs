@@ -22,7 +22,6 @@ import Divider from '../../../../components/atoms/Divider.jsx'
 import Dropdown from '../../../../components/molecules/Dropdown.jsx'
 import LabeledControl from '../../../../components/molecules/LabeledControl.jsx'
 import Section from '../../../../components/molecules/Section.jsx'
-import SegmentedToggle from '../../../../components/molecules/SegmentedToggle.jsx'
 
 const TAU = Math.PI * 2
 
@@ -62,7 +61,6 @@ export default function ClipEditor({
   const [playing, setPlaying] = useState(autoPlay)
   const [tempo, setTempo] = useState(120)
   const [resetKey, setResetKey] = useState(0)
-  const [panel, setPanel] = useState('curve')
   const [kfSel, setKfSel] = useState(0)
   const [cameraMotion, setCameraMotion] = useState(true)
   const [cam, setCam] = useState({ yaw: 20, pitch: 20, dist: 3, zoom: 1 })
@@ -261,80 +259,58 @@ export default function ClipEditor({
           />
         }
       >
-        {/* Fixed: which control group is shown. */}
-        <SegmentedToggle
-          value={panel}
-          onChange={setPanel}
-          options={[
-            { value: 'curve', label: 'Curve' },
-            { value: 'form', label: 'Form' },
-            { value: 'camera', label: 'Camera' },
-            { value: 'view', label: 'View' },
-          ]}
-        />
+        <Section label="Curve">
+            <CurveControls curve={clip.curve} onChange={editCurve} onKind={setKind} />
+          </Section>
 
-        {panel === 'curve' && (
-            <Section label="Curve">
-              <CurveControls curve={clip.curve} onChange={editCurve} onKind={setKind} />
-            </Section>
-          )}
+          <ClipForm
+            modifiers={clip.modifiers}
+            show={clip.show}
+            style={clip.style}
+            onMod={editMod}
+            onShow={editShow}
+            onStyle={editStyle}
+          />
 
-          {panel === 'form' && (
-            <ClipForm
-              modifiers={clip.modifiers}
-              show={clip.show}
-              style={clip.style}
-              onMod={editMod}
-              onShow={editShow}
-              onStyle={editStyle}
+          <Section label="Camera">
+            <ToggleSwitch variant="plain" label="Camera motion" checked={cameraMotion} onChange={setMotion} />
+            <Button variant="secondary" size="sm" iconLeft="grid" onClick={frontView} className="w-full">Front view · 0,0</Button>
+            {cameraMotion ? (
+              <CameraTimeline timeline={clip.timeline} onChange={editTimeline} selected={kfSel} onSelect={setKfSel} />
+            ) : (
+              <>
+                <Slider labeled label="Yaw" min={-180} max={180} step={1} value={cam.yaw} onChange={(v) => setCamParam('yaw', v)} variant="default" />
+                <Slider labeled label="Pitch" min={-89} max={89} step={1} value={cam.pitch} onChange={(v) => setCamParam('pitch', v)} variant="default" />
+                <Slider labeled label="Distance" min={1} max={8} step={0.1} value={cam.dist} onChange={(v) => setCamParam('dist', v)} variant="default" />
+                <Slider labeled label="Zoom" min={0.3} max={3} step={0.05} value={cam.zoom} onChange={(v) => setCamParam('zoom', v)} variant="default" />
+              </>
+            )}
+          </Section>
+
+          <StylePanel
+            style={style}
+            onPatch={patchStyle}
+            onTheme={applyTheme}
+            axisOptions={AXIS_3D}
+            showStroke={false}
+            showWeight={false}
+            showTheme={false}
+          />
+
+          {settingsPage && (
+            <SettingsPanel
+              page={settingsPage}
+              theme={themeId}
+              onTheme={setThemeId}
+              invert={invert}
+              onInvert={setInvert}
+              onRandomize={onRandomize}
+              seed={seed}
+              onSeed={onSeed}
+              getSettings={getSettings}
+              applySettings={applySettings}
+              showIO={false}
             />
-          )}
-
-          {panel === 'camera' && (
-            <Section label="Camera">
-              <ToggleSwitch variant="plain" label="Camera motion" checked={cameraMotion} onChange={setMotion} />
-              <Button variant="secondary" size="sm" iconLeft="grid" onClick={frontView} className="w-full">Front view · 0,0</Button>
-              {cameraMotion ? (
-                <CameraTimeline timeline={clip.timeline} onChange={editTimeline} selected={kfSel} onSelect={setKfSel} />
-              ) : (
-                <>
-                  <Slider labeled label="Yaw" min={-180} max={180} step={1} value={cam.yaw} onChange={(v) => setCamParam('yaw', v)} variant="default" />
-                  <Slider labeled label="Pitch" min={-89} max={89} step={1} value={cam.pitch} onChange={(v) => setCamParam('pitch', v)} variant="default" />
-                  <Slider labeled label="Distance" min={1} max={8} step={0.1} value={cam.dist} onChange={(v) => setCamParam('dist', v)} variant="default" />
-                  <Slider labeled label="Zoom" min={0.3} max={3} step={0.05} value={cam.zoom} onChange={(v) => setCamParam('zoom', v)} variant="default" />
-                </>
-              )}
-            </Section>
-          )}
-
-          {panel === 'view' && (
-            <>
-              <StylePanel
-                style={style}
-                onPatch={patchStyle}
-                onTheme={applyTheme}
-                axisOptions={AXIS_3D}
-                showStroke={false}
-                showWeight={false}
-                showTheme={false}
-              />
-
-              {settingsPage && (
-                <SettingsPanel
-                  page={settingsPage}
-                  theme={themeId}
-                  onTheme={setThemeId}
-                  invert={invert}
-                  onInvert={setInvert}
-                  onRandomize={onRandomize}
-                  seed={seed}
-                  onSeed={onSeed}
-                  getSettings={getSettings}
-                  applySettings={applySettings}
-                  showIO={false}
-                />
-              )}
-            </>
           )}
 
           {edited && (

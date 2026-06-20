@@ -40,7 +40,7 @@ export default function XYPad({
 
   return (
     <div className={`flex flex-col gap-1 ${className}`}>
-      <div className="flex justify-between kol-helper-10 uppercase tracking-widest text-meta">
+      <div className="flex justify-between kol-helper-10 tracking-widest text-meta">
         <span>{xLabel}</span>
         <span>{yLabel}</span>
       </div>

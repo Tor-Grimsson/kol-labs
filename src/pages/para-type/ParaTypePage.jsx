@@ -20,7 +20,6 @@ import LabeledControl from '../../components/molecules/LabeledControl.jsx'
 import SegmentedToggle from '../../components/molecules/SegmentedToggle.jsx'
 import Section from '../../components/molecules/Section.jsx'
 import EditorRail, { RailHeader } from '../../components/framework/EditorRail.jsx'
-import { TabsRow } from './editor/color/PanelTabs'
 
 import {
   PARAM_DEFS, RELATIONSHIPS, PRESETS, ANATOMY,
@@ -93,7 +92,7 @@ function RelationsTab({ hoveredParam, hoveredGlyph, setHoveredParam }) {
             className={`px-3 py-2 border rounded cursor-pointer transition-colors ${hot ? 'border-fg-24 bg-fg-04' : 'border-fg-08 hover:border-fg-16'}`}
           >
             <div className="flex items-center gap-2 mb-1">
-              <span className={`kol-mono-12 uppercase ${hot ? 'text-emphasis' : 'text-body'}`}>{r.param}</span>
+              <span className={`kol-mono-12 ${hot ? 'text-emphasis' : 'text-body'}`}>{r.param}</span>
               <span className="text-meta kol-mono-12">→</span>
               <span className="kol-mono-12 text-body">{r.glyphs.join(' ')}</span>
             </div>
@@ -112,12 +111,12 @@ function AnatomyTab() {
         const tone = def.type === 'metric' ? 'text-emphasis' : def.type === 'part' ? 'text-body' : 'text-meta'
         return (
           <div key={term} className="flex items-baseline gap-3 py-1.5 border-b border-fg-04">
-            <span className={`kol-mono-12 uppercase w-24 shrink-0 ${tone}`}>{term}</span>
+            <span className={`kol-mono-12 w-24 shrink-0 ${tone}`}>{term}</span>
             <span className="kol-mono-10 text-meta">{def.desc}</span>
           </div>
         )
       })}
-      <div className="mt-3 flex gap-4 kol-helper-10 uppercase">
+      <div className="mt-3 flex gap-4 kol-helper-10">
         <span className="text-emphasis">metric</span>
         <span className="text-body">part</span>
         <span className="text-meta">property</span>
@@ -142,11 +141,11 @@ function XYTab({ paramNames, paramConfigs, updateParam, xKey, yKey, setXKey, set
     <div className="p-3 flex flex-col gap-3">
       <div className="flex gap-2">
         <div className="flex-1">
-          <div className="kol-helper-10 uppercase text-meta mb-1">X axis</div>
+          <div className="kol-helper-10 text-meta mb-1">X axis</div>
           <Dropdown size="sm" variant="subtle" className="w-full" options={options} value={xKey} onChange={setXKey} />
         </div>
         <div className="flex-1">
-          <div className="kol-helper-10 uppercase text-meta mb-1">Y axis</div>
+          <div className="kol-helper-10 text-meta mb-1">Y axis</div>
           <Dropdown size="sm" variant="subtle" className="w-full" options={options} value={yKey} onChange={setYKey} />
         </div>
       </div>
@@ -201,15 +200,21 @@ function Guides({ totalW, baselineY, params }) {
 /* ── RAIL PANELS — one tab row over param groups + reference panels ── */
 
 const PARAM_TABS = ['Metrics', 'Weights', 'Expressive']
-const RAIL_TABS = [...PARAM_TABS, 'XY', 'Relations', 'Anatomy']
+const CONTROL_TABS = [...PARAM_TABS, 'XY']
+const REFERENCE_TABS = ['Relations', 'Anatomy']
+
+const toOptions = (labels) => labels.map(t => ({ value: t, label: t }))
+const CONTROL_OPTIONS = toOptions(CONTROL_TABS)
+const REFERENCE_OPTIONS = toOptions(REFERENCE_TABS)
 
 function RailPanels(props) {
   const [active, setActive] = useState('Metrics')
   const groupKey = active.toLowerCase()
   return (
     <div className="flex flex-col">
-      <div className="border-b border-fg-08 shrink-0 overflow-x-auto">
-        <TabsRow tabs={RAIL_TABS} active={active} onChange={setActive} />
+      <div className="px-3 py-2 flex flex-col gap-2 border-b border-fg-08 shrink-0">
+        <SegmentedToggle size="sm" value={active} onChange={setActive} options={CONTROL_OPTIONS} />
+        <SegmentedToggle size="sm" value={active} onChange={setActive} options={REFERENCE_OPTIONS} />
       </div>
       <div>
         {PARAM_TABS.includes(active) && (
@@ -397,7 +402,7 @@ export default function ParametricTypeLab() {
                   <div className="flex-1 min-h-0 w-full flex items-center justify-center">
                     <Glyph name={name} params={params} engine={engine} showGuides={false} showAnatomy={false} />
                   </div>
-                  <div className="kol-helper-10 uppercase text-meta mt-1">{name}</div>
+                  <div className="kol-helper-10 text-meta mt-1">{name}</div>
                 </button>
               )
             })}
@@ -427,11 +432,11 @@ export default function ParametricTypeLab() {
             <Button variant="ghost" size="sm" iconOnly="grid-01" iconSize={14} title="Anatomy" onClick={() => setShowAnatomy(s => !s)} quiet />
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="kol-helper-10 uppercase text-meta">Set</span>
+            <span className="kol-helper-10 text-meta">Set</span>
             <ChipsRow options={FILTER_SET_OPTIONS} value={filterSet} onChange={setFilterSet} />
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="kol-helper-10 uppercase text-meta">Visible</span>
+            <span className="kol-helper-10 text-meta">Visible</span>
             <SegmentedToggle
               size="sm"
               value={String(visibleCount)}

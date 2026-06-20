@@ -3,7 +3,7 @@ import { defaultAutoplay } from '../../../lib/appSettings.js'
 import { GrayScott, RD_PRESETS, RD_PALETTES, RD_SEEDS, DITHER_STYLES, buildFK } from './engine.js'
 import { resolveDeep } from '../../../lib/exprParam.js'
 import { VIEW_ASPECTS, defaultAspectFor, DEFAULT_SCALE, dimsFor } from '../../_shared/exportSpecs.js'
-import { ImageProvider, useImage } from '../../radar/state/ImageContext.jsx'
+import { useImage } from '../../radar/state/ImageContext.jsx'
 import MediaPicker from '../../../components/framework/MediaPicker.jsx'
 import EditorRail, { RailHeader } from '../../../components/framework/EditorRail.jsx'
 import EditorFooter from '../../../components/framework/EditorFooter.jsx'
@@ -228,9 +228,5 @@ function ReactionInner() {
 }
 
 export default function ReactionPage() {
-  return (
-    <ImageProvider>
-      <ReactionInner />
-    </ImageProvider>
-  )
+  return <ReactionInner />
 }

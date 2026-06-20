@@ -4,7 +4,7 @@ import { renderMoire, GRID_OPTIONS, COMBINE_OPTIONS, MOIRE_PALETTES } from './en
 import { resolveDeep, treeReferencesAudio } from '../../../lib/exprParam.js'
 import { isAudioEnabled, subscribeAudio } from '../../../lib/audioSource.js'
 import { VIEW_ASPECTS, defaultAspectFor, DEFAULT_SCALE, ratioFor, dimsFor } from '../../_shared/exportSpecs.js'
-import { ImageProvider, useImage } from '../../radar/state/ImageContext.jsx'
+import { useImage } from '../../radar/state/ImageContext.jsx'
 import MediaPicker from '../../../components/framework/MediaPicker.jsx'
 import EditorRail, { RailHeader } from '../../../components/framework/EditorRail.jsx'
 import EditorFooter from '../../../components/framework/EditorFooter.jsx'
@@ -267,9 +267,5 @@ function MoireInner() {
 }
 
 export default function MoirePage() {
-  return (
-    <ImageProvider>
-      <MoireInner />
-    </ImageProvider>
-  )
+  return <MoireInner />
 }

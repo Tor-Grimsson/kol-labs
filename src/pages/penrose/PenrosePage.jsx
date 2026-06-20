@@ -252,7 +252,7 @@ function Grid({ groups, onSelect, onOpen, seedBase, frame, focusedIdx }) {
             style={{ gridColumn: '1 / -1' }}
             className="flex items-baseline gap-2 pt-6 pb-1 border-t border-fg-08 first:pt-0 first:border-0"
           >
-            <span className="kol-helper-12 uppercase tracking-widest text-emphasis">{g.label}</span>
+            <span className="kol-helper-12 tracking-widest text-emphasis">{g.label}</span>
             <span className="kol-helper-10 text-meta">{g.items.length}</span>
           </div>
           {g.items.map(({ proto, i }) => (

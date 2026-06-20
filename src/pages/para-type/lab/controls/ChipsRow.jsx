@@ -11,7 +11,7 @@ export default function ChipsRow({ options, value, onChange, className = '' }) {
             key={opt.value}
             type="button"
             onClick={() => onChange?.(opt.value)}
-            className={`px-2 py-0.5 rounded kol-helper-10 uppercase tracking-widest border transition-colors ${
+            className={`px-2 py-0.5 rounded kol-helper-10 tracking-widest border transition-colors ${
               active
                 ? 'bg-fg-16 border-fg-24 text-emphasis'
                 : 'bg-transparent border-fg-08 text-meta hover:border-fg-16 hover:text-body'

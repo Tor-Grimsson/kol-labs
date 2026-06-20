@@ -13,11 +13,11 @@ export default function Section({ label, children, className = '', action }) {
     <div className={`flex flex-col gap-2 ${className}`}>
       {action ? (
         <div className="flex items-center justify-between min-h-5">
-          <span className="kol-helper-10 uppercase tracking-widest text-meta">{label}</span>
+          <span className="kol-helper-10 text-meta">{label}</span>
           {action}
         </div>
       ) : (
-        <span className="kol-helper-10 uppercase tracking-widest text-meta">{label}</span>
+        <span className="kol-helper-10 text-meta">{label}</span>
       )}
       {children}
     </div>

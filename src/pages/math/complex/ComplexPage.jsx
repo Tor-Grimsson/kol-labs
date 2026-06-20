@@ -15,7 +15,6 @@ import Slider from '../../../components/atoms/Slider.jsx'
 import Dropdown from '../../../components/molecules/Dropdown.jsx'
 import LabeledControl from '../../../components/molecules/LabeledControl.jsx'
 import Section from '../../../components/molecules/Section.jsx'
-import SegmentedToggle from '../../../components/molecules/SegmentedToggle.jsx'
 
 // Minimal complex arithmetic (z = [re, im]).
 const C = {
@@ -150,7 +149,6 @@ export default function ComplexPage() {
   const [tempo, setTempo] = useState(120)
   const [hueSpeed, setHueSpeed] = useState(1)
   const [ringSpeed, setRingSpeed] = useState(1)
-  const [tab, setTab] = useState('function')
   const [footTab, setFootTab] = useState('transport') // Transport · Output · File
   const [style, patchStyle, applyTheme] = useMathStyle({ axis: 'none' })
   const [themeId, setThemeId] = useState(() => defaultTheme())
@@ -337,12 +335,7 @@ export default function ComplexPage() {
 
       <EditorRail
         footerBare
-        header={(
-          <>
-            <RailHeader>Complex</RailHeader>
-            <SegmentedToggle value={tab} onChange={setTab} options={[{ value: 'function', label: 'Function' }, { value: 'animate', label: 'Animate' }, { value: 'style', label: 'Style' }]} />
-          </>
-        )}
+        header={<RailHeader>Complex</RailHeader>}
         footer={
           <EditorFooter
             tab={footTab}
@@ -365,60 +358,49 @@ export default function ComplexPage() {
           />
         }
       >
-        {tab === 'function' && (
-          <>
-            <Section label="Function">
-              <Dropdown
-                size="sm"
-                variant="subtle"
-                className="w-full"
-                options={FUNCS.map((f) => ({ value: f.id, label: f.label }))}
-                value={funcId}
-                onChange={setFuncId}
-              />
-            </Section>
+        <Section label="Function">
+          <Dropdown
+            size="sm"
+            variant="subtle"
+            className="w-full"
+            options={FUNCS.map((f) => ({ value: f.id, label: f.label }))}
+            value={funcId}
+            onChange={setFuncId}
+          />
+        </Section>
 
-            <Section label="View">
-              <Slider labeled label="Range" min={0.5} max={20} step={0.1} value={range} onChange={setRange} variant="default" noExpr />
-              <LabeledControl label="Coloring">
-                <Dropdown size="sm" variant="subtle" className="w-full" options={COLORINGS} value={coloring} onChange={setColoring} />
-              </LabeledControl>
-              <LabeledControl label="Resolution">
-                <Dropdown size="sm" variant="subtle" className="w-full" options={RES} value={quality} onChange={setQuality} />
-              </LabeledControl>
-              <Button variant="primary" size="sm" onClick={() => { setCenter({ x: 0, y: 0 }); setRange(6) }}>Reset view</Button>
-            </Section>
+        <Section label="View">
+          <Slider labeled label="Range" min={0.5} max={20} step={0.1} value={range} onChange={setRange} variant="default" noExpr />
+          <LabeledControl label="Coloring">
+            <Dropdown size="sm" variant="subtle" className="w-full" options={COLORINGS} value={coloring} onChange={setColoring} />
+          </LabeledControl>
+          <LabeledControl label="Resolution">
+            <Dropdown size="sm" variant="subtle" className="w-full" options={RES} value={quality} onChange={setQuality} />
+          </LabeledControl>
+          <Button variant="primary" size="sm" onClick={() => { setCenter({ x: 0, y: 0 }); setRange(6) }}>Reset view</Button>
+        </Section>
 
-          </>
-        )}
+        <Section label="Animation">
+          <Slider labeled label="Hue speed" min={0} max={3} step={0.1} value={hueSpeed} onChange={setHueSpeed} variant="default" />
+          <Slider labeled label="Ring speed" min={0} max={3} step={0.1} value={ringSpeed} onChange={setRingSpeed} variant="default" />
+        </Section>
 
-        {tab === 'animate' && (
-          <Section label="Animation">
-            <Slider labeled label="Hue speed" min={0} max={3} step={0.1} value={hueSpeed} onChange={setHueSpeed} variant="default" />
-            <Slider labeled label="Ring speed" min={0} max={3} step={0.1} value={ringSpeed} onChange={setRingSpeed} variant="default" />
-          </Section>
-        )}
+        <StylePanel style={style} onPatch={patchStyle} onTheme={applyTheme} axisOptions={AXIS_2D} showBg={false} showStroke={false} showWeight={false} showTheme={false} />
 
-        {tab === 'style' && (
-          <>
-            <StylePanel style={style} onPatch={patchStyle} onTheme={applyTheme} axisOptions={AXIS_2D} showBg={false} showStroke={false} showWeight={false} showTheme={false} />
-
-            <SettingsPanel
-              page="math-complex"
-              showIO={false}
-              showTheme={false}
-              theme={themeId}
-              onTheme={setThemeId}
-              invert={invert}
-              onInvert={setInvert}
-              onRandomize={onRandomize}
-              seed={seed}
-              onSeed={(n) => { setSeed(n); rollFrom(n) }}
-              getSettings={getSettings}
-              applySettings={applySettings}
-            />
-          </>
-        )}
+        <SettingsPanel
+          page="math-complex"
+          showIO={false}
+          showTheme={false}
+          theme={themeId}
+          onTheme={setThemeId}
+          invert={invert}
+          onInvert={setInvert}
+          onRandomize={onRandomize}
+          seed={seed}
+          onSeed={(n) => { setSeed(n); rollFrom(n) }}
+          getSettings={getSettings}
+          applySettings={applySettings}
+        />
       </EditorRail>
     </div>
   )

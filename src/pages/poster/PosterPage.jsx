@@ -176,7 +176,7 @@ export default function PosterPage() {
               {/* focal picker */}
               <section>
                 <div className="kol-mono-10 text-meta uppercase mb-2">Framing — click to set the focal point{previewCrop ? ` · showing ${previewCrop.label} crop` : ''}</div>
-                <div ref={previewRef} className="relative inline-block max-w-full cursor-crosshair select-none" onClick={onPickFocal}>
+                <div ref={previewRef} data-vcap="stage" className="relative inline-block max-w-full cursor-crosshair select-none" onClick={onPickFocal}>
                   {selected.isVideo
                     ? <video src={srcUrl(selected.id)} className="max-h-[340px] max-w-full block rounded" muted playsInline />
                     : <img src={srcUrl(selected.id)} className="max-h-[340px] max-w-full block rounded" alt="" />}
@@ -226,7 +226,7 @@ export default function PosterPage() {
                   ))}
                 </div>
                 <div className="mt-3">
-                  <Button variant="secondary" size="sm" onClick={enqueueAll} disabled={!Object.values(picked).some((v) => v.length)}>
+                  <Button variant="primary" size="sm" onClick={enqueueAll} disabled={!Object.values(picked).some((v) => v.length)}>
                     Convert selected
                   </Button>
                 </div>
@@ -241,7 +241,7 @@ export default function PosterPage() {
                       <Slider labeled min={0} max={Math.max(0.1, selected.duration - 0.05)} step={0.1} value={scrub} onChange={setScrub} label="time" />
                     </div>
                     <span className="kol-helper-10 text-meta w-12">{scrub.toFixed(1)}s</span>
-                    <Button variant="secondary" size="sm" onClick={grabThumb}>Grab frame</Button>
+                    <Button variant="primary" size="sm" onClick={grabThumb}>Grab frame</Button>
                   </div>
                   <div className="flex gap-2 mt-2 flex-wrap">
                     {thumbs.map((t) => (
@@ -364,10 +364,8 @@ export default function PosterPage() {
               <Button variant="primary" size="sm" onClick={() => download('doc')} iconLeft="download" className="w-full">Download plan md</Button>
               <Button variant="primary" size="sm" onClick={() => download('images')} iconLeft="download" className="w-full">Download images</Button>
             </div>
-            <Button variant="secondary" size="sm" onClick={save} className="w-full">Save plan</Button>
+            <Button variant="primary" size="sm" onClick={save} className="w-full">Save plan</Button>
           </div>
-
-          <p className="kol-mono-10 text-meta">social post pre-flight · upload a master, pick crops, plan the post</p>
         </EditorRail>
     </div>
   )

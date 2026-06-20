@@ -7,7 +7,6 @@ import { RD_MODELS, RD_VARIATIONS, RD_SEEDS, RD_PALETTES, MODEL_DEFAULTS, variat
 import { VIEW_ASPECTS, defaultAspectFor, DEFAULT_SCALE, ratioFor, dimsFor } from '../../_shared/exportSpecs.js'
 import { roundIfNum } from '../../../lib/exprParam.js'
 import Button from '../../../components/atoms/Button.jsx'
-import Divider from '../../../components/atoms/Divider.jsx'
 import Slider from '../../../components/atoms/Slider.jsx'
 import Dropdown from '../../../components/molecules/Dropdown.jsx'
 import LabeledControl from '../../../components/molecules/LabeledControl.jsx'
@@ -196,14 +195,6 @@ export default function AbstractRDPage() {
           <Section label="Palette">
             <Dropdown size="sm" variant="subtle" className="w-full" options={RD_PALETTES} value={palette} onChange={setPalette} />
           </Section>
-
-          <Divider />
-
-          <div className="kol-helper-10 text-body flex flex-col gap-1">
-            <div>space = play / pause</div>
-            <div>R = reseed</div>
-            <div>tempo = sim speed</div>
-          </div>
       </EditorRail>
       </LiveClock>
     </div>
