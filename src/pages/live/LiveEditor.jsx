@@ -607,7 +607,7 @@ export default function LiveEditor() {
           <EditorFooter
             tab={footTab}
             onTab={setFootTab}
-            transport={{ playing, onPlay, onPause, onStop, onRewind, tempo, onTempo: setTempo, tempoMax: 400 }}
+            transport={{ playing, onPlay, onPause, onStop, onRewind, tempo, onTempo: setTempo, tempoMax: 300 }}
             exportProps={{ aspect, onAspect: setAspect, aspects: VIEW_ASPECTS, scale, onScale: setScale }}
             exportActions={
               <div className="flex flex-col gap-2">

@@ -617,9 +617,9 @@ function App() {
               onPause: () => { CLOCK.pause(); setPaused(true) },
               onStop: () => { CLOCK.reset(); CLOCK.pause(); setPaused(true); reset() },
               onRewind: () => { CLOCK.reset(); reset() },
-              tempo: Math.round(speed * 240),
-              onTempo: (v) => setClockSpeed(v / 240),
-              tempoMax: 600,
+              tempo: Math.round(speed * 120),
+              onTempo: (v) => setClockSpeed(v / 120),
+              tempoMax: 300,
             }}
             exportProps={{ aspect: frameRatio, onAspect: setFrameRatio, aspects: FRAMES.map((f) => ({ value: f.id, label: f.label })), hideScale: true }}
             exportActions={

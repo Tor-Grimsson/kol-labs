@@ -223,7 +223,7 @@ export default function FieldPage() {
       if (!last) last = now
       const dt = Math.min(0.05, (now - last) / 1000)
       last = now
-      if (st.playing) accum += dt * (st.tempo / 240)
+      if (st.playing) accum += dt * (st.tempo / 120)
       clockRef.current = accum
       const W = cv.width
       const H = cv.height
@@ -237,7 +237,7 @@ export default function FieldPage() {
         const sx = (x) => W / 2 + (x - st.cx) * ppwX
         const sy = (y) => H / 2 - (y - st.cy) * ppwY
         const eps = st.range * 0.003
-        const step = resolveRate(st.flowSpeed, accum, 1) * st.range * 0.06 * (st.tempo / 240) * dt
+        const step = resolveRate(st.flowSpeed, accum, 1) * st.range * 0.06 * (st.tempo / 120) * dt
         const halfH = (st.range * (H / W)) / 2
         const dotR = Math.max(1, W * 0.0016)
         ctx.lineWidth = Math.max(1, W * 0.0012)
@@ -354,7 +354,7 @@ export default function FieldPage() {
               onRewind: () => spawn(),
               tempo,
               onTempo: setTempo,
-              tempoMax: 600,
+              tempoMax: 300,
             }}
             exportProps={{ aspect, onAspect: setAspect, aspects: VIEW_ASPECTS, scale, onScale: setScale }}
             exportActions={<Button variant="primary" size="sm" className="w-full" iconLeft="download" onClick={exportPng}>Export PNG</Button>}

@@ -91,10 +91,10 @@ export async function applyPixiStack(sourceCanvas, stack) {
       const noiseSprite = new Sprite(noiseTex)
       app.stage.addChild(noiseSprite)
       trash.push(noiseSprite, noiseTex)
-      const f = createPixiFilter(fx.type, fx.params, noiseSprite)
+      const f = createPixiFilter(fx.type, fx.params, noiseSprite, { w, h })
       if (f) filters.push(f)
     } else {
-      const f = createPixiFilter(fx.type, fx.params)
+      const f = createPixiFilter(fx.type, fx.params, null, { w, h })
       if (f) filters.push(f)
     }
   }

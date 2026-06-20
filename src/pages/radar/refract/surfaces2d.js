@@ -11,3 +11,10 @@ export const SURFACES_2D = [
 ]
 
 export const SURFACE2D_BY_ID = Object.fromEntries(SURFACES_2D.map((s) => [s.id, s]))
+
+// The Lens variants surfaced in the nav + the in-rail surface dropdown. One route
+// each under /optic/lens/:id; the id IS the SURFACES_2D id (no aliasing). `waves`
+// stays an internal surface, off the picker.
+export const LENS_VARIANTS = SURFACES_2D
+  .filter((s) => s.id !== 'waves')
+  .map((s) => ({ id: s.id, label: s.label }))

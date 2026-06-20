@@ -104,7 +104,7 @@ export default function PrimitiveScenePage() {
 
   const globals = useMemo(
     () => ({
-      preset, animMode, keyframes, loop, duration, paused: !playing, speed: tempo / 240,
+      preset, animMode, keyframes, loop, duration, paused: !playing, speed: tempo / 120,
       count, arrangement, spread, objectSize, stagger,
       cameraMotion, orbitSpeed, fov,
       wireframe, strokeWidth, materialType, environment, flatShading, rounding, roughness, metalness, color,
@@ -337,7 +337,7 @@ export default function PrimitiveScenePage() {
               onRewind: () => engineRef.current?.seek(0),
               tempo,
               onTempo: setTempo,
-              tempoMax: 600,
+              tempoMax: 300,
             }}
             exportProps={{ aspect, onAspect: setAspect, aspects: VIEW_ASPECTS, scale, onScale: setScale }}
             exportActions={

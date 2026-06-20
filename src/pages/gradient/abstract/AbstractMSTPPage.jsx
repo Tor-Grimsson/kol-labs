@@ -160,7 +160,7 @@ export default function AbstractMSTPPage() {
               onRewind: regrow,
               tempo,
               onTempo: setTempo,
-              tempoMax: 600,
+              tempoMax: 300,
             }}
             exportProps={{ aspect, onAspect: setAspect, aspects: VIEW_ASPECTS, scale, onScale: setScale }}
             exportActions={<Button variant="primary" size="sm" className="w-full" iconLeft="download" onClick={exportPng}>Export PNG</Button>}

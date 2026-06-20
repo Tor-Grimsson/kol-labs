@@ -1,26 +1,26 @@
 import * as THREE from 'three'
-import SynthEngine from './synthBase.js'
-import { orbitEye } from '../../../../lib/orbit.js'
+import { orbitEye } from '../../../lib/orbit.js'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 
-/* Scan — a Rutt/Etra-style scan processor (the Steina & Woody Vasulka lineage).
- * A grid of horizontal scanlines (LineSegments) samples the source; each vertex
- * is pushed along z by the pixel's luminance (vertex texture fetch), producing
- * the signature pleated 3D raster. An orbit camera explores it — manual
- * (yaw/pitch/distance) or a motion preset (orbit/spin/rock/rise/push/pull),
- * which advances on the engine time clock so the transport pauses/resets it.
- * Works on image and video. Ref: readymade-ui/rutt-etra. */
+/* ReliefOrbit — a three.js orbit-camera display layer for a 2D Canvas effect.
+ * Ports the radar Scan rig (scanEngine.js): the source 2D canvas becomes a
+ * texture on a grid of horizontal scanlines (LineSegments); each vertex is pushed
+ * along z by the pixel's luminance, so the flat pattern reads as a 3D relief you
+ * orbit. Drag = orbit, wheel = zoom (OrbitControls); the Yaw/Pitch/Distance
+ * sliders snap the rig; a motion preset (orbit/spin/rock/rise/push/pull) animates
+ * on a time value the host supplies (the page's transport clock pauses/resets it).
+ *
+ * Unlike Scan this owns no rAF loop and no source upload — the host page already
+ * renders the 2D pattern every frame and calls setSource()/frame(time). */
 
 const VERT = `
   uniform sampler2D uImage;
   uniform float uDisplace;
   varying vec3 vColor;
-  varying float vLuma;
   void main() {
     vec3 c = texture2D(uImage, uv).rgb;
     float luma = dot(c, vec3(0.299, 0.587, 0.114));
     vColor = c;
-    vLuma = luma;
     vec3 p = position;
     p.z += (luma - 0.5) * uDisplace;
     gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
@@ -30,20 +30,21 @@ const VERT = `
 const FRAG = `
   precision highp float;
   varying vec3 vColor;
-  varying float vLuma;
-  uniform float uMono;
   uniform float uOpacity;
-  uniform vec3 uTint;
   void main() {
-    vec3 col = mix(vColor, uTint * (0.25 + vLuma), uMono);
-    gl_FragColor = vec4(col, uOpacity);
+    gl_FragColor = vec4(vColor, uOpacity);
   }
 `
 
 const TAU = Math.PI * 2
+const clampPitch = (v) => Math.max(-1.4, Math.min(1.4, v))
 
-export default class ScanEngine extends SynthEngine {
-  _setup() {
+export default class ReliefOrbit {
+  constructor(canvas) {
+    this.canvas = canvas
+    // Transparent so the stage's bg-surface-secondary shows through, like Scan.
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true, alpha: true })
+    this.renderer.setClearColor(0x000000, 0)
     this.scene = new THREE.Scene()
     this.camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100)
     const [ix, iy, iz] = orbitEye(0, 0.4, 3)
@@ -57,30 +58,31 @@ export default class ScanEngine extends SynthEngine {
     this.controls.maxDistance = 8
     this.controls.target.set(0, 0, 0)
     this.controls.update()
+    this._camKey = ''
+
     this.mat = new THREE.ShaderMaterial({
       vertexShader: VERT,
       fragmentShader: FRAG,
       transparent: true,
       uniforms: {
         uImage: { value: null },
-        uDisplace: { value: 1.0 },
-        uMono: { value: 0 },
+        uDisplace: { value: 1.2 },
         uOpacity: { value: 1 },
-        uTint: { value: new THREE.Color('#9fe7ff') },
       },
     })
+    this.tex = null
     this.mesh = null
-    this.rows = 140
-    this.cols = 220
-    this._camKey = ''
-    this._bg = new THREE.Color('#0b0e13')
+    this.res = 200
+    this.texAspect = 1
+    this.params = {}
     this._buildMesh()
   }
 
   _buildMesh() {
-    const cols = Math.max(8, Math.round(this.cols))
-    const rows = Math.max(8, Math.round(this.rows))
-    const a = this.imageAspect || 1
+    const n = Math.max(8, Math.round(this.res))
+    const rows = n
+    const cols = n
+    const a = this.texAspect || 1
     const pos = new Float32Array(cols * rows * 3)
     const uvs = new Float32Array(cols * rows * 2)
     for (let r = 0; r < rows; r++) {
@@ -108,25 +110,29 @@ export default class ScanEngine extends SynthEngine {
     this.scene.add(this.mesh)
   }
 
-  _onImage() {
-    this.mat.uniforms.uImage.value = this.tex
-    this._buildMesh()
+  // Point the relief at a 2D <canvas>; rebuild the mesh if its aspect changed.
+  setSource(canvas2d) {
+    if (!this.tex || this.tex.image !== canvas2d) {
+      if (this.tex) this.tex.dispose()
+      this.tex = new THREE.CanvasTexture(canvas2d)
+      this.tex.minFilter = THREE.LinearFilter
+      this.tex.magFilter = THREE.LinearFilter
+      this.mat.uniforms.uImage.value = this.tex
+    }
+    const ar = (canvas2d.width || 1) / (canvas2d.height || 1)
+    if (ar !== this.texAspect) { this.texAspect = ar; this._buildMesh() }
   }
 
-  _onParams() {
-    const p = this.params
-    this.mat.uniforms.uDisplace.value = p.displace ?? 1.0
-    this.mat.uniforms.uMono.value = p.mono ? 1 : 0
+  setParams(p) {
+    this.params = p
+    this.mat.uniforms.uDisplace.value = p.displace ?? 1.2
     this.mat.uniforms.uOpacity.value = p.opacity ?? 1
-    if (p.tint) this.mat.uniforms.uTint.value.set(p.tint)
-    const rows = Math.round(p.lines ?? 140)
-    const cols = Math.round(p.cols ?? 220)
-    if (rows !== this.rows || cols !== this.cols) { this.rows = rows; this.cols = cols; this._buildMesh() }
+    const res = Math.round(p.res ?? 200)
+    if (res !== this.res) { this.res = res; this._buildMesh() }
     const fov = p.fov ?? 45
     if (fov !== this.camera.fov) { this.camera.fov = fov; this.camera.updateProjectionMatrix() }
-    if (p.bg) this._bg.set(p.bg)
-    // Manual yaw/pitch/distance snap the orbit rig; the mouse drags on from
-    // there. Keyed on the slider values so a tempo/param push won't reset it.
+    // Manual yaw/pitch/distance snap the orbit rig; the mouse drags on from there.
+    // Keyed on the slider values so a param push won't reset a mouse-orbit.
     if (!p.cameraMotion) {
       const key = `${p.yaw}|${p.pitch}|${p.dist}`
       if (key !== this._camKey) {
@@ -139,19 +145,23 @@ export default class ScanEngine extends SynthEngine {
     }
   }
 
-  _resize(w, h) {
+  resize(w, h) {
+    if (w < 1 || h < 1) return
+    const dpr = Math.min(window.devicePixelRatio || 1, 2)
+    this.renderer.setPixelRatio(dpr)
+    this.renderer.setSize(w, h, false)
     this.camera.aspect = w / h
     this.camera.updateProjectionMatrix()
   }
 
   // Orbit pose — manual (yaw/pitch/dist) or a time-driven preset.
-  resolveCam() {
+  resolveCam(time) {
     const p = this.params
     let yaw = p.yaw ?? 0
     let pitch = p.pitch ?? 0.4
     let dist = p.dist ?? 3
     if (p.cameraMotion) {
-      const w = this.time * (p.motionSpeed ?? 0.3)
+      const w = time * (p.motionSpeed ?? 0.3)
       const osc = Math.sin(w * TAU)
       switch (p.motionPreset) {
         case 'spin': yaw = w * 2.2; break
@@ -163,31 +173,34 @@ export default class ScanEngine extends SynthEngine {
         default: yaw = w; break
       }
     }
-    pitch = Math.max(-1.4, Math.min(1.4, pitch))
-    return { yaw, pitch, dist }
+    return { yaw, pitch: clampPitch(pitch), dist }
   }
 
-  _frame() {
-    this.renderer.setRenderTarget(null)
-    this.renderer.setClearColor(this._bg, this.params.bgAlpha ?? 1)
-    if (!this.tex || !this.mesh) { this.renderer.clear(); return }
+  frame(time) {
+    if (this.tex) this.tex.needsUpdate = true
     if (this.params.cameraMotion) {
       // A motion preset drives the camera; mouse control yields to it.
       this.controls.enabled = false
-      const { yaw, pitch, dist } = this.resolveCam()
+      const { yaw, pitch, dist } = this.resolveCam(time)
       const [ex, ey, ez] = orbitEye(yaw, pitch, dist)
       this.camera.position.set(ex, ey, ez)
       this.camera.lookAt(0, 0, 0)
     } else {
       this.controls.enabled = true
-      this.controls.update()
+      this.controls.update() // required for enableDamping
     }
     this.renderer.render(this.scene, this.camera)
   }
 
-  _dispose() {
+  exportBlob() {
+    return new Promise((resolve) => this.canvas.toBlob(resolve, 'image/png'))
+  }
+
+  dispose() {
     this.controls.dispose()
     if (this.mesh) this.mesh.geometry.dispose()
+    if (this.tex) this.tex.dispose()
     this.mat.dispose()
+    this.renderer.dispose()
   }
 }

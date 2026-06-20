@@ -1,13 +1,17 @@
-import { useState } from 'react'
+import { useState, useContext } from 'react'
 import Icon from '../../../components/loaders/Icon.jsx'
 import MediaPicker from '../../../components/framework/MediaPicker.jsx'
-import { useImage } from '../state/ImageContext'
+import { ImageContext } from '../state/ImageContext'
 
-// The empty-state contents for the radar stage: two big icon-over-text cells
+// The empty-state contents for an effect stage: two big icon-over-text cells
 // (From library · Upload) filling the aspect frame side-by-side. `onUpload`
-// triggers the page's file input; the library cell opens the CDN picker here.
-export default function SourcePlaceholder({ onUpload }) {
-  const { loadImageFromUrl } = useImage()
+// triggers the page's file input; the library cell opens the CDN picker.
+// A library pick goes to `onPick(url, contentType)` if supplied, else to the
+// radar ImageContext's `loadImageFromUrl` — so pages outside that provider
+// (e.g. scanlines, which has its own source pipeline) can reuse this component.
+export default function SourcePlaceholder({ onUpload, onGenerate, onPick }) {
+  const ctx = useContext(ImageContext)
+  const pick = onPick || ctx?.loadImageFromUrl
   const [open, setOpen] = useState(false)
 
   return (
@@ -15,11 +19,17 @@ export default function SourcePlaceholder({ onUpload }) {
       <Cell icon="image" label="From library" onClick={() => setOpen(true)} />
       <div className="w-px bg-fg-08 my-6" />
       <Cell icon="upload" label="Upload" onClick={onUpload} />
+      {onGenerate && (
+        <>
+          <div className="w-px bg-fg-08 my-6" />
+          <Cell icon="cycle" label="Generate" onClick={onGenerate} />
+        </>
+      )}
       <MediaPicker
         open={open}
         accept="all"
         onClose={() => setOpen(false)}
-        onPick={(url, o) => loadImageFromUrl(url, o?.contentType)}
+        onPick={(url, o) => pick?.(url, o?.contentType)}
       />
     </div>
   )
@@ -30,7 +40,7 @@ function Cell({ icon, label, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className="group flex-1 flex flex-col items-center justify-center gap-4 cursor-pointer hover:bg-fg-04 transition-colors"
+      className="group flex-1 flex flex-col items-center justify-center gap-4 cursor-pointer hover:bg-fg-inverse-48 transition-colors"
     >
       {/* Stroke icons can't take an alpha colour (overlapping strokes seam) — use an
           OPAQUE blend of fg↓onto the surface to fake the dim, full fg on hover. */}

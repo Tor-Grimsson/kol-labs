@@ -256,7 +256,7 @@ export default function SurfacePage() {
           render={render}
           ext={ext}
           paused={!playing}
-          speed={tempo / 240}
+          speed={tempo / 120}
           spin={spin}
           aspect={ratioFor(aspect)}
           bg={style.bg}
@@ -289,7 +289,7 @@ export default function SurfacePage() {
               onRewind: () => viewRef.current?.resetTime(),
               tempo,
               onTempo: setTempo,
-              tempoMax: 600,
+              tempoMax: 300,
             }}
             exportProps={{ aspect, onAspect: setAspect, aspects: VIEW_ASPECTS, scale, onScale: setScale }}
             exportActions={<Button variant="primary" size="sm" className="w-full" iconLeft="download" onClick={exportPng}>Export PNG</Button>}

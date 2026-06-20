@@ -111,7 +111,7 @@ export default function LoopsShell({ group, sub }) {
 
   useEffect(() => { sizeCanvas() }, [aspect, sizeCanvas])
   useEffect(() => { playerRef.current?.setParams(params) }, [params])
-  useEffect(() => { playerRef.current?.setTransport({ paused: !playing, speed: tempo / 240 }) }, [playing, tempo])
+  useEffect(() => { playerRef.current?.setTransport({ paused: !playing, speed: tempo / 120 }) }, [playing, tempo])
 
   // Theme → recolour the loop's role-tagged colour params. Keyed on the loop too
   // so switching preset re-applies the active theme on top of the preset's reset
@@ -249,7 +249,7 @@ export default function LoopsShell({ group, sub }) {
               onRewind: () => playerRef.current?.seek(0),
               tempo,
               onTempo: setTempo,
-              tempoMax: 600,
+              tempoMax: 300,
             }}
             exportProps={{ aspect, onAspect: setAspect, aspects: VIEW_ASPECTS, scale, onScale: setScale }}
             exportActions={

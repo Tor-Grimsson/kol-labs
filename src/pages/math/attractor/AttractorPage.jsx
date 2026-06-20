@@ -154,7 +154,7 @@ export default function AttractorPage() {
           render={render}
           ext={ext}
           paused={!playing}
-          speed={tempo / 240}
+          speed={tempo / 120}
           spin={spin}
           dur={DRAW_SECONDS}
           aspect={ratioFor(aspect)}
@@ -188,7 +188,7 @@ export default function AttractorPage() {
               onRewind: () => viewRef.current?.resetTime(),
               tempo,
               onTempo: setTempo,
-              tempoMax: 600,
+              tempoMax: 300,
             }}
             exportProps={{ aspect, onAspect: setAspect, aspects: VIEW_ASPECTS, scale, onScale: setScale }}
             exportActions={<Button variant="primary" size="sm" className="w-full" iconLeft="download" onClick={exportPng}>Export PNG</Button>}

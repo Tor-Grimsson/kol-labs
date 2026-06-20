@@ -220,7 +220,7 @@ export default function ClipEditor({
             clip={clip}
             sampleKey={sampleKey}
             paused={!playing}
-            speed={tempo / 240}
+            speed={tempo / 120}
             cameraMotion={cameraMotion}
             manualCam={cam}
             bg={style.bg}
@@ -251,7 +251,7 @@ export default function ClipEditor({
               onRewind: () => setResetKey((k) => k + 1),
               tempo,
               onTempo: setTempo,
-              tempoMax: 600,
+              tempoMax: 300,
             }}
             exportProps={{ aspect, onAspect: setAspect, aspects: VIEW_ASPECTS, scale, onScale: setScale }}
             exportActions={<Button variant="primary" size="sm" className="w-full" iconLeft="download" onClick={exportPng}>Export PNG</Button>}

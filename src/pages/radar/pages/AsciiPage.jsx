@@ -16,13 +16,14 @@ import ToggleSwitch from '../../../components/atoms/ToggleSwitch.jsx'
 import Dropdown from '../../../components/molecules/Dropdown.jsx'
 import Section from '../../../components/molecules/Section.jsx'
 import EditorRail, { RailHeader } from '../../../components/framework/EditorRail.jsx'
+import RailVariantNav from '../../../components/framework/RailVariantNav.jsx'
 import EditorFooter from '../../../components/framework/EditorFooter.jsx'
-import ColorPicker from '../components/ColorPicker'
+import ColorField from '../../../components/color/ColorField.jsx'
 import SweepControls from '../components/SweepControls'
-import VideoTransport from '../components/VideoTransport'
 import { useImage } from '../state/ImageContext'
 import { resolveParams, hasExpr } from '../../../lib/exprParam.js'
 import { LiveClock } from '../../../lib/liveClock.jsx'
+import { uploadToLibrary, saveToGallery } from '../../../lib/mediaLibrary.js'
 
 export default function AsciiPage() {
   const { sourceImage, isVideo, loadImageFromFile, clearImage } = useImage()
@@ -34,7 +35,8 @@ export default function AsciiPage() {
   const [dragging, setDragging] = useState(false)
   const [sweeps, setSweeps] = useState([])
   const [animating, setAnimating] = useState(false)
-  const [motionSpeed, setMotionSpeed] = useState(0.5)
+  const [tempo, setTempo] = useState(120) // 120 BPM = realtime; speed = tempo/120
+  const speed = tempo / 120
   const [playing, setPlaying] = useState(() => defaultAutoplay())
   const timeRef = useRef(0)
   const recorderRef = useRef(null)
@@ -45,6 +47,7 @@ export default function AsciiPage() {
   const [tab, setTab] = useState('effect') // Effect | Motion rail tabs
   const [footTab, setFootTab] = useState('transport') // Transport | Output footer toggle
   const [exportFit, setExportFit] = useState('cover')
+  const [saving, setSaving] = useState(null) // 'library' | 'gallery' | null
 
   // Draw a source (image / framed canvas) to the visible canvas, longest side capped.
   const drawSource = useCallback((src) => {
@@ -84,7 +87,7 @@ export default function AsciiPage() {
         src = fitSourceToFrame(sourceImage, fw, fh, exportFit, params.bgColor)
       }
       if (a <= 0) { drawSource(src); return }
-      const t = timeRef.current * motionSpeed
+      const t = timeRef.current
       const p = { ...resolveParams(params, t), sweeps, time: t, ...(animated ? { maxDisplay: 960 } : {}) }
       renderAscii(cv, src, p)
       if (a < 1) { // dial: paint the framed source back over the effect at (1 - amount)
@@ -103,7 +106,7 @@ export default function AsciiPage() {
       const ts = now ?? performance.now()
       const d = (ts - last) / 1000
       last = ts
-      if (playing) timeRef.current += d // transport pause freezes the motion clock
+      if (playing) timeRef.current += d * speed // tempo scales the motion clock; pause freezes it
       draw()
       handle = (isVideo && sourceImage.requestVideoFrameCallback)
         ? sourceImage.requestVideoFrameCallback(loop)
@@ -116,14 +119,16 @@ export default function AsciiPage() {
       if (isVideo && sourceImage.cancelVideoFrameCallback) sourceImage.cancelVideoFrameCallback(handle)
       else cancelAnimationFrame(handle)
     }
-  }, [params, sweeps, motionSpeed, animated, amount, sourceImage, isVideo, drawSource, exportAspect, exportFit, playing])
+  }, [params, sweeps, speed, animated, amount, sourceImage, isVideo, drawSource, exportAspect, exportFit, playing])
 
-  // Transport play/pause also drives the source video.
+  // The footer transport owns video playback: play/pause toggles the clip and
+  // tempo latches its playbackRate (tempo down → slower, up → faster).
   useEffect(() => {
     if (isVideo && sourceImage) {
+      sourceImage.playbackRate = speed
       if (playing) { const pr = sourceImage.play(); if (pr && pr.catch) pr.catch(() => {}) } else sourceImage.pause()
     }
-  }, [playing, isVideo, sourceImage])
+  }, [playing, speed, isVideo, sourceImage])
 
   const updateParam = (key, value) => {
     setParams(prev => ({ ...prev, [key]: value }))
@@ -175,18 +180,16 @@ export default function AsciiPage() {
     loadImageFromFile(e.dataTransfer.files[0])
   }
 
-  // Re-render to an offscreen canvas at the chosen output standard (crisp at
-  // any size) rather than scaling the display canvas.
-  const handleDownload = () => {
-    if (!sourceImage) return
-    // 'source' → native res, source aspect; otherwise crop/fit into the target
-    // aspect frame and render the effect across it.
+  // Render the export at the chosen output standard (crisp at any size) — the
+  // dialed amount baked in. Shared by Download + Save to library/gallery.
+  // 'source' → native res/aspect; otherwise crop/fit into the target frame.
+  const buildExportCanvas = () => {
     const dims = dimsFor(exportAspect, Number(exportScale))
     const src = dims ? fitSourceToFrame(sourceImage, dims.w, dims.h, exportFit, params.bgColor) : sourceImage
     const out = document.createElement('canvas')
     const a = amount / 100
     if (a > 0) {
-      const t = timeRef.current * motionSpeed
+      const t = timeRef.current
       renderAscii(out, src, { ...resolveParams(params, t), sweeps, time: t, maxDisplay: dims ? dims.w : Infinity })
       if (a < 1) {
         const ctx = out.getContext('2d')
@@ -203,10 +206,33 @@ export default function AsciiPage() {
       out.height = sourceImage.height
       out.getContext('2d').drawImage(sourceImage, 0, 0)
     }
+    return out
+  }
+
+  const handleDownload = () => {
+    if (!sourceImage) return
     const link = document.createElement('a')
     link.download = `kol-radar-ascii-${Date.now()}.png`
-    link.href = out.toDataURL()
+    link.href = buildExportCanvas().toDataURL()
     link.click()
+  }
+
+  // Save the PNG export straight to the CDN library (any env) or the local
+  // gallery (dev only) — no file download.
+  const saveExport = (dest) => {
+    if (!sourceImage || saving) return
+    setSaving(dest)
+    const name = `ascii-${Date.now()}.png`
+    buildExportCanvas().toBlob(async (blob) => {
+      try {
+        if (dest === 'library') await uploadToLibrary(blob, `radar/${name}`)
+        else await saveToGallery(blob, 'radar', name)
+      } catch (e) {
+        console.error('save failed', e) // eslint-disable-line no-console
+      } finally {
+        setSaving(null)
+      }
+    }, 'image/png')
   }
 
   const randomize = () => {
@@ -252,13 +278,12 @@ export default function AsciiPage() {
       </div>
 
       {/* Controls panel */}
-      <LiveClock getT={() => timeRef.current * motionSpeed}>
+      <LiveClock getT={() => timeRef.current}>
       <EditorRail
         footerBare
         header={
           <>
-            <RailHeader>Radar</RailHeader>
-            {isVideo && sourceImage && <VideoTransport video={sourceImage} />}
+            <RailHeader><RailVariantNav group="halftone" /></RailHeader>
             <SegmentedToggle
               value={tab}
               onChange={setTab}
@@ -274,11 +299,11 @@ export default function AsciiPage() {
               playing,
               onPlay: () => setPlaying(true),
               onPause: () => setPlaying(false),
-              onStop: () => { setPlaying(false); timeRef.current = 0 },
-              onRewind: () => { timeRef.current = 0 },
-              tempo: Math.round(motionSpeed * 240),
-              onTempo: (v) => setMotionSpeed(v / 240),
-              tempoMax: 600,
+              onStop: () => { setPlaying(false); timeRef.current = 0; if (isVideo && sourceImage) sourceImage.currentTime = 0 },
+              onRewind: () => { timeRef.current = 0; if (isVideo && sourceImage) sourceImage.currentTime = 0 },
+              tempo,
+              onTempo: setTempo,
+              tempoMax: 300,
             }}
             exportProps={{
               aspect: exportAspect,
@@ -292,6 +317,16 @@ export default function AsciiPage() {
             exportActions={<>
               {sourceImage && (
                 <Button variant="primary" size="sm" onClick={handleDownload} iconLeft="download" className="w-full">Download</Button>
+              )}
+              {sourceImage && (
+                <Button variant="primary" size="sm" onClick={() => saveExport('library')} iconLeft="upload" className="w-full" disabled={!!saving}>
+                  {saving === 'library' ? 'Saving…' : 'Save to library'}
+                </Button>
+              )}
+              {sourceImage && import.meta.env.DEV && (
+                <Button variant="primary" size="sm" onClick={() => saveExport('gallery')} iconLeft="image" className="w-full" disabled={!!saving}>
+                  {saving === 'gallery' ? 'Saving…' : 'Save to gallery'}
+                </Button>
               )}
               {sourceImage && (isVideo || (animating && amount > 0)) && (
                 <Button variant={exporting ? 'accent' : 'primary'} size="sm" onClick={toggleExport} iconLeft={exporting ? 'control-stop' : 'video'} className="w-full">
@@ -363,16 +398,10 @@ export default function AsciiPage() {
           <ToggleSwitch labeled variant="plain" label="Original Color" checked={params.useColor} onChange={(v) => updateParam('useColor', v)} />
 
           {!params.useColor && (
-            <div className="flex items-center justify-between">
-              <span className="kol-helper-10 uppercase tracking-widest text-meta">Foreground</span>
-              <ColorPicker color={params.monoColor} onChange={(v) => updateParam('monoColor', v)} />
-            </div>
+            <ColorField labeled label="Foreground" value={params.monoColor} onChange={(v) => updateParam('monoColor', v)} />
           )}
 
-          <div className="flex items-center justify-between">
-            <span className="kol-helper-10 uppercase tracking-widest text-meta">Background</span>
-            <ColorPicker color={params.bgColor} onChange={(v) => updateParam('bgColor', v)} />
-          </div>
+          <ColorField labeled label="Background" value={params.bgColor} onChange={(v) => updateParam('bgColor', v)} />
         </Section>
         </>)}
 
@@ -381,8 +410,6 @@ export default function AsciiPage() {
           isVideo={isVideo}
           animating={animating}
           onAnimate={setAnimating}
-          speed={motionSpeed}
-          onSpeed={setMotionSpeed}
           sweeps={sweeps}
           onAdd={addSweep}
           onRemove={removeSweep}

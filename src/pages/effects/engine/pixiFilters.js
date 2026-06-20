@@ -53,7 +53,13 @@ import {
  * NOTE: rgb-split params are flattened to redX/blueX in effects.config.js; this
  * re-nests them to the {red:{x},blue:{x}} shape RGBSplitFilter expects.
  */
-export function createPixiFilter(filterType, params = {}, displacementSprite) {
+export function createPixiFilter(filterType, params = {}, displacementSprite, dims = {}) {
+  const w = dims.w || 1
+  const h = dims.h || 1
+  // Centre is exposed as normalised 0–1 (centerX/centerY). BulgePinch wants it
+  // normalised; the pixel-space filters want canvas pixels — scale by dims.
+  const normCentre = (p) => { const { centerX, centerY, ...rest } = p; return { rest, center: { x: centerX ?? 0.5, y: centerY ?? 0.5 } } }
+  const pxCentre = (p) => { const { centerX, centerY, ...rest } = p; return { rest, center: { x: (centerX ?? 0.5) * w, y: (centerY ?? 0.5) * h } } }
   switch (filterType) {
     // Color Adjustments
     case 'filter-adjustment':
@@ -68,14 +74,27 @@ export function createPixiFilter(filterType, params = {}, displacementSprite) {
       return new ColorOverlayFilter(params)
     case 'filter-color-replace':
       return new ColorReplaceFilter(params)
-    case 'filter-multi-color-replace':
-      return new MultiColorReplaceFilter(params)
+    case 'filter-multi-color-replace': {
+      // Schema flattens the replacement pairs to from1/to1…; re-nest to the
+      // `replacements: [[from, to], …]` shape the filter expects.
+      const { from1, to1, from2, to2, from3, to3, ...rest } = params
+      const replacements = [
+        [from1 ?? '#ff0000', to1 ?? '#ff0000'],
+        [from2 ?? '#00ff00', to2 ?? '#00ff00'],
+        [from3 ?? '#0000ff', to3 ?? '#0000ff'],
+      ]
+      return new MultiColorReplaceFilter({ ...rest, replacements })
+    }
 
     // Blur
-    case 'filter-radial-blur':
-      return new RadialBlurFilter(params)
-    case 'filter-zoom-blur':
-      return new ZoomBlurFilter(params)
+    case 'filter-radial-blur': {
+      const { rest, center } = pxCentre(params)
+      return new RadialBlurFilter({ ...rest, center })
+    }
+    case 'filter-zoom-blur': {
+      const { rest, center } = pxCentre(params)
+      return new ZoomBlurFilter({ ...rest, center })
+    }
     case 'filter-motion-blur':
       return new MotionBlurFilter(params)
     case 'filter-kawase-blur':
@@ -98,10 +117,14 @@ export function createPixiFilter(filterType, params = {}, displacementSprite) {
     // Distortion
     case 'filter-twist':
       return new TwistFilter(params)
-    case 'filter-bulge-pinch':
-      return new BulgePinchFilter(params)
-    case 'filter-shockwave':
-      return new ShockwaveFilter(params)
+    case 'filter-bulge-pinch': {
+      const { rest, center } = normCentre(params)
+      return new BulgePinchFilter({ ...rest, center })
+    }
+    case 'filter-shockwave': {
+      const { rest, center } = pxCentre(params)
+      return new ShockwaveFilter({ ...rest, center })
+    }
 
     // Artistic
     case 'filter-ascii':
@@ -130,16 +153,22 @@ export function createPixiFilter(filterType, params = {}, displacementSprite) {
       return new AdvancedBloomFilter(params)
     case 'filter-glow':
       return new GlowFilter(params)
-    case 'filter-godray':
-      return new GodrayFilter(params)
+    case 'filter-godray': {
+      const { rest, center } = pxCentre(params)
+      return new GodrayFilter({ ...rest, center })
+    }
     case 'filter-simple-lightmap':
       return new SimpleLightmapFilter(params)
 
     // Stylize
     case 'filter-bevel':
       return new BevelFilter(params)
-    case 'filter-drop-shadow':
-      return new DropShadowFilter(params)
+    case 'filter-drop-shadow': {
+      // v6 DropShadowFilter takes `offset:{x,y}` (no distance/rotation); the
+      // schema flattens it to offsetX/offsetY — re-nest here.
+      const { offsetX, offsetY, ...rest } = params
+      return new DropShadowFilter({ ...rest, offset: { x: offsetX ?? 4, y: offsetY ?? 4 } })
+    }
     case 'filter-outline':
       return new OutlineFilter(params)
     case 'filter-reflection':

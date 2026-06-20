@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { defaultAutoplay } from '../../../lib/appSettings.js'
+import { defaultAspectFor, ratioFor } from '../../_shared/exportSpecs.js'
 import Button from '../../../components/atoms/Button.jsx'
 import Slider from '../../../components/atoms/Slider.jsx'
 import { roundIfNum } from '../../../lib/exprParam.js'
 import Section from '../../../components/molecules/Section.jsx'
 import ButtonGroup from '../../../components/molecules/ButtonGroup.jsx'
 import LibrarySourceButton from '../components/LibrarySourceButton.jsx'
+import SourcePlaceholder from '../components/SourcePlaceholder.jsx'
 import EditorRail, { RailHeader } from '../../../components/framework/EditorRail.jsx'
 import EditorFooter from '../../../components/framework/EditorFooter.jsx'
 import { LiveClock } from '../../../lib/liveClock.jsx'
@@ -38,12 +40,15 @@ export default function SynthShell({ engineClass, title, name, defaults, childre
   const [params, setParams] = useState(defaults)
   const [footTab, setFootTab] = useState('transport') // Transport · Output · File
 
+  // Stage framed to the Home/Labs default aspect (same as the halftone pages).
+  const r = ratioFor(defaultAspectFor('view')) || 4 / 5
+
   // Engine lifecycle — created once, disposed on unmount.
   useEffect(() => {
     if (!canvasRef.current || !wrapRef.current) return
     const engine = new engineClass(canvasRef.current)
     engineRef.current = engine
-    engine.setParams({ ...defaults, speed: tempo / 240 })
+    engine.setParams({ ...defaults, speed: tempo / 120 })
     engine.resize(wrapRef.current.clientWidth, wrapRef.current.clientHeight)
     engine.start()
     const ro = new ResizeObserver(() => {
@@ -61,7 +66,7 @@ export default function SynthShell({ engineClass, title, name, defaults, childre
     }
   }, [sourceImage])
   useEffect(() => { engineRef.current?.setParams(params) }, [params])
-  useEffect(() => { engineRef.current?.setParams({ speed: tempo / 240 }) }, [tempo])
+  useEffect(() => { engineRef.current?.setParams({ speed: tempo / 120 }) }, [tempo])
   useEffect(() => { engineRef.current?.setPaused(!playing) }, [playing])
 
   const update = (key, value) => setParams((p) => ({ ...p, [key]: value }))
@@ -89,32 +94,30 @@ export default function SynthShell({ engineClass, title, name, defaults, childre
   return (
     <div className="min-h-dvh bg-surface-secondary flex">
       <div
-        ref={wrapRef}
-        className="flex-1 relative overflow-hidden bg-surface-secondary"
+        className="flex-1 flex items-center justify-center p-4 overflow-hidden bg-surface-secondary"
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
-        <canvas ref={canvasRef} data-vcap="stage" className="block h-full w-full" />
-        {!sourceImage && (
-          <div className="absolute inset-0 flex items-center justify-center p-4">
+        <div
+          ref={wrapRef}
+          className="relative overflow-hidden rounded"
+          style={{ aspectRatio: r, width: `min(100%, calc(85vh * ${r}))` }}
+        >
+          <canvas ref={canvasRef} data-vcap="stage" className="block h-full w-full" />
+          {!sourceImage && (
             <div
-              className="flex items-center justify-center border-2 border-dashed rounded-lg cursor-pointer"
+              className="absolute inset-0 flex border border-dashed rounded overflow-hidden"
               style={{
-                width: '80%',
-                height: '60vh',
                 borderColor: dragging ? 'var(--kol-accent-primary)' : 'var(--kol-border-default)',
-                backgroundColor: dragging ? 'color-mix(in srgb, var(--kol-accent-primary) 5%, transparent)' : 'transparent',
+                backgroundColor: dragging ? 'color-mix(in srgb, var(--kol-accent-primary) 8%, var(--kol-fg-04))' : 'var(--kol-fg-04)',
                 transition: 'border-color 0.2s, background-color 0.2s',
               }}
-              onClick={() => fileInputRef.current?.click()}
             >
-              <span className="kol-mono-12 text-fg-32 uppercase">
-                {dragging ? 'Drop media here' : 'Drag image or video here, or click to upload'}
-              </span>
+              <SourcePlaceholder onUpload={() => fileInputRef.current?.click()} />
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       <LiveClock getT={() => engineRef.current?.time}>
@@ -134,7 +137,7 @@ export default function SynthShell({ engineClass, title, name, defaults, childre
               onRewind: () => engineRef.current?.reset(),
               tempo,
               onTempo: setTempo,
-              tempoMax: 600,
+              tempoMax: 300,
             }}
             // Output — Synth engines export at canvas resolution (no @Nx frame), so
             // a custom Output panel instead of the aspect×scale ExportPanel.

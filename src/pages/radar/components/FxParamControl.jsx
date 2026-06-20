@@ -1,10 +1,15 @@
 import Slider from '../../../components/atoms/Slider.jsx'
 import Dropdown from '../../../components/molecules/Dropdown.jsx'
+import ColorField from '../../../components/color/ColorField.jsx'
 
-// Render one FX param from its spec: enum (spec.options) → a labeled Dropdown,
-// numeric → a labeled Slider. Shared by Radar's Post-Processing section and the
-// Effects stack (both `raised` — the controls sit on a bg-fg-04 card).
+// Render one FX param from its spec: color (spec.type==='color') → a ColorField,
+// enum (spec.options) → a labeled Dropdown, numeric → a labeled Slider. Shared by
+// Radar's Post-Processing section and the Effects stack (both `raised` — the
+// controls sit on a bg-fg-04 card).
 export default function FxParamControl({ name, spec, value, onChange, liveGet }) {
+  if (spec.type === 'color') {
+    return <ColorField label={name} value={value} onChange={onChange} />
+  }
   if (spec.options) {
     return (
       <div className="flex flex-col gap-1">

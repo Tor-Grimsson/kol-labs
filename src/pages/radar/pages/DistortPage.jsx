@@ -3,6 +3,7 @@ import { defaultAutoplay } from '../../../lib/appSettings.js'
 import Button from '../../../components/atoms/Button.jsx'
 import Slider from '../../../components/atoms/Slider.jsx'
 import Section from '../../../components/molecules/Section.jsx'
+import SourcePlaceholder from '../components/SourcePlaceholder.jsx'
 import SegmentedToggle from '../../../components/molecules/SegmentedToggle.jsx'
 import ButtonGroup from '../../../components/molecules/ButtonGroup.jsx'
 import EditorRail, { RailHeader } from '../../../components/framework/EditorRail.jsx'
@@ -80,7 +81,7 @@ export default function DistortPage() {
   }, [params])
 
   useEffect(() => { engineRef.current?.setPaused(paused) }, [paused])
-  useEffect(() => { engineRef.current?.setTimeScale(tempo / 240) }, [tempo])
+  useEffect(() => { engineRef.current?.setTimeScale(tempo / 120) }, [tempo])
 
   const update = (key, value) => setParams((p) => ({ ...p, [key]: value }))
 
@@ -196,23 +197,16 @@ export default function DistortPage() {
       >
         <canvas data-vcap="stage" ref={canvasRef} className="block h-full w-full" />
         {!sourceImage && (
-          <div className="absolute inset-0 flex items-center justify-center p-4">
+          <div className="absolute inset-0 flex items-center justify-center p-4 pointer-events-none">
             <div
-              className="flex items-center justify-center border-2 border-dashed rounded-lg cursor-pointer"
+              className="flex items-center justify-center border border-dashed rounded pointer-events-auto"
               style={{
                 width: '80%',
                 height: '60vh',
                 borderColor: dragging ? 'var(--kol-accent-primary)' : 'var(--kol-border-default)',
-                backgroundColor: dragging
-                  ? 'color-mix(in srgb, var(--kol-accent-primary) 5%, transparent)'
-                  : 'transparent',
-                transition: 'border-color 0.2s, background-color 0.2s',
               }}
-              onClick={() => fileInputRef.current?.click()}
             >
-              <span className="kol-mono-12 text-fg-32 uppercase">
-                {dragging ? 'Drop image here' : 'Drag image here or click to upload'}
-              </span>
+              <SourcePlaceholder onUpload={() => fileInputRef.current?.click()} />
             </div>
           </div>
         )}
@@ -235,7 +229,7 @@ export default function DistortPage() {
               onRewind: () => engineRef.current?.clearTrail(),
               tempo,
               onTempo: setTempo,
-              tempoMax: 600,
+              tempoMax: 300,
             }}
             output={sourceImage ? (
               <>

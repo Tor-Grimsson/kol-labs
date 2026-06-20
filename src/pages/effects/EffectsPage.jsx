@@ -16,7 +16,7 @@ export default function EffectsShell() {
   const [amount, setAmount] = useState(100) // 0 = raw → 100 = full stack
   const [sweeps, setSweeps] = useState([]) // motion (Radar sweep shape)
   const [animating, setAnimating] = useState(false)
-  const [motionSpeed, setMotionSpeed] = useState(0.5)
+  const [tempo, setTempo] = useState(120) // 120 BPM = realtime; speed = tempo/120
   const [playing, setPlaying] = useState(() => defaultAutoplay())
   const timeRef = useRef(0)
   const [exportAspect, setExportAspect] = useState(() => defaultAspectFor('source'))
@@ -28,7 +28,7 @@ export default function EffectsShell() {
     amount, setAmount,
     sweeps, setSweeps,
     animating, setAnimating,
-    motionSpeed, setMotionSpeed,
+    tempo, setTempo,
     playing, setPlaying,
     timeRef,
     exportAspect, setExportAspect,

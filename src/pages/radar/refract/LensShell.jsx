@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { defaultAutoplay } from '../../../lib/appSettings.js'
 import { useImage } from '../state/ImageContext'
 import SourcePlaceholder from '../components/SourcePlaceholder.jsx'
 import LibrarySourceButton from '../components/LibrarySourceButton.jsx'
 import { LensScene } from './LensScene.js'
 import { SURFACE_BY_ID, GLASS_SHAPES } from './distorters.js'
+import { SCENE_PRESETS } from './scenes.js'
 import { resolveDeep } from '../../../lib/exprParam.js'
 import LayersPanel from './LayersPanel.jsx'
 import Icon from '../../../components/loaders/Icon.jsx'
@@ -25,7 +27,10 @@ import ColorField from '../../../components/color/ColorField.jsx'
 // z-GAP between them as the headline Distance control. Orbit the camera to see
 // the depth; the glass refracts + chromatically disperses the photo behind it.
 // One shell, one surface per page (`surface` prop = the sub-page identity).
-export default function LensShell({ surface = 'glass', title = 'Glass', preset = {} }) {
+export default function LensShell({ preset = {} }) {
+  const navigate = useNavigate()
+  const scene = preset.id || SCENE_PRESETS[0].id
+  const surface = preset.surface || 'glass'
   const surf = SURFACE_BY_ID[surface] || SURFACE_BY_ID.glass
   const { sourceImage, loadImageFromFile, clearImage } = useImage()
   const containerRef = useRef(null)
@@ -56,20 +61,20 @@ export default function LensShell({ surface = 'glass', title = 'Glass', preset =
   const [gizmoOn, setGizmoOn] = useState(false) // show/hide the XYZ move gizmo (off by default)
   const [viewMode, setViewMode] = useState('viewer') // viewer = free orbit · camera = locked shot
   const [mode, setMode] = useState('transform') // transform | texture | filter
-  // filter post-process (global)
-  const [aberration, setAberration] = useState(0)
-  const [grain, setGrain] = useState(0)
-  const [vignette, setVignette] = useState(0)
-  const [bloom, setBloom] = useState(0)
-  const [activeFilters, setActiveFilters] = useState([]) // post-fx added via the Filter dropdown
-  const [shape, setShape] = useState(surf.geom)
+  // filter post-process (global) — preset.filters seeds the values + which are live
+  const [aberration, setAberration] = useState(preset.filters?.aberration ?? 0)
+  const [grain, setGrain] = useState(preset.filters?.grain ?? 0)
+  const [vignette, setVignette] = useState(preset.filters?.vignette ?? 0)
+  const [bloom, setBloom] = useState(preset.filters?.bloom ?? 0)
+  const [activeFilters, setActiveFilters] = useState(() => Object.keys(preset.filters ?? {})) // post-fx added via the Filter dropdown
+  const [shape, setShape] = useState(preset.shape ?? surf.geom)
   const [size, setSize] = useState(preset.size ?? 1)
   const [distance, setDistance] = useState(preset.distance ?? 1)
-  // physical glass material
-  const [ior, setIor] = useState(surf.mat.ior)
-  const [thickness, setThickness] = useState(1.2)
-  const [roughness, setRoughness] = useState(surf.mat.roughness)
-  const [dispersion, setDispersion] = useState(surf.mat.dispersion)
+  // physical glass material — preset overrides the surface defaults
+  const [ior, setIor] = useState(preset.ior ?? surf.mat.ior)
+  const [thickness, setThickness] = useState(preset.thickness ?? 1.2)
+  const [roughness, setRoughness] = useState(preset.roughness ?? surf.mat.roughness)
+  const [dispersion, setDispersion] = useState(preset.dispersion ?? surf.mat.dispersion)
   const [metalness, setMetalness] = useState(surf.mat.metalness)
   const [transmission, setTransmission] = useState(surf.mat.transmission)
   const [tint, setTint] = useState(preset.tint ?? '#ffffff')
@@ -85,7 +90,11 @@ export default function LensShell({ surface = 'glass', title = 'Glass', preset =
   const [bgTransparent, setBgTransparent] = useState(false)
   // Background STACK — one or more backgrounds composited bottom→top by opacity.
   // Each is a self-contained card (toggle + type + sliders), like radar's sweeps.
-  const [backgrounds, setBackgrounds] = useState([{ id: 1, type: 'solid', color: preset.bg ?? '#0b0d12', brightness: 1, opacity: 1, visible: true }])
+  const [backgrounds, setBackgrounds] = useState(() => [
+    preset.background
+      ? { id: 1, brightness: 1, opacity: 1, visible: true, ...preset.background }
+      : { id: 1, type: 'solid', color: preset.bg ?? '#0b0d12', brightness: 1, opacity: 1, visible: true },
+  ])
   const bgIdRef = useRef(2)
   const addBackground = () => setBackgrounds((prev) => [...prev, { id: bgIdRef.current++, type: 'linear', color: '#2a3a55', color2: '#000000', brightness: 1, angle: 90, opacity: 0.6, visible: true }])
   const updateBackground = (i, key, val) => setBackgrounds((prev) => prev.map((b, idx) => (idx === i ? { ...b, [key]: val } : b)))
@@ -433,7 +442,7 @@ export default function LensShell({ surface = 'glass', title = 'Glass', preset =
               onRewind: () => engineRef.current?.resetTime(),
               tempo: Math.round(flow * 120),
               onTempo: (v) => setFlow(v / 120),
-              tempoMax: 400,
+              tempoMax: 300,
             }}
             exportProps={{ aspect, onAspect: setAspect, aspects: ASPECT_SPECS, scale: expScale, onScale: setExpScale }}
             exportActions={sourceImage
@@ -459,6 +468,17 @@ export default function LensShell({ surface = 'glass', title = 'Glass', preset =
           />
         }
       >
+        {/* Scene preset picker — switches the whole rig (route per scene so it
+            stays deep-linkable; the route key re-seeds on change). */}
+        <Section label="Scene">
+          <Dropdown
+            variant="subtle" size="sm" className="w-full"
+            options={SCENE_PRESETS.map((s) => ({ value: s.id, label: s.label }))}
+            value={scene}
+            onChange={(id) => id !== scene && navigate(`/optic/scene/${id}`)}
+          />
+        </Section>
+
         {/* ── GLASS layer ── the object in front of the photo */}
         {selLayer === 'glass' && <>
           {mode === 'transform' && <>

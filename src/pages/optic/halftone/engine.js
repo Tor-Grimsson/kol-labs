@@ -108,11 +108,14 @@ function cells(layout, density, w, h) {
   return out
 }
 
-export function renderHalftone(canvas, params, t) {
+// luma: { data: Float32Array, w, h } sampled from the source image.
+// params.photoBlend (0–1): 0 = pure field, 1 = pure photo luma, in-between = lerp.
+export function renderHalftone(canvas, params, t, luma = null) {
   const { field, layout, shape, density, dotScale, palette, bg, invert } = params
   const fieldScale = params.fieldScale ?? 1
   const contrast = params.contrast ?? 1
   const rotate = ((params.rotate ?? 0) * Math.PI) / 180
+  const photoBlend = params.photoBlend ?? 1
   const ctx = canvas.getContext('2d')
   const w = canvas.width, h = canvas.height
   ctx.fillStyle = bg
@@ -130,6 +133,12 @@ export function renderHalftone(canvas, params, t) {
     const rx = (nx - 0.5) * cosR - (ny - 0.5) * sinR + 0.5
     const ry = (nx - 0.5) * sinR + (ny - 0.5) * cosR + 0.5
     let v = sampleField(field, rx, ry, t, freq)
+    if (luma && photoBlend > 0) {
+      const px = Math.min(luma.w - 1, Math.floor(nx * luma.w))
+      const py = Math.min(luma.h - 1, Math.floor(ny * luma.h))
+      const lv = luma.data[py * luma.w + px]
+      v = photoBlend >= 1 ? lv : v + (lv - v) * photoBlend
+    }
     if (contrast !== 1) v = clamp01(Math.pow(v, contrast))
     if (invert) v = 1 - v
     const size = v * cellPx * 0.62 * dotScale

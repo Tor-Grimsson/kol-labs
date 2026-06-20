@@ -444,7 +444,7 @@ export default function InterfacesPage() {
   }, [idx, libIdx, playing, selKey, opts, genSeed, aspectKey, themeSel, genView, showChrome, removed, added, edits, order, selSec, addPick, tempo, genFont, encodeMode, layout, deleted])
 
   // tempo (BPM) → shared clock scale (120 = realtime, 0 = frozen, 240 = 2×)
-  useEffect(() => { setTempoScale(tempo / 240) }, [tempo])
+  useEffect(() => { setTempoScale(tempo / 120) }, [tempo])
 
   // release the mic when leaving interfaces
   useEffect(() => () => stopAudio(), [])
@@ -572,7 +572,7 @@ export default function InterfacesPage() {
         onRewind: () => resetClock(),
         tempo,
         onTempo: setTempo,
-        tempoMax: 600,
+        tempoMax: 300,
       }}
       output={(
         <>
@@ -605,7 +605,7 @@ export default function InterfacesPage() {
         onRewind: () => { resetClock(); setStopNonce((n) => n + 1) },
         tempo,
         onTempo: setTempo,
-        tempoMax: 600,
+        tempoMax: 300,
       }}
       output={recordOutput}
       file={<AudioControls />}
@@ -628,7 +628,7 @@ export default function InterfacesPage() {
         onRewind: () => resetClock(),
         tempo,
         onTempo: setTempo,
-        tempoMax: 600,
+        tempoMax: 300,
       }}
       output={widget && !widget.themed ? (
         <>

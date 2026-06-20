@@ -16,11 +16,11 @@ import ToggleSwitch from '../../../components/atoms/ToggleSwitch.jsx'
 import Dropdown from '../../../components/molecules/Dropdown.jsx'
 import Section from '../../../components/molecules/Section.jsx'
 import EditorRail, { RailHeader } from '../../../components/framework/EditorRail.jsx'
+import RailVariantNav from '../../../components/framework/RailVariantNav.jsx'
 import EditorFooter from '../../../components/framework/EditorFooter.jsx'
-import ColorPicker from '../components/ColorPicker'
+import ColorField from '../../../components/color/ColorField.jsx'
 import SweepControls from '../components/SweepControls'
 import FxParamControl from '../components/FxParamControl.jsx'
-import VideoTransport from '../components/VideoTransport'
 import { useImage } from '../state/ImageContext'
 import { resolveParams, hasExpr } from '../../../lib/exprParam.js'
 import { LiveClock } from '../../../lib/liveClock.jsx'
@@ -37,7 +37,8 @@ export default function DitherPage() {
   const [fxChain, setFxChain] = useState([])
   const [sweeps, setSweeps] = useState([])
   const [animating, setAnimating] = useState(false)
-  const [motionSpeed, setMotionSpeed] = useState(0.5)
+  const [tempo, setTempo] = useState(120) // 120 BPM = realtime; speed = tempo/120
+  const speed = tempo / 120
   const [playing, setPlaying] = useState(() => defaultAutoplay())
   const timeRef = useRef(0)
   const recorderRef = useRef(null)
@@ -91,7 +92,7 @@ export default function DitherPage() {
         src = fitSourceToFrame(sourceImage, fw, fh, exportFit, params.bgColor)
       }
       if (a <= 0) { drawSource(src); return }
-      const t = timeRef.current * motionSpeed
+      const t = timeRef.current
       const p = { ...resolveParams(params, t), sweeps, time: t, ...(animated ? { maxDisplay: 960 } : {}) }
       renderDither(cv, src, p)
       if (fxChain.length > 0) applyCanvasFx(cv, fxChain)
@@ -111,7 +112,7 @@ export default function DitherPage() {
       const ts = now ?? performance.now()
       const d = (ts - last) / 1000
       last = ts
-      if (playing) timeRef.current += d // transport pause freezes the motion clock
+      if (playing) timeRef.current += d * speed // tempo scales the motion clock; pause freezes it
       draw()
       handle = (isVideo && sourceImage.requestVideoFrameCallback)
         ? sourceImage.requestVideoFrameCallback(loop)
@@ -124,14 +125,16 @@ export default function DitherPage() {
       if (isVideo && sourceImage.cancelVideoFrameCallback) sourceImage.cancelVideoFrameCallback(handle)
       else cancelAnimationFrame(handle)
     }
-  }, [params, sweeps, motionSpeed, animated, fxChain, amount, sourceImage, isVideo, drawSource, exportAspect, exportFit, playing])
+  }, [params, sweeps, speed, animated, fxChain, amount, sourceImage, isVideo, drawSource, exportAspect, exportFit, playing])
 
-  // Transport play/pause also drives the source video.
+  // The footer transport owns video playback: play/pause toggles the clip and
+  // tempo latches its playbackRate (tempo down → slower, up → faster).
   useEffect(() => {
     if (isVideo && sourceImage) {
+      sourceImage.playbackRate = speed
       if (playing) { const pr = sourceImage.play(); if (pr && pr.catch) pr.catch(() => {}) } else sourceImage.pause()
     }
-  }, [playing, isVideo, sourceImage])
+  }, [playing, speed, isVideo, sourceImage])
 
   const updateParam = (key, value) => {
     setParams(prev => ({ ...prev, [key]: value }))
@@ -187,7 +190,7 @@ export default function DitherPage() {
     const out = document.createElement('canvas')
     const a = amount / 100
     if (a > 0) {
-      const t = timeRef.current * motionSpeed
+      const t = timeRef.current
       renderDither(out, src, { ...resolveParams(params, t), sweeps, time: t, maxDisplay: dims ? dims.w : Infinity })
       if (fxChain.length > 0) applyCanvasFx(out, fxChain)
       if (a < 1) {
@@ -303,13 +306,12 @@ export default function DitherPage() {
       </div>
 
       {/* Controls panel */}
-      <LiveClock getT={() => timeRef.current * motionSpeed}>
+      <LiveClock getT={() => timeRef.current}>
       <EditorRail
         footerBare
         header={
           <>
-            <RailHeader>Radar</RailHeader>
-            {isVideo && sourceImage && <VideoTransport video={sourceImage} />}
+            <RailHeader><RailVariantNav group="halftone" /></RailHeader>
             <SegmentedToggle
               value={tab}
               onChange={setTab}
@@ -325,11 +327,11 @@ export default function DitherPage() {
               playing,
               onPlay: () => setPlaying(true),
               onPause: () => setPlaying(false),
-              onStop: () => { setPlaying(false); timeRef.current = 0 },
-              onRewind: () => { timeRef.current = 0 },
-              tempo: Math.round(motionSpeed * 240),
-              onTempo: (v) => setMotionSpeed(v / 240),
-              tempoMax: 600,
+              onStop: () => { setPlaying(false); timeRef.current = 0; if (isVideo && sourceImage) sourceImage.currentTime = 0 },
+              onRewind: () => { timeRef.current = 0; if (isVideo && sourceImage) sourceImage.currentTime = 0 },
+              tempo,
+              onTempo: setTempo,
+              tempoMax: 300,
             }}
             exportProps={{
               aspect: exportAspect,
@@ -407,16 +409,10 @@ export default function DitherPage() {
           <ToggleSwitch labeled variant="plain" label="Original Color" checked={params.useColor} onChange={(v) => updateParam('useColor', v)} />
 
           {!params.useColor && (
-            <div className="flex items-center justify-between">
-              <span className="kol-helper-10 uppercase tracking-widest text-meta">Foreground</span>
-              <ColorPicker color={params.monoColor} onChange={(v) => updateParam('monoColor', v)} />
-            </div>
+            <ColorField labeled label="Foreground" value={params.monoColor} onChange={(v) => updateParam('monoColor', v)} />
           )}
 
-          <div className="flex items-center justify-between">
-            <span className="kol-helper-10 uppercase tracking-widest text-meta">Background</span>
-            <ColorPicker color={params.bgColor} onChange={(v) => updateParam('bgColor', v)} />
-          </div>
+          <ColorField labeled label="Background" value={params.bgColor} onChange={(v) => updateParam('bgColor', v)} />
         </Section>
 
         <Divider />
@@ -454,8 +450,6 @@ export default function DitherPage() {
           isVideo={isVideo}
           animating={animating}
           onAnimate={setAnimating}
-          speed={motionSpeed}
-          onSpeed={setMotionSpeed}
           sweeps={sweeps}
           onAdd={addSweep}
           onRemove={removeSweep}

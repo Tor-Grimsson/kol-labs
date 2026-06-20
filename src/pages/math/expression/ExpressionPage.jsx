@@ -265,7 +265,7 @@ export default function ExpressionPage() {
               onRewind: () => setResetKey((k) => k + 1),
               tempo,
               onTempo: setTempo,
-              tempoMax: 600,
+              tempoMax: 300,
             }}
             exportProps={{ aspect, onAspect: setAspect, aspects: VIEW_ASPECTS, scale, onScale: setScale }}
             exportActions={(

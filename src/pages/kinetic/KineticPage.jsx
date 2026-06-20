@@ -148,7 +148,7 @@ export default function KineticPage() {
 
   useEffect(() => { sizeStage() }, [aspect, sizeStage])
   useEffect(() => { engineRef.current?.setParams(engineParams) }, [engineParams])
-  useEffect(() => { engineRef.current?.setTransport({ paused: !playing, speed: tempo / 240 }) }, [playing, tempo])
+  useEffect(() => { engineRef.current?.setTransport({ paused: !playing, speed: tempo / 120 }) }, [playing, tempo])
 
   // keep the selection valid as instances are added/removed
   useEffect(() => {
@@ -324,7 +324,7 @@ export default function KineticPage() {
         onPause:  () => setPlaying(false),
         onStop:   () => { setPlaying(false); engineRef.current?.seek(0) },
         onRewind: () => engineRef.current?.seek(0),
-        tempo, onTempo: setTempo, tempoMax: 600,
+        tempo, onTempo: setTempo, tempoMax: 300,
       }}
       exportProps={{ aspect, onAspect: setAspect, aspects: VIEW_ASPECTS, scale, onScale: setScale }}
       exportActions={

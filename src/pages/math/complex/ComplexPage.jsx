@@ -274,7 +274,7 @@ export default function ComplexPage() {
       const dt = (now - last) / 1000
       last = now
       if (playingRef.current && fieldRef.current) {
-        const s = tempoRef.current / 240
+        const s = tempoRef.current / 120
         huePhaseRef.current = (huePhaseRef.current + dt * 0.08 * s * hueSpeedRef.current) % 1
         ringPhaseRef.current -= dt * 0.25 * s * ringSpeedRef.current
         paintNow(cv.getContext('2d'))
@@ -355,7 +355,7 @@ export default function ComplexPage() {
               onRewind: stopPhase,
               tempo,
               onTempo: setTempo,
-              tempoMax: 600,
+              tempoMax: 300,
             }}
             exportProps={{ aspect, onAspect: setAspect, aspects: VIEW_ASPECTS, scale, onScale: setScale }}
             exportActions={<Button variant="primary" size="sm" className="w-full" iconLeft="download" onClick={exportPng}>Export PNG</Button>}

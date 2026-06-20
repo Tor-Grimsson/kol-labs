@@ -10,7 +10,6 @@ const InterfacesPage = lazy(() => import('./pages/interfaces/InterfacesPage.jsx'
 const PenrosePage = lazy(() => import('./pages/penrose/PenrosePage.jsx'))
 const RadarPage = lazy(() => import('./pages/radar/RadarPage.jsx'))
 const PosterPage = lazy(() => import('./pages/poster/PosterPage.jsx'))
-const DistressPage = lazy(() => import('./pages/distress/DistressPage.jsx'))
 const LibraryPage = lazy(() => import('./pages/library/LibraryPage.jsx'))
 const GalleryPage = lazy(() => import('./pages/gallery/GalleryPage.jsx'))
 const ThreeDScenePage = lazy(() => import('./pages/gradient/ThreeDScenePage.jsx'))
@@ -38,7 +37,6 @@ export default function App() {
         <Route path="/penrose/*" element={<Suspense fallback={null}><PenrosePage /></Suspense>} />
         <Route path="/radar/*" element={<Suspense fallback={null}><RadarPage /></Suspense>} />
         <Route path="/poster" element={<Suspense fallback={null}><PosterPage /></Suspense>} />
-        <Route path="/distress/*" element={<Suspense fallback={null}><DistressPage /></Suspense>} />
         <Route path="/library" element={<Suspense fallback={null}><LibraryPage /></Suspense>} />
         <Route path="/gallery" element={<Suspense fallback={null}><GalleryPage /></Suspense>} />
         <Route path="/3d-scene/*" element={<Suspense fallback={null}><ThreeDScenePage /></Suspense>} />

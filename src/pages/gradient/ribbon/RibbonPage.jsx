@@ -241,7 +241,7 @@ export default function RibbonPage() {
               onRewind: () => engineRef.current?.seek(0),
               tempo,
               onTempo: setTempo,
-              tempoMax: 600,
+              tempoMax: 300,
             }}
             exportProps={{ aspect, onAspect: setAspect, aspects: VIEW_ASPECTS, scale, onScale: setScale }}
             exportActions={

@@ -152,6 +152,12 @@ export default function SideNav({ drawerOpen = false, onCloseDrawer, navTree = [
     else root.removeAttribute('data-sidenav')
   }, [collapsed])
 
+  useEffect(() => {
+    const handler = () => setExpandedPages(new Set())
+    window.addEventListener('kol:sidenav-toggle', handler)
+    return () => window.removeEventListener('kol:sidenav-toggle', handler)
+  }, [])
+
   /* /editor → collapsed. Anywhere else → expanded. Manual chevron toggle
    * works for the session but doesn't persist across navigation. */
   useEffect(() => {

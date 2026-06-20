@@ -196,7 +196,7 @@ export default function TypeEditor({ page = null }) {
 
   useEffect(() => { sizeStage() }, [aspect, sizeStage])
   useEffect(() => { engineRef.current?.setParams(params) }, [params])
-  useEffect(() => { engineRef.current?.setTransport({ paused: !playing, speed: tempo / 240 }) }, [playing, tempo])
+  useEffect(() => { engineRef.current?.setTransport({ paused: !playing, speed: tempo / 120 }) }, [playing, tempo])
 
   usePublishShortcuts('Type', [['space', 'play / pause'], ['Design', 'text + colour'], ['Layout', 'blocks + arrangement'], ['Edit', 'type, morph, pattern']])
 
@@ -224,7 +224,7 @@ export default function TypeEditor({ page = null }) {
   const footer = (
     <EditorFooter
       tab={bottomTab} onTab={setBottomTab}
-      transport={{ playing, onPlay: () => setPlaying(true), onPause: () => setPlaying(false), onStop: () => { setPlaying(false); engineRef.current?.seek(0) }, onRewind: () => engineRef.current?.seek(0), tempo, onTempo: setTempo, tempoMax: 600 }}
+      transport={{ playing, onPlay: () => setPlaying(true), onPause: () => setPlaying(false), onStop: () => { setPlaying(false); engineRef.current?.seek(0) }, onRewind: () => engineRef.current?.seek(0), tempo, onTempo: setTempo, tempoMax: 300 }}
       exportProps={{ aspect, onAspect: setAspect, aspects: VIEW_ASPECTS, scale, onScale: setScale }}
       exportActions={
         <>

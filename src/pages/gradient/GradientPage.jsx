@@ -194,9 +194,9 @@ export default function GradientPage() {
               onPause: () => setPaused(true),
               onStop: () => { setPaused(true); engineRef.current?.resetTime() },
               onRewind: () => engineRef.current?.resetTime(),
-              tempo: Math.round(speed * 240),
-              onTempo: (v) => setSpeed(v / 240),
-              tempoMax: 600,
+              tempo: Math.round(speed * 120),
+              onTempo: (v) => setSpeed(v / 120),
+              tempoMax: 300,
             }}
             exportProps={{ aspect, onAspect: setAspect, aspects: VIEW_ASPECTS, scale, onScale: setScale }}
             exportActions={<Button variant="primary" size="sm" className="w-full" iconLeft="download" onClick={exportPng}>Export PNG</Button>}

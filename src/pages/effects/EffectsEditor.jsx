@@ -3,7 +3,6 @@ import { useImage } from '../radar/state/ImageContext'
 import SourcePlaceholder from '../radar/components/SourcePlaceholder.jsx'
 import LibrarySourceButton from '../radar/components/LibrarySourceButton.jsx'
 import SweepControls from '../radar/components/SweepControls.jsx'
-import VideoTransport from '../radar/components/VideoTransport.jsx'
 import FxParamControl from '../radar/components/FxParamControl.jsx'
 import { makeSweep } from '../radar/effects/sweeps.js'
 import { fitSourceToFrame } from '../radar/utils/fitFrame'
@@ -32,7 +31,7 @@ export default function EffectsEditor({
   amount, setAmount,
   sweeps, setSweeps,
   animating, setAnimating,
-  motionSpeed, setMotionSpeed,
+  tempo, setTempo,
   playing, setPlaying,
   timeRef,
   exportAspect, setExportAspect,
@@ -40,6 +39,7 @@ export default function EffectsEditor({
   exportFit, setExportFit,
 }) {
   const { sourceImage, isVideo, loadImageFromFile, clearImage } = useImage()
+  const speed = tempo / 120
   const canvasRef = useRef(null)
   const fileInputRef = useRef(null)
   const videoInputRef = useRef(null)
@@ -96,7 +96,7 @@ export default function EffectsEditor({
       if (!alive) return
       const dt = (now - last) / 1000
       last = now
-      if (playing) timeRef.current += dt * motionSpeed // transport pause freezes the clock
+      if (playing) timeRef.current += dt * speed // tempo scales the clock; pause freezes it
       if (!inFlight) {
         inFlight = true
         const { src, dw, dh } = frame()
@@ -113,14 +113,16 @@ export default function EffectsEditor({
     }
     raf = requestAnimationFrame(loop)
     return () => { alive = false; cancelAnimationFrame(raf) }
-  }, [sourceImage, isVideo, exportAspect, exportFit, stack, amount, animated, sweeps, motionSpeed, playing]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [sourceImage, isVideo, exportAspect, exportFit, stack, amount, animated, sweeps, speed, playing]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Transport play/pause also drives a source video.
+  // The footer transport owns video playback: play/pause toggles the clip and
+  // tempo latches its playbackRate (tempo down → slower, up → faster).
   useEffect(() => {
     if (isVideo && sourceImage) {
+      sourceImage.playbackRate = speed
       if (playing) { const pr = sourceImage.play(); if (pr && pr.catch) pr.catch(() => {}) } else sourceImage.pause()
     }
-  }, [playing, isVideo, sourceImage])
+  }, [playing, speed, isVideo, sourceImage])
 
   const handleFileUpload = (e) => loadImageFromFile(e.target.files[0])
   const handleDragOver = (e) => { e.preventDefault(); setDragging(true) }
@@ -197,7 +199,6 @@ export default function EffectsEditor({
         header={
           <>
             <RailHeader>Effects</RailHeader>
-            {isVideo && sourceImage && <VideoTransport video={sourceImage} />}
             <SegmentedToggle
               value={tab}
               onChange={setTab}
@@ -213,11 +214,11 @@ export default function EffectsEditor({
               playing,
               onPlay: () => setPlaying(true),
               onPause: () => setPlaying(false),
-              onStop: () => { setPlaying(false); timeRef.current = 0 },
-              onRewind: () => { timeRef.current = 0 },
-              tempo: Math.round(motionSpeed * 240),
-              onTempo: (v) => setMotionSpeed(v / 240),
-              tempoMax: 600,
+              onStop: () => { setPlaying(false); timeRef.current = 0; if (isVideo && sourceImage) sourceImage.currentTime = 0 },
+              onRewind: () => { timeRef.current = 0; if (isVideo && sourceImage) sourceImage.currentTime = 0 },
+              tempo,
+              onTempo: setTempo,
+              tempoMax: 300,
             }}
             exportProps={{
               aspect: exportAspect,
@@ -291,8 +292,6 @@ export default function EffectsEditor({
             isVideo={isVideo}
             animating={animating}
             onAnimate={setAnimating}
-            speed={motionSpeed}
-            onSpeed={setMotionSpeed}
             sweeps={sweeps}
             onAdd={addSweep}
             onRemove={removeSweep}

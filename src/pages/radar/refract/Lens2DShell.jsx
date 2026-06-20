@@ -1,27 +1,61 @@
 import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { defaultAutoplay } from '../../../lib/appSettings.js'
 import { useImage } from '../state/ImageContext'
 import SourcePlaceholder from '../components/SourcePlaceholder.jsx'
 import LibrarySourceButton from '../components/LibrarySourceButton.jsx'
 import { RefractEngine } from './engine.js'
-import { SURFACE2D_BY_ID } from './surfaces2d.js'
+import { SURFACE2D_BY_ID, LENS_VARIANTS } from './surfaces2d.js'
 import { resolveDeep } from '../../../lib/exprParam.js'
+import { randomizeSchema } from '../../../lib/rng.js'
 import { ASPECT_SPECS, defaultAspectFor, DEFAULT_SCALE, ratioFor, dimsFor } from '../../_shared/exportSpecs.js'
 import ImagePlacement from '../../_shared/ImagePlacement.jsx'
 import EditorRail, { RailHeader } from '../../../components/framework/EditorRail.jsx'
 import EditorFooter from '../../../components/framework/EditorFooter.jsx'
 import Section from '../../../components/molecules/Section.jsx'
 import SegmentedToggle from '../../../components/molecules/SegmentedToggle.jsx'
+import Dropdown from '../../../components/molecules/Dropdown.jsx'
 import ButtonGroup from '../../../components/molecules/ButtonGroup.jsx'
 import Slider from '../../../components/atoms/Slider.jsx'
 import Button from '../../../components/atoms/Button.jsx'
 import ColorField from '../../../components/color/ColorField.jsx'
 
+// Per-group Randomise schemas — each rolls ONLY its Section's params (bounds
+// mirror the sliders; positions stay off the edge so the glass never rolls
+// out of frame). Fed to randomizeSchema(schema, rng).
+const GROUP_SCHEMA = {
+  glass: [
+    { key: 'shape', type: 'select', options: ['panel', 'circle'] },
+    { key: 'size', type: 'range', min: 0.1, max: 0.6, step: 0.005 },
+    { key: 'radius', type: 'range', min: 0, max: 0.3, step: 0.005 },
+    { key: 'edge', type: 'range', min: 0, max: 0.08, step: 0.002 },
+    { key: 'glassX', type: 'range', min: 0.25, max: 0.75, step: 0.005 },
+    { key: 'glassY', type: 'range', min: 0.25, max: 0.75, step: 0.005 },
+  ],
+  distance: [
+    { key: 'distance', type: 'range', min: 10, max: 120, step: 1 },
+    { key: 'magnify', type: 'range', min: 0, max: 1, step: 0.01 },
+    { key: 'chromatic', type: 'range', min: 0, max: 40, step: 1 },
+    { key: 'frost', type: 'range', min: 0, max: 20, step: 0.5 },
+  ],
+  surface: [
+    { key: 'detail', type: 'range', min: 0, max: 1, step: 0.01 },
+    { key: 'reflect', type: 'range', min: 0, max: 1.5, step: 0.05 },
+  ],
+  finish: [
+    { key: 'sheen', type: 'range', min: 0, max: 1.5, step: 0.05 },
+    { key: 'lightAngle', type: 'range', min: 0, max: 360, step: 1 },
+    { key: 'tint', type: 'color' },
+    { key: 'tintAmt', type: 'range', min: 0, max: 1, step: 0.01 },
+  ],
+}
+
 // Optic · Lens (2D) — a flat refraction shader: the photo, plain, with a discrete
 // glass OBJECT composited over it (panel/lens). Distance bends + colour-splits the
 // photo inside the glass. The 3D Scene category is the depth-true sibling.
-export default function Lens2DShell({ surface = 'glass', title = 'Glass' }) {
+export default function Lens2DShell({ surface = 'glass' }) {
   const surf = SURFACE2D_BY_ID[surface] || SURFACE2D_BY_ID.glass
+  const navigate = useNavigate()
   const { sourceImage, loadImageFromFile, clearImage } = useImage()
   const containerRef = useRef(null)
   const engineRef = useRef(null)
@@ -29,6 +63,7 @@ export default function Lens2DShell({ surface = 'glass', title = 'Glass' }) {
   const [ready, setReady] = useState(false)
   const [dragging, setDragging] = useState(false)
   const [footTab, setFootTab] = useState('transport')
+  const [tab, setTab] = useState('glass') // rail content tab: image | glass | optics | finish
   const [playing, setPlaying] = useState(() => defaultAutoplay())
 
   // the glass OBJECT (layer 2)
@@ -119,7 +154,6 @@ export default function Lens2DShell({ surface = 'glass', title = 'Glass' }) {
   const handleDragOver = (e) => { e.preventDefault(); setDragging(true) }
   const handleDragLeave = (e) => { e.preventDefault(); setDragging(false) }
   const handleDrop = (e) => { e.preventDefault(); setDragging(false); loadImageFromFile(e.dataTransfer.files[0]) }
-  const resetImage = () => { setFit('cover'); setZoom(1); setOffsetX(0); setOffsetY(0) }
 
   const handleDownload = async () => {
     const dd = picked ? dimsFor(aspect, Number(expScale)) : null
@@ -132,6 +166,21 @@ export default function Lens2DShell({ surface = 'glass', title = 'Glass' }) {
     a.click()
     URL.revokeObjectURL(url)
   }
+
+  // Per-group Randomise — roll just one Section's params from its schema.
+  const SETTERS = {
+    shape: setShape, size: setSize, radius: setRadius, edge: setEdge, glassX: setGlassX, glassY: setGlassY,
+    distance: setDistance, magnify: setMagnify, chromatic: setChromatic, frost: setFrost,
+    detail: setDetail, reflect: setReflect,
+    sheen: setSheen, lightAngle: setLightAngle, tint: setTint, tintAmt: setTintAmt,
+  }
+  const rollGroup = (g) => {
+    const rolled = randomizeSchema(GROUP_SCHEMA[g], Math.random)
+    for (const [k, v] of Object.entries(rolled)) SETTERS[k]?.(v)
+  }
+  const rollBtn = (g) => (
+    <Button variant="ghost" size="sm" quiet iconOnly="shuffle" iconSize={12} title="Randomise" onClick={() => rollGroup(g)} />
+  )
 
   return (
     <div className="min-h-dvh bg-surface-secondary flex">
@@ -159,7 +208,22 @@ export default function Lens2DShell({ surface = 'glass', title = 'Glass' }) {
 
       <EditorRail
         footerBare
-        header={<RailHeader>{title}</RailHeader>}
+        header={(
+          <>
+            <RailHeader>Lens</RailHeader>
+            <SegmentedToggle
+              className="w-full"
+              value={tab}
+              onChange={setTab}
+              options={[
+                { value: 'image', label: 'Image' },
+                { value: 'glass', label: 'Glass' },
+                { value: 'optics', label: 'Optics' },
+                { value: 'finish', label: 'Finish' },
+              ]}
+            />
+          </>
+        )}
         footer={
           <EditorFooter
             tab={footTab}
@@ -172,7 +236,7 @@ export default function Lens2DShell({ surface = 'glass', title = 'Glass' }) {
               onRewind: () => engineRef.current?.resetTime(),
               tempo: Math.round(flow * 120),
               onTempo: (v) => setFlow(v / 120),
-              tempoMax: 400,
+              tempoMax: 300,
             }}
             exportProps={{ aspect, onAspect: setAspect, aspects: ASPECT_SPECS, scale: expScale, onScale: setExpScale }}
             exportActions={sourceImage
@@ -192,16 +256,27 @@ export default function Lens2DShell({ surface = 'glass', title = 'Glass' }) {
           />
         }
       >
-        <ImagePlacement
-          fit={fit} onFit={setFit}
-          zoom={zoom} onZoom={setZoom}
-          offsetX={offsetX} onOffsetX={setOffsetX}
-          offsetY={offsetY} onOffsetY={setOffsetY}
-          bg={bg} onBg={setBg}
-          onReset={resetImage}
-        />
+        <Section label="Surface">
+          <Dropdown
+            variant="subtle" size="sm" className="w-full"
+            options={LENS_VARIANTS.map((v) => ({ value: v.id, label: v.label }))}
+            value={surface}
+            onChange={(id) => id !== surface && navigate(`/optic/lens/${id}`)}
+          />
+        </Section>
 
-        <Section label="Glass">
+        {tab === 'image' && (
+          <ImagePlacement
+            fit={fit} onFit={setFit}
+            zoom={zoom} onZoom={setZoom}
+            offsetX={offsetX} onOffsetX={setOffsetX}
+            offsetY={offsetY} onOffsetY={setOffsetY}
+            bg={bg} onBg={setBg}
+          />
+        )}
+
+        {tab === 'glass' && (
+        <Section label="Glass" action={rollBtn('glass')}>
           <SegmentedToggle
             options={[{ value: 'panel', label: 'Panel' }, { value: 'circle', label: 'Lens' }]}
             value={shape}
@@ -214,27 +289,30 @@ export default function Lens2DShell({ surface = 'glass', title = 'Glass' }) {
           <Slider labeled label="Position X" min={0} max={1} step={0.005} value={glassX} onChange={setGlassX} variant="default" />
           <Slider labeled label="Position Y" min={0} max={1} step={0.005} value={glassY} onChange={setGlassY} variant="default" />
         </Section>
+        )}
 
-        <Section label="Distance">
+        {tab === 'optics' && <>
+        <Section label="Distance" action={rollBtn('distance')}>
           <Slider labeled label="Distance" min={0} max={120} step={1} value={distance} onChange={setDistance} variant="default" />
           <Slider labeled label="Magnify" min={0} max={1} step={0.01} value={magnify} onChange={setMagnify} variant="default" />
           <Slider labeled label="Chromatic" min={0} max={40} step={1} value={chromatic} onChange={setChromatic} variant="default" />
           <Slider labeled label="Frost" min={0} max={20} step={0.5} value={frost} onChange={setFrost} variant="default" />
         </Section>
 
-        <Section label="Surface">
+        <Section label="Texture" action={rollBtn('surface')}>
           <Slider labeled label="Detail" min={0} max={1} step={0.01} value={detail} onChange={setDetail} variant="default" />
           <Slider labeled label="Reflection" min={0} max={1.5} step={0.05} value={reflect} onChange={setReflect} variant="default" />
         </Section>
+        </>}
 
-        <Section label="Finish">
+        {tab === 'finish' && (
+        <Section label="Finish" action={rollBtn('finish')}>
           <Slider labeled label="Sheen" min={0} max={1.5} step={0.05} value={sheen} onChange={setSheen} variant="default" />
           <Slider labeled label="Light angle" min={0} max={360} step={1} value={lightAngle} onChange={setLightAngle} variant="default" />
           <ColorField label="Tint" value={tint} onChange={setTint} />
           <Slider labeled label="Tint amount" min={0} max={1} step={0.01} value={tintAmt} onChange={setTintAmt} variant="default" />
         </Section>
-
-        <div className="kol-helper-10 text-body">flat refraction · glass object over the photo</div>
+        )}
       </EditorRail>
 
       <input ref={fileInputRef} type="file" accept="image/*,video/*,.svg" onChange={handleFileUpload} className="hidden" />

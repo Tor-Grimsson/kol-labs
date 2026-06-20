@@ -144,14 +144,12 @@ const Oscilloscope = forwardRef(function Oscilloscope({
       const gridOn = vs.axis && vs.axis !== 'none'
       const gridCol = hexToRgb(vs.gridColor || '#ffffff')
       const gridOp = vs.gridOpacity ?? 0.06
-      // Pausable, tempo-scaled virtual clock. 120 is the standard default (÷240) —
-      // the tempo number is normalized to the 120 convention without changing the
-      // playback speed.
+      // Pausable, tempo-scaled virtual clock. tempo 120 = realtime (÷120).
       const now = performance.now()
       if (!lastRef.current) lastRef.current = now
       const dt = (now - lastRef.current) / 1000
       lastRef.current = now
-      if (playingRef.current) accumRef.current += dt * (tempoRef.current / 240)
+      if (playingRef.current) accumRef.current += dt * (tempoRef.current / 120)
       const elapsed = accumRef.current
 
       ctx.clearRect(0, 0, w, h)

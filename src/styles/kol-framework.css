@@ -13,20 +13,6 @@ html,
 body {
   background: var(--kol-surface-primary);
   color: var(--kol-surface-on-primary);
-
-  /* Editor-style app — selection is mostly meaningless on chrome. Default
-   * to non-selectable; opt back in for prose, tables, inputs, code below. */
-  -webkit-user-select: none;
-  user-select: none;
-}
-
-/* Allowlist — surfaces where reading / copying matters. */
-input, textarea, [contenteditable="true"],
-.kol-prose, .kol-prose *,
-.kol-table, .kol-table *,
-code, pre {
-  -webkit-user-select: text;
-  user-select: text;
 }
 
 /* Selection highlight uses brand-primary so it reads on-brand when it appears. */

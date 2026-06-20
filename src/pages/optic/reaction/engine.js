@@ -33,6 +33,29 @@ const rgbStops = (hexes) => hexes.map((h) => {
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255]
 })
 
+// Image-dither support: per-cell feed/kill driven by image brightness.
+// Four style pairs — each maps dark→bright pixels to different RD regimes.
+export const DITHER_STYLES = [
+  { value: 'coral', label: 'Coral', dark: { feed: 0.0367, kill: 0.0649 }, bright: { feed: 0.0545, kill: 0.062 } },
+  { value: 'maze',  label: 'Maze',  dark: { feed: 0.029,  kill: 0.057  }, bright: { feed: 0.039,  kill: 0.058 } },
+  { value: 'worms', label: 'Worms', dark: { feed: 0.042,  kill: 0.0612 }, bright: { feed: 0.058,  kill: 0.063 } },
+  { value: 'spots', label: 'Spots', dark: { feed: 0.022,  kill: 0.051  }, bright: { feed: 0.035,  kill: 0.065 } },
+]
+
+export function buildFK(brightness, style, invert = false) {
+  const n = brightness.length
+  const feed = new Float32Array(n)
+  const kill = new Float32Array(n)
+  const d = style.dark
+  const b = style.bright
+  for (let i = 0; i < n; i++) {
+    const luma = invert ? 1 - brightness[i] : brightness[i]
+    feed[i] = d.feed + (b.feed - d.feed) * luma
+    kill[i] = d.kill + (b.kill - d.kill) * luma
+  }
+  return { feed, kill }
+}
+
 export class GrayScott {
   constructor(n = 170) {
     this.feed = 0.0367
@@ -41,6 +64,7 @@ export class GrayScott {
     this.dv = DV
     this.seed = 'scatter'
     this.gain = 3.2
+    this.fk = null
     this.setSize(n)
   }
 
@@ -52,6 +76,9 @@ export class GrayScott {
     this.v2 = new Float32Array(n * n)
     this.reseed()
   }
+
+  setImageField(feed, kill) { this.fk = feed && kill ? { feed, kill } : null }
+  clearImageField() { this.fk = null }
 
   setParams({ feed, kill, du, dv, seed, gain }) {
     if (feed != null) this.feed = feed
@@ -97,7 +124,7 @@ export class GrayScott {
   }
 
   step(iters) {
-    const { n, feed, kill, du: DU, dv: DV } = this
+    const { n, feed, kill, du: DU, dv: DV, fk } = this
     let U = this.u, V = this.v, U2 = this.u2, V2 = this.v2
     for (let it = 0; it < iters; it++) {
       for (let y = 0; y < n; y++) {
@@ -112,8 +139,10 @@ export class GrayScott {
           const lapU = U[y0 + xm] + U[y0 + xp] + U[ym + x] + U[yp + x] - 4 * u0
           const lapV = V[y0 + xm] + V[y0 + xp] + V[ym + x] + V[yp + x] - 4 * v0
           const uvv = u0 * v0 * v0
-          U2[i] = u0 + (DU * lapU - uvv + feed * (1 - u0))
-          V2[i] = v0 + (DV * lapV + uvv - (kill + feed) * v0)
+          const f = fk ? fk.feed[i] : feed
+          const k = fk ? fk.kill[i] : kill
+          U2[i] = u0 + (DU * lapU - uvv + f * (1 - u0))
+          V2[i] = v0 + (DV * lapV + uvv - (k + f) * v0)
         }
       }
       let t = U; U = U2; U2 = t

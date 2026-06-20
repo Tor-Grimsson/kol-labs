@@ -222,7 +222,7 @@ export default function DriftEditor({ page }) {
               onRewind: () => engineRef.current?.resetTime(),
               tempo,
               onTempo: setTempo,
-              tempoMax: 400,
+              tempoMax: 300,
             }}
             exportProps={{ aspect, onAspect: setAspect, aspects: VIEW_ASPECTS, scale, onScale: setScale }}
             exportActions={

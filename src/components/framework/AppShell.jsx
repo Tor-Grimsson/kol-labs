@@ -48,6 +48,17 @@ export default function AppShell({ navTree = [], getActivePage }) {
   useEffect(() => { setDrawerOpen(false) }, [pathname])
 
   useEffect(() => {
+    const onKey = (e) => {
+      if (e.altKey && e.code === 'KeyL' && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault()
+        window.dispatchEvent(new Event('kol:sidenav-toggle'))
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
+  useEffect(() => {
     if (!drawerOpen) return
     const onKey = (e) => { if (e.key === 'Escape') setDrawerOpen(false) }
     window.addEventListener('keydown', onKey)

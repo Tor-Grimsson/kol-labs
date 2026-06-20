@@ -125,7 +125,7 @@ function GradientsEditor({ typeId }) {
               onRewind: () => engineRef.current?.resetTime(),
               tempo,
               onTempo: setTempo,
-              tempoMax: 400,
+              tempoMax: 300,
             }}
             exportProps={{ aspect, onAspect: setAspect, aspects: VIEW_ASPECTS, scale, onScale: setScale }}
             exportActions={<Button variant="primary" size="sm" className="w-full" iconLeft="download" onClick={exportPng}>Export PNG</Button>}

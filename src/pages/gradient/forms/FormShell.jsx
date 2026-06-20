@@ -55,7 +55,7 @@ export default function FormShell({ form, title }) {
   const globals = useMemo(
     () => ({
       form, samples, cycles, amp, pointSize, turns, radius, height,
-      spin, spinSpeed, fov, loop, duration, paused: !playing, speed: tempo / 240,
+      spin, spinSpeed, fov, loop, duration, paused: !playing, speed: tempo / 120,
       color: theme.fg, accent: theme.accent,
     }),
     [form, samples, cycles, amp, pointSize, turns, radius, height, spin, spinSpeed, fov, loop, duration, playing, tempo, theme],
@@ -169,7 +169,7 @@ export default function FormShell({ form, title }) {
               onRewind: () => engineRef.current?.seek(0),
               tempo,
               onTempo: setTempo,
-              tempoMax: 600,
+              tempoMax: 300,
             }}
             exportProps={{ aspect, onAspect: setAspect, aspects: VIEW_ASPECTS, scale, onScale: setScale }}
             exportActions={

@@ -9,7 +9,7 @@ import processImageUpload from '../utils/processImageUpload'
  * anywhere an image works (canvas drawImage, GL textures). `isVideo` tells
  * pages to run a per-frame render loop.
  */
-const ImageContext = createContext(null)
+export const ImageContext = createContext(null)
 
 export function ImageProvider({ children }) {
   const [sourceImage, setSourceImage] = useState(null)

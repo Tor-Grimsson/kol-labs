@@ -51,7 +51,7 @@ export default function EnvironmentShell({ env, title }) {
   const globals = useMemo(
     () => ({
       env, samples, cycles, amp, fov,
-      spin, spinSpeed, loop, duration, paused: !playing, speed: tempo / 240,
+      spin, spinSpeed, loop, duration, paused: !playing, speed: tempo / 120,
       color: theme.fg, accent: theme.accent,
     }),
     [env, samples, cycles, amp, fov, spin, spinSpeed, loop, duration, playing, tempo, theme],
@@ -161,7 +161,7 @@ export default function EnvironmentShell({ env, title }) {
               onRewind: () => engineRef.current?.seek(0),
               tempo,
               onTempo: setTempo,
-              tempoMax: 600,
+              tempoMax: 300,
             }}
             exportProps={{ aspect, onAspect: setAspect, aspects: VIEW_ASPECTS, scale, onScale: setScale }}
             exportActions={
