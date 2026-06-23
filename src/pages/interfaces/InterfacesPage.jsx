@@ -9,7 +9,7 @@ import Input from '../../components/atoms/Input.jsx'
 import Dropdown from '../../components/molecules/Dropdown.jsx'
 import SegmentedToggle from '../../components/molecules/SegmentedToggle.jsx'
 import ButtonGroup from '../../components/molecules/ButtonGroup.jsx'
-import EditorRail from '../../components/framework/EditorRail.jsx'
+import EditorRail, { RailHeader } from '../../components/framework/EditorRail.jsx'
 import EditorFooter from '../../components/framework/EditorFooter.jsx'
 import { usePublishShortcuts, usePublishReset, usePublishRetrigger } from '../../components/framework/pageShortcuts.jsx'
 import RailNav from '../../components/framework/RailNav.jsx'
@@ -208,7 +208,7 @@ function SectionInfo({ sec, onClose }) {
     <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/50 p-6" onClick={onClose}>
       <div className="max-w-[320px] w-full bg-surface-primary border border-fg-16 rounded p-4 flex flex-col gap-2" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
-          <span className="kol-helper-12 text-emphasis uppercase tracking-widest">{SECTION_LABELS[sec.kind] || sec.kind} · info</span>
+          <span className="kol-helper-12 text-emphasis">{SECTION_LABELS[sec.kind] || sec.kind} · info</span>
           <Button variant="ghost" size="sm" quiet iconOnly="cross" iconSize={12} onClick={onClose} />
         </div>
         <div className="flex flex-col gap-1 kol-mono-10">
@@ -666,7 +666,7 @@ export default function InterfacesPage() {
               if (!items.length) return null
               return (
                 <section key={g.key}>
-                  <div className="kol-helper-10 uppercase tracking-widest text-meta mb-2">{g.label}</div>
+                  <div className="kol-helper-10 text-meta mb-2">{g.label}</div>
                   <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4">
                     {items.map((s) => {
                       const gi = SCREENS.indexOf(s)
@@ -686,7 +686,7 @@ export default function InterfacesPage() {
               if (!items.length) return null
               return (
                 <section key={g.key}>
-                  <div className="kol-helper-10 uppercase tracking-widest text-meta mb-2">{g.label}</div>
+                  <div className="kol-helper-10 text-meta mb-2">{g.label}</div>
                   <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4">
                     {items.map((v) => (
                       <WidgetCard key={v.id} widget={v.widget} opts={v.opts} label={v.label} playing focused={focusVariant?.id === v.id} onClick={() => openVariant(CATALOG.indexOf(v))} />
@@ -709,6 +709,7 @@ export default function InterfacesPage() {
 
       {/* ── rail ── */}
       <EditorRail
+        header={<RailHeader>Interfaces</RailHeader>}
         footerBare={view === 'player' || (view === 'generate' && genView === 'current') || (view === 'library' && !!widget)}
         footer={view === 'player' ? playerFooter : (view === 'generate' && genView === 'current' ? generateFooter : (view === 'library' && widget ? libraryFooter : null))}
       >
@@ -779,7 +780,7 @@ export default function InterfacesPage() {
                           </CollapsibleSection>
                         )}
                         <LabeledControl label="Font">
-                          <Dropdown size="sm" variant="subtle" className="w-full" value={selectedSection.font || 'inherit'}
+                          <Dropdown size="sm" variant="subtle" openUp className="w-full" value={selectedSection.font || 'inherit'}
                             onChange={(v) => editField(selSec, 'font', v === 'inherit' ? undefined : v)}
                             options={[{ value: 'inherit', label: 'Inherit (UI)' }, ...FONTS.map((f) => ({ value: f.key, label: f.label }))]} />
                         </LabeledControl>
@@ -792,7 +793,7 @@ export default function InterfacesPage() {
                       <Button variant="primary" size="sm" onClick={resetAll}>Reset to default</Button>
                     </ButtonGroup>
                     <Section label="Add block">
-                      <Dropdown size="sm" variant="subtle" className="w-full" value={addPick} onChange={setAddPick} options={ALL.map((w) => ({ value: w.key, label: w.label }))} />
+                      <Dropdown size="sm" variant="subtle" openUp className="w-full" value={addPick} onChange={setAddPick} options={ALL.map((w) => ({ value: w.key, label: w.label }))} />
                       <Button variant="primary" size="sm" className="w-full" onClick={() => addBlock(addPick)}>Add to composition</Button>
                     </Section>
                     <Button variant="primary" size="sm" className="w-full" onClick={saveComposition}>Save composition</Button>
@@ -803,7 +804,7 @@ export default function InterfacesPage() {
                 {genTab === 'design' && (
                   <>
                     <LabeledControl label="Theme">
-                      <Dropdown size="sm" variant="subtle" className="w-full" value={themeSel} onChange={setThemeSel}
+                      <Dropdown size="sm" variant="subtle" openUp className="w-full" value={themeSel} onChange={setThemeSel}
                         options={[{ value: 'random', label: 'Random' }, ...THEMES.map((t) => ({ value: t, label: THEME_LABEL[t] ?? t }))]} />
                     </LabeledControl>
                     <LabeledControl label="Status bars (top + bottom)">
@@ -811,10 +812,10 @@ export default function InterfacesPage() {
                     </LabeledControl>
                     <Divider />
                     <LabeledControl label="UI font">
-                      <Dropdown size="sm" variant="subtle" className="w-full" value={genFont} onChange={setGenFont} options={FONTS.map((f) => ({ value: f.key, label: f.label }))} />
+                      <Dropdown size="sm" variant="subtle" openUp className="w-full" value={genFont} onChange={setGenFont} options={FONTS.map((f) => ({ value: f.key, label: f.label }))} />
                     </LabeledControl>
                     <LabeledControl label="Encode">
-                      <Dropdown size="sm" variant="subtle" className="w-full" value={encodeMode} onChange={setEncodeMode} options={[{ value: 'off', label: 'Off' }, ...CIPHER_MODES.map((m) => ({ value: m, label: CIPHER_LABEL[m] ?? m }))]} />
+                      <Dropdown size="sm" variant="subtle" openUp className="w-full" value={encodeMode} onChange={setEncodeMode} options={[{ value: 'off', label: 'Off' }, ...CIPHER_MODES.map((m) => ({ value: m, label: CIPHER_LABEL[m] ?? m }))]} />
                     </LabeledControl>
                     <Section label="Spacing">
                       <Slider labeled label="Gap" min={0} max={32} step={1} value={layout.gap} onChange={(v) => setLay('gap', v)} />
@@ -866,7 +867,7 @@ export default function InterfacesPage() {
           <>
             <RailNav title={def.title} toggleLabel="Screens" onToggle={() => navigate(VIEW_PATHS.gallery)} index={idx} total={SCREENS.length} onPrev={() => go(-1)} onNext={() => go(1)} />
             <LabeledControl label="Encode">
-              <Dropdown size="sm" variant="subtle" className="w-full" value={encodeMode} onChange={setEncodeMode} options={[{ value: 'off', label: 'Off' }, ...CIPHER_MODES.map((m) => ({ value: m, label: CIPHER_LABEL[m] ?? m }))]} />
+              <Dropdown size="sm" variant="subtle" openUp className="w-full" value={encodeMode} onChange={setEncodeMode} options={[{ value: 'off', label: 'Off' }, ...CIPHER_MODES.map((m) => ({ value: m, label: CIPHER_LABEL[m] ?? m }))]} />
             </LabeledControl>
           </>
         )}

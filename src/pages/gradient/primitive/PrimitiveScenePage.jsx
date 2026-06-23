@@ -89,7 +89,6 @@ export default function PrimitiveScenePage() {
   const [aspect, setAspect] = useState(() => defaultAspectFor('view'))
   const [scale, setScale] = useState(DEFAULT_SCALE)
   const [recording, setRecording] = useState(false)
-  const [panel, setPanel] = useState('scene')
   const [footTab, setFootTab] = useState('transport')
 
   const wrapRef = useRef(null)
@@ -338,144 +337,117 @@ export default function PrimitiveScenePage() {
           />
         }
       >
-          <SegmentedToggle
-            value={panel}
-            onChange={setPanel}
-            options={[
-              { value: 'scene', label: 'Scene' },
-              { value: 'style', label: 'Style' },
-              { value: 'anim', label: 'Anim' },
-              { value: 'camera', label: 'Camera' },
-            ]}
+          <SettingsPanel
+            page="primitive"
+            showIO={false}
+            theme={themeId}
+            onTheme={setThemeId}
+            invert={invert}
+            onInvert={setInvert}
+            onRandomize={randomize}
+            seed={seed}
+            onSeed={reseed}
+            getSettings={getSettings}
+            applySettings={applySettings}
+            label="Generate"
           />
 
-          {panel === 'scene' && (
-            <>
-              <SettingsPanel
-                page="primitive"
-                showIO={false}
-                theme={themeId}
-                onTheme={setThemeId}
-                invert={invert}
-                onInvert={setInvert}
-                onRandomize={randomize}
-                seed={seed}
-                onSeed={reseed}
-                getSettings={getSettings}
-                applySettings={applySettings}
-                label="Generate"
-              />
+          <Section label="Primitive">
+            <div className="flex flex-col gap-1">
+              {PRIMITIVES.map((p) => (
+                <Button key={p.id} variant="secondary" size="sm" selected={p.id === primitive} onClick={() => setPrimitive(p.id)} className="w-full" style={{ justifyContent: 'flex-start' }}>
+                  {p.label}
+                </Button>
+              ))}
+            </div>
+          </Section>
 
-              <Section label="Primitive">
-                <div className="flex flex-col gap-1">
-                  {PRIMITIVES.map((p) => (
-                    <Button key={p.id} variant="secondary" size="sm" selected={p.id === primitive} onClick={() => setPrimitive(p.id)} className="w-full" style={{ justifyContent: 'flex-start' }}>
-                      {p.label}
-                    </Button>
-                  ))}
-                </div>
-              </Section>
-
-              {shape && (
-                <Section label="Shape">
-                  {shape === 'tube' && <Slider labeled label="Tube" min={0.1} max={0.45} step={0.01} value={tube} onChange={setTube} variant="default" />}
-                  {shape === 'pq' && (
-                    <>
-                      <Slider labeled label="P winds" min={1} max={5} step={1} value={pKnot} onChange={(v) => setPKnot(roundIfNum(v))} variant="default" />
-                      <Slider labeled label="Q winds" min={1} max={5} step={1} value={qKnot} onChange={(v) => setQKnot(roundIfNum(v))} variant="default" />
-                    </>
-                  )}
-                  {shape === 'detail' && <Slider labeled label="Detail" min={0} max={3} step={1} value={detail} onChange={(v) => setDetail(roundIfNum(v))} variant="default" />}
-                </Section>
+          {shape && (
+            <Section label="Shape">
+              {shape === 'tube' && <Slider labeled label="Tube" min={0.1} max={0.45} step={0.01} value={tube} onChange={setTube} variant="default" />}
+              {shape === 'pq' && (
+                <>
+                  <Slider labeled label="P winds" min={1} max={5} step={1} value={pKnot} onChange={(v) => setPKnot(roundIfNum(v))} variant="default" />
+                  <Slider labeled label="Q winds" min={1} max={5} step={1} value={qKnot} onChange={(v) => setQKnot(roundIfNum(v))} variant="default" />
+                </>
               )}
-
-              <Section label="Composition">
-                <LabeledControl inline label="arrange">
-                  <Dropdown size="sm" variant="subtle" className="w-full" options={ARRANGEMENTS} value={arrangement} onChange={setArrangement} />
-                </LabeledControl>
-                <Slider labeled label="Count" min={1} max={24} step={1} value={count} onChange={(v) => setCount(roundIfNum(v))} variant="default" />
-                <Slider labeled label="Spread" min={0.5} max={5} step={0.1} value={spread} onChange={setSpread} variant="default" />
-                <Slider labeled label="Object size" min={0.2} max={1.5} step={0.05} value={objectSize} onChange={setObjectSize} variant="default" />
-                <Slider labeled label="Stagger" min={0} max={1} step={0.05} value={stagger} onChange={setStagger} variant="default" />
-              </Section>
-            </>
+              {shape === 'detail' && <Slider labeled label="Detail" min={0} max={3} step={1} value={detail} onChange={(v) => setDetail(roundIfNum(v))} variant="default" />}
+            </Section>
           )}
 
-          {panel === 'style' && (
-            <>
-              <Section label="Material">
-                <LabeledControl inline label="type">
-                  <Dropdown size="sm" variant="subtle" className="w-full" options={MATERIAL_TYPES} value={materialType} onChange={setMaterialType} />
-                </LabeledControl>
-                <ColorField label="Color" value={color} onChange={setColor} />
-                <ToggleSwitch variant="plain" label="Flat shading" checked={flatShading} onChange={setFlatShading} />
-                <ToggleSwitch variant="plain" label="Environment" checked={environment} onChange={setEnvironment} />
-                <Slider labeled label="Roughness" min={0} max={1} step={0.02} value={roughness} onChange={setRoughness} variant="default" />
-                <Slider labeled label="Metalness" min={0} max={1} step={0.02} value={metalness} onChange={setMetalness} variant="default" />
-                {primitive === 'box' && <Slider labeled label="Rounding" min={0} max={0.7} step={0.02} value={rounding} onChange={setRounding} variant="default" />}
-              </Section>
+          <Section label="Composition">
+            <LabeledControl inline label="arrange">
+              <Dropdown size="sm" variant="subtle" className="w-full" options={ARRANGEMENTS} value={arrangement} onChange={setArrangement} />
+            </LabeledControl>
+            <Slider labeled label="Count" min={1} max={24} step={1} value={count} onChange={(v) => setCount(roundIfNum(v))} variant="default" />
+            <Slider labeled label="Spread" min={0.5} max={5} step={0.1} value={spread} onChange={setSpread} variant="default" />
+            <Slider labeled label="Object size" min={0.2} max={1.5} step={0.05} value={objectSize} onChange={setObjectSize} variant="default" />
+            <Slider labeled label="Stagger" min={0} max={1} step={0.05} value={stagger} onChange={setStagger} variant="default" />
+          </Section>
 
-              <Section label="Wireframe">
-                <ToggleSwitch variant="plain" label="Wireframe" checked={wireframe} onChange={setWireframe} />
-                {wireframe && <Slider labeled label="Stroke" min={1} max={10} step={0.5} value={strokeWidth} onChange={setStrokeWidth} variant="default" />}
-              </Section>
-            </>
+          <Section label="Material">
+            <LabeledControl inline label="type">
+              <Dropdown size="sm" variant="subtle" className="w-full" options={MATERIAL_TYPES} value={materialType} onChange={setMaterialType} />
+            </LabeledControl>
+            <ColorField label="Color" value={color} onChange={setColor} />
+            <ToggleSwitch variant="plain" label="Flat shading" checked={flatShading} onChange={setFlatShading} />
+            <ToggleSwitch variant="plain" label="Environment" checked={environment} onChange={setEnvironment} />
+            <Slider labeled label="Roughness" min={0} max={1} step={0.02} value={roughness} onChange={setRoughness} variant="default" />
+            <Slider labeled label="Metalness" min={0} max={1} step={0.02} value={metalness} onChange={setMetalness} variant="default" />
+            {primitive === 'box' && <Slider labeled label="Rounding" min={0} max={0.7} step={0.02} value={rounding} onChange={setRounding} variant="default" />}
+          </Section>
+
+          <Section label="Wireframe">
+            <ToggleSwitch variant="plain" label="Wireframe" checked={wireframe} onChange={setWireframe} />
+            {wireframe && <Slider labeled label="Stroke" min={1} max={10} step={0.5} value={strokeWidth} onChange={setStrokeWidth} variant="default" />}
+          </Section>
+
+          <Section label="Animation">
+            <SegmentedToggle value={animMode} onChange={setAnimMode} options={[{ value: 'preset', label: 'Preset' }, { value: 'keyframe', label: 'Keyframe' }]} />
+            {animMode === 'preset' && (
+              <div className="flex flex-col gap-1">
+                {PRESETS.map((p) => (
+                  <Button key={p.id} variant="secondary" size="sm" selected={p.id === preset} onClick={() => setPreset(p.id)} className="w-full" style={{ justifyContent: 'flex-start' }}>
+                    {p.label}
+                  </Button>
+                ))}
+              </div>
+            )}
+            <ToggleSwitch variant="plain" label="Loop animation" checked={loop} onChange={setLoop} />
+            <Slider labeled label="Duration (s)" min={1} max={20} step={0.5} value={duration} onChange={setDuration} variant="default" />
+          </Section>
+
+          {animMode === 'keyframe' && (
+            <KeyframeEditor keyframes={keyframes} selected={selKf} onSelect={selectKf} onAdd={addKf} onDelete={delKf} onPatch={patchKf} />
           )}
 
-          {panel === 'anim' && (
-            <>
-              <Section label="Animation">
-                <SegmentedToggle value={animMode} onChange={setAnimMode} options={[{ value: 'preset', label: 'Preset' }, { value: 'keyframe', label: 'Keyframe' }]} />
-                {animMode === 'preset' && (
-                  <div className="flex flex-col gap-1">
-                    {PRESETS.map((p) => (
-                      <Button key={p.id} variant="secondary" size="sm" selected={p.id === preset} onClick={() => setPreset(p.id)} className="w-full" style={{ justifyContent: 'flex-start' }}>
-                        {p.label}
-                      </Button>
-                    ))}
-                  </div>
-                )}
-                <ToggleSwitch variant="plain" label="Loop animation" checked={loop} onChange={setLoop} />
-                <Slider labeled label="Duration (s)" min={1} max={20} step={0.5} value={duration} onChange={setDuration} variant="default" />
-              </Section>
+          <Section label="Audio">
+            <div className="flex gap-2">
+              <Button variant="secondary" size="sm" className="flex-1" selected={audioSource === 'off'} onClick={audioOff}>Off</Button>
+              <Button variant="secondary" size="sm" className="flex-1" selected={audioSource === 'mic'} onClick={pickMic}>Mic</Button>
+              <Button variant="secondary" size="sm" className="flex-1" selected={audioSource === 'file'} onClick={pickFile}>File</Button>
+            </div>
+            <input ref={audioFileRef} type="file" accept="audio/*" hidden onChange={onAudioFile} />
+            <ToggleSwitch variant="plain" label="Audio reactive" checked={audioReactive} onChange={setAudioReactive} />
+            {audioReactive && <Slider labeled label="Amount" min={0} max={4} step={0.1} value={audioAmount} onChange={setAudioAmount} variant="default" />}
+          </Section>
 
-              {animMode === 'keyframe' && (
-                <KeyframeEditor keyframes={keyframes} selected={selKf} onSelect={selectKf} onAdd={addKf} onDelete={delKf} onPatch={patchKf} />
-              )}
+          <Section label="Camera">
+            <ToggleSwitch variant="plain" label="Camera orbit" checked={cameraMotion} onChange={setCameraMotion} />
+            {cameraMotion && <Slider labeled label="Orbit speed" min={0} max={4} step={0.1} value={orbitSpeed} onChange={setOrbitSpeed} variant="default" />}
+            <Slider labeled label="Field of view" min={20} max={90} step={1} value={fov} onChange={setFov} variant="default" />
+            <Button variant="primary" size="sm" onClick={() => engineRef.current?.resetCamera()}>Cam reset</Button>
+          </Section>
 
-              <Section label="Audio">
-                <div className="flex gap-2">
-                  <Button variant="secondary" size="sm" className="flex-1" selected={audioSource === 'off'} onClick={audioOff}>Off</Button>
-                  <Button variant="secondary" size="sm" className="flex-1" selected={audioSource === 'mic'} onClick={pickMic}>Mic</Button>
-                  <Button variant="secondary" size="sm" className="flex-1" selected={audioSource === 'file'} onClick={pickFile}>File</Button>
-                </div>
-                <input ref={audioFileRef} type="file" accept="audio/*" hidden onChange={onAudioFile} />
-                <ToggleSwitch variant="plain" label="Audio reactive" checked={audioReactive} onChange={setAudioReactive} />
-                {audioReactive && <Slider labeled label="Amount" min={0} max={4} step={0.1} value={audioAmount} onChange={setAudioAmount} variant="default" />}
-              </Section>
-            </>
-          )}
-
-          {panel === 'camera' && (
-            <>
-              <Section label="Camera">
-                <ToggleSwitch variant="plain" label="Camera orbit" checked={cameraMotion} onChange={setCameraMotion} />
-                {cameraMotion && <Slider labeled label="Orbit speed" min={0} max={4} step={0.1} value={orbitSpeed} onChange={setOrbitSpeed} variant="default" />}
-                <Slider labeled label="Field of view" min={20} max={90} step={1} value={fov} onChange={setFov} variant="default" />
-                <Button variant="primary" size="sm" onClick={() => engineRef.current?.resetCamera()}>Cam reset</Button>
-              </Section>
-
-              <Section label="Axis">
-                <ToggleSwitch variant="plain" label="Show XYZ axis" checked={showAxis} onChange={setShowAxis} />
-                {showAxis && (
-                  <>
-                    <Slider labeled label="Axis length" min={0.5} max={4} step={0.1} value={axisLength} onChange={setAxisLength} variant="default" />
-                    <Slider labeled label="Axis opacity" min={0} max={1} step={0.05} value={axisOpacity} onChange={setAxisOpacity} variant="default" />
-                  </>
-                )}
-              </Section>
-            </>
-          )}
+          <Section label="Axis">
+            <ToggleSwitch variant="plain" label="Show XYZ axis" checked={showAxis} onChange={setShowAxis} />
+            {showAxis && (
+              <>
+                <Slider labeled label="Axis length" min={0.5} max={4} step={0.1} value={axisLength} onChange={setAxisLength} variant="default" />
+                <Slider labeled label="Axis opacity" min={0} max={1} step={0.05} value={axisOpacity} onChange={setAxisOpacity} variant="default" />
+              </>
+            )}
+          </Section>
       </EditorRail>
       </LiveClock>
     </div>

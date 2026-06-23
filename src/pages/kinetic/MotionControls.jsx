@@ -14,15 +14,15 @@ function MotionLayer({ m, font, set, onRemove, title }) {
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
-        <span className="kol-helper-10 uppercase tracking-widest text-meta">{title}</span>
+        <span className="kol-helper-10 text-meta">{title}</span>
         {onRemove && <Button variant="ghost" size="sm" quiet iconOnly="cross" iconSize={12} aria-label="Remove motion" onClick={onRemove} />}
       </div>
       <LabeledControl inline label="Mode">
-        <Dropdown variant="subtle" size="sm" className="w-full" options={MOTION_OPTIONS} value={m.mode} onChange={(v) => set('mode', v)} />
+        <Dropdown variant="subtle" size="sm" openUp className="w-full" options={MOTION_OPTIONS} value={m.mode} onChange={(v) => set('mode', v)} />
       </LabeledControl>
       {sweep && (
         <LabeledControl inline label="Field">
-          <Dropdown variant="subtle" size="sm" className="w-full" options={FIELD_OPTIONS} value={m.field || 'x'} onChange={(v) => set('field', v)} />
+          <Dropdown variant="subtle" size="sm" openUp className="w-full" options={FIELD_OPTIONS} value={m.field || 'x'} onChange={(v) => set('field', v)} />
         </LabeledControl>
       )}
       {m.mode !== 'none' && <Slider labeled label="Cycles" min={1} max={4} step={1} value={m.cycles ?? 1} onChange={(v) => set('cycles', roundIfNum(v))} variant="default" />}
@@ -31,7 +31,7 @@ function MotionLayer({ m, font, set, onRemove, title }) {
       {m.mode === 'glyphwave' && <Slider labeled label="Amount" min={0} max={1} step={0.02} value={m.amp ?? 0.3} onChange={(v) => set('amp', v)} variant="default" />}
       {m.mode === 'vfwave' && font.axes.length > 0 && (
         <LabeledControl inline label="Axis">
-          <Dropdown variant="subtle" size="sm" className="w-full" options={font.axes.map((a) => ({ value: a.tag, label: AXIS_LABELS[a.tag] || a.tag }))} value={m.axis || font.axes[0].tag} onChange={(v) => set('axis', v)} />
+          <Dropdown variant="subtle" size="sm" openUp className="w-full" options={font.axes.map((a) => ({ value: a.tag, label: AXIS_LABELS[a.tag] || a.tag }))} value={m.axis || font.axes[0].tag} onChange={(v) => set('axis', v)} />
         </LabeledControl>
       )}
     </div>

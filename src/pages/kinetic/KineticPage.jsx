@@ -437,7 +437,7 @@ export default function KineticPage() {
               if (!items.length) return null
               return (
                 <section key={g.key}>
-                  <div className="kol-helper-10 uppercase tracking-widest text-meta mb-3">{g.label}</div>
+                  <div className="kol-helper-10 text-meta mb-3">{g.label}</div>
                   <div className="flex flex-wrap gap-4">
                     {items.map((p) => (
                       <KineticTile key={p.id} params={presetParams(p)} label={p.label} keyId={p.id} playing focused={p.id === def?.id} onClick={() => setIdx(PRESETS.indexOf(p))} onOpen={() => openInPlayer(PRESETS.indexOf(p))} />
@@ -456,7 +456,7 @@ export default function KineticPage() {
               if (!items.length) return null
               return (
                 <section key={g.key}>
-                  <div className="kol-helper-10 uppercase tracking-widest text-meta mb-3">{g.label}</div>
+                  <div className="kol-helper-10 text-meta mb-3">{g.label}</div>
                   <div className="flex flex-wrap gap-4">
                     {items.map((p) => (
                       <KineticTile key={p.id} params={presetParams(p)} label={p.label} keyId={p.id} playing focused={p.id === def?.id} onClick={() => setIdx(PRESETS.indexOf(p))} onOpen={() => openInEditor(p)} />

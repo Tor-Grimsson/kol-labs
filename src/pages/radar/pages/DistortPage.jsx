@@ -216,7 +216,7 @@ export default function DistortPage() {
       <LiveClock getT={() => engineRef.current?.time}>
       <EditorRail
         footerBare
-        header={<RailHeader>Radar</RailHeader>}
+        header={<RailHeader>Chromatic</RailHeader>}
         footer={
           <EditorFooter
             tab={footTab}

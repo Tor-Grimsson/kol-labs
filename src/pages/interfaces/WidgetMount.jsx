@@ -48,9 +48,9 @@ export default function WidgetMount({ factory, opts, playing = true, onCanvas, t
   if (themed) {
     return (
       <div className="interfaces-page bare">
-        <div className="screen theme-mono" style={{ width: 200 }} ref={hostRef} />
+        <div className="screen theme-mono" style={{ width: 200 }} ref={hostRef} data-vcap="stage" />
       </div>
     )
   }
-  return <div ref={hostRef} className="interfaces-page bare" />
+  return <div ref={hostRef} className="interfaces-page bare" data-vcap="stage" />
 }

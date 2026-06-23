@@ -451,6 +451,10 @@ export default function LiveEditor() {
   const onStop = () => { onPause(); if (source === 'video' && videoRef.current) videoRef.current.currentTime = 0 }
   const onRewind = () => { if (source === 'video' && videoRef.current) videoRef.current.currentTime = 0 }
 
+  useEffect(() => {
+    if (source === 'video' && videoRef.current) videoRef.current.playbackRate = tempo / 120
+  }, [tempo, source])
+
   // ── export ───────────────────────────────────────────────────────────────
   const exportPng = () => {
     const dd = dimsFor(aspect, Number(scale)) || { w: canvasRef.current.width, h: canvasRef.current.height }
@@ -655,7 +659,7 @@ export default function LiveEditor() {
               <Button variant="secondary" size="sm" className="w-full" iconLeft="bullseye" onClick={autoMap}>Auto-map to effects</Button>
               {mappings.length > 0 && <Button variant="ghost" size="sm" className="w-full" onClick={clearAllMappings}>Clear all mappings</Button>}
 
-              <span className="kol-helper-10 uppercase tracking-widest text-meta">Button actions</span>
+              <span className="kol-helper-10 text-meta">Button actions</span>
               {actions.map((a) => (
                 <div key={a.id} className="kol-helper-10 text-meta flex items-center gap-2">
                   <span className="truncate">{BUTTON_LABELS[a.button] ?? `Button ${a.button}`} → {ACTION_LABEL[a.action]}</span>

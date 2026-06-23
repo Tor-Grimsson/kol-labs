@@ -13,4 +13,15 @@ export const RAIL_GROUPS = {
     { to: '/radar/ascii', label: 'ASCII' },
     { to: '/optic', label: 'Bitmap' },
   ],
+  crt: [
+    { to: '/radar/trails', label: 'Disco' },
+    { to: '/radar/slitscan', label: 'Slitscan' },
+    { to: '/radar/scan', label: 'Scan' },
+    { to: '/radar/disco', label: 'Symmetry' },
+  ],
+  refraction: [
+    { to: '/optic/lens', label: 'Lens' },
+    { to: '/optic/scene', label: 'Scene' },
+    { to: '/radar/distort', label: 'Chromatic' },
+  ],
 }

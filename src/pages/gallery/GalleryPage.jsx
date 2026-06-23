@@ -74,7 +74,7 @@ export default function GalleryPage() {
           flexWrap: 'wrap',
         }}
       >
-        <strong style={{ fontSize: 14, letterSpacing: 0.5, textTransform: 'uppercase' }}>Gallery</strong>
+        <strong style={{ fontSize: 14, letterSpacing: 0.5 }}>Gallery</strong>
         <span style={{ fontSize: 12, opacity: 0.5 }}>
           {total} {total === 1 ? 'image' : 'images'} · {data.groups.length}{' '}
           {data.groups.length === 1 ? 'group' : 'groups'}
@@ -94,7 +94,6 @@ export default function GalleryPage() {
             style={{
               fontSize: 12,
               letterSpacing: 1.2,
-              textTransform: 'uppercase',
               opacity: 0.55,
               margin: '0 0 10px',
               paddingLeft: 4,

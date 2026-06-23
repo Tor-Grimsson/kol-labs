@@ -68,7 +68,6 @@ export default function RibbonPage() {
   const [aspect, setAspect] = useState(() => defaultAspectFor('view'))
   const [scale, setScale] = useState(DEFAULT_SCALE)
   const [recording, setRecording] = useState(false)
-  const [panel, setPanel] = useState('form')
   const [footTab, setFootTab] = useState('transport')
 
   const wrapRef = useRef(null)
@@ -243,102 +242,77 @@ export default function RibbonPage() {
           />
         }
       >
-        <SegmentedToggle
-          value={panel}
-          onChange={setPanel}
-          options={[
-            { value: 'form', label: 'Form' },
-            { value: 'material', label: 'Material' },
-            { value: 'post', label: 'Post' },
-            { value: 'camera', label: 'Camera' },
-          ]}
-        />
+        <Section label="Generate">
+          <Button variant="primary" size="sm" className="w-full" iconLeft="cycle" onClick={regenerate}>Regenerate</Button>
+          <div className="kol-helper-10 text-meta">seed {seed}</div>
+        </Section>
 
-        {panel === 'form' && (
-          <>
-            <Section label="Generate">
-              <Button variant="primary" size="sm" className="w-full" iconLeft="cycle" onClick={regenerate}>Regenerate</Button>
-              <div className="kol-helper-10 text-meta">seed {seed}</div>
-            </Section>
+        <Section label="Form">
+          <div className="flex flex-col gap-1">
+            {RIBBON_PRESETS.map((p) => (
+              <Button key={p.id} variant="secondary" size="sm" selected={p.id === formId} onClick={() => applyForm(p.id)} className="w-full" style={{ justifyContent: 'flex-start' }}>
+                {p.label}
+              </Button>
+            ))}
+          </div>
+        </Section>
 
-            <Section label="Form">
-              <div className="flex flex-col gap-1">
-                {RIBBON_PRESETS.map((p) => (
-                  <Button key={p.id} variant="secondary" size="sm" selected={p.id === formId} onClick={() => applyForm(p.id)} className="w-full" style={{ justifyContent: 'flex-start' }}>
-                    {p.label}
-                  </Button>
-                ))}
-              </div>
-            </Section>
+        <Section label="Fold">
+          <Slider labeled label="Loops" min={1} max={6} step={1} value={loops} onChange={(v) => setLoops(roundIfNum(v))} variant="default" />
+          <Slider labeled label="Height" min={1} max={3.5} step={0.05} value={height} onChange={setHeight} variant="default" />
+          <Slider labeled label="Gap" min={0.5} max={1.6} step={0.02} value={gap} onChange={setGap} variant="default" />
+          <Slider labeled label="Depth" min={0} max={1} step={0.02} value={depth} onChange={setDepth} variant="default" />
+          <Slider labeled label="Curl" min={0} max={2.5} step={0.05} value={curl} onChange={setCurl} variant="default" />
+        </Section>
 
-            <Section label="Fold">
-              <Slider labeled label="Loops" min={1} max={6} step={1} value={loops} onChange={(v) => setLoops(roundIfNum(v))} variant="default" />
-              <Slider labeled label="Height" min={1} max={3.5} step={0.05} value={height} onChange={setHeight} variant="default" />
-              <Slider labeled label="Gap" min={0.5} max={1.6} step={0.02} value={gap} onChange={setGap} variant="default" />
-              <Slider labeled label="Depth" min={0} max={1} step={0.02} value={depth} onChange={setDepth} variant="default" />
-              <Slider labeled label="Curl" min={0} max={2.5} step={0.05} value={curl} onChange={setCurl} variant="default" />
-            </Section>
+        <Section label="Ribbon">
+          <Slider labeled label="Width" min={0.2} max={0.9} step={0.01} value={width} onChange={setWidth} variant="default" />
+          <Slider labeled label="Flatness" min={0.04} max={0.3} step={0.005} value={ribbonThickness} onChange={setRibbonThickness} variant="default" />
+          <Slider labeled label="Corner" min={0.01} max={0.12} step={0.005} value={corner} onChange={setCorner} variant="default" />
+        </Section>
 
-            <Section label="Ribbon">
-              <Slider labeled label="Width" min={0.2} max={0.9} step={0.01} value={width} onChange={setWidth} variant="default" />
-              <Slider labeled label="Flatness" min={0.04} max={0.3} step={0.005} value={ribbonThickness} onChange={setRibbonThickness} variant="default" />
-              <Slider labeled label="Corner" min={0.01} max={0.12} step={0.005} value={corner} onChange={setCorner} variant="default" />
-            </Section>
-          </>
-        )}
+        <Section label="Material">
+          <SegmentedToggle value={materialType} onChange={setMaterialType} options={MATERIALS} />
+          <ColorField label="Tint" value={color} onChange={setColor} />
+          <Slider labeled label="Roughness" min={0} max={0.6} step={0.01} value={roughness} onChange={setRoughness} variant="default" />
+          {materialType === 'glass' ? (
+            <>
+              <Slider labeled label="IOR" min={1} max={2.2} step={0.01} value={ior} onChange={setIor} variant="default" />
+              <Slider labeled label="Dispersion" min={0} max={20} step={0.2} value={dispersion} onChange={setDispersion} variant="default" />
+            </>
+          ) : (
+            <Slider labeled label="Metalness" min={0} max={1} step={0.02} value={metalness} onChange={setMetalness} variant="default" />
+          )}
+        </Section>
 
-        {panel === 'material' && (
-          <>
-            <Section label="Material">
-              <SegmentedToggle value={materialType} onChange={setMaterialType} options={MATERIALS} />
-              <ColorField label="Tint" value={color} onChange={setColor} />
-              <Slider labeled label="Roughness" min={0} max={0.6} step={0.01} value={roughness} onChange={setRoughness} variant="default" />
-              {materialType === 'glass' ? (
-                <>
-                  <Slider labeled label="IOR" min={1} max={2.2} step={0.01} value={ior} onChange={setIor} variant="default" />
-                  <Slider labeled label="Dispersion" min={0} max={20} step={0.2} value={dispersion} onChange={setDispersion} variant="default" />
-                </>
-              ) : (
-                <Slider labeled label="Metalness" min={0} max={1} step={0.02} value={metalness} onChange={setMetalness} variant="default" />
-              )}
-            </Section>
+        <Section label="Stage">
+          <ColorField label="Background" value={background} onChange={setBackground} />
+        </Section>
 
-            <Section label="Stage">
-              <ColorField label="Background" value={background} onChange={setBackground} />
-            </Section>
+        <Section label="Wireframe">
+          <ToggleSwitch variant="plain" label="Wireframe" checked={wireframe} onChange={setWireframe} />
+          {wireframe && <Slider labeled label="Stroke" min={1} max={8} step={0.5} value={strokeWidth} onChange={setStrokeWidth} variant="default" />}
+        </Section>
 
-            <Section label="Wireframe">
-              <ToggleSwitch variant="plain" label="Wireframe" checked={wireframe} onChange={setWireframe} />
-              {wireframe && <Slider labeled label="Stroke" min={1} max={8} step={0.5} value={strokeWidth} onChange={setStrokeWidth} variant="default" />}
-            </Section>
-          </>
-        )}
+        <Section label="Post">
+          <Slider labeled label="Aberration" min={0} max={3} step={0.05} value={aberration} onChange={setAberration} variant="default" />
+          <Slider labeled label="Bloom" min={0} max={1.5} step={0.02} value={bloom} onChange={setBloom} variant="default" />
+          <Slider labeled label="Vignette" min={0} max={1} step={0.02} value={vignette} onChange={setVignette} variant="default" />
+          <Slider labeled label="Grain" min={0} max={0.4} step={0.01} value={grain} onChange={setGrain} variant="default" />
+        </Section>
 
-        {panel === 'post' && (
-          <Section label="Post">
-            <Slider labeled label="Aberration" min={0} max={3} step={0.05} value={aberration} onChange={setAberration} variant="default" />
-            <Slider labeled label="Bloom" min={0} max={1.5} step={0.02} value={bloom} onChange={setBloom} variant="default" />
-            <Slider labeled label="Vignette" min={0} max={1} step={0.02} value={vignette} onChange={setVignette} variant="default" />
-            <Slider labeled label="Grain" min={0} max={0.4} step={0.01} value={grain} onChange={setGrain} variant="default" />
-          </Section>
-        )}
+        <Section label="Spine">
+          <Slider labeled label="Flow" min={0} max={0.95} step={0.01} value={flow} onChange={setFlow} variant="default" />
+          <ToggleSwitch variant="plain" label="Loop" checked={loopAnim} onChange={setLoopAnim} />
+          <Slider labeled label="Duration (s)" min={4} max={30} step={0.5} value={duration} onChange={setDuration} variant="default" />
+        </Section>
 
-        {panel === 'camera' && (
-          <>
-            <Section label="Spine">
-              <Slider labeled label="Flow" min={0} max={0.95} step={0.01} value={flow} onChange={setFlow} variant="default" />
-              <ToggleSwitch variant="plain" label="Loop" checked={loopAnim} onChange={setLoopAnim} />
-              <Slider labeled label="Duration (s)" min={4} max={30} step={0.5} value={duration} onChange={setDuration} variant="default" />
-            </Section>
-
-            <Section label="Camera">
-              <ToggleSwitch variant="plain" label="Orbit" checked={cameraOrbit} onChange={setCameraOrbit} />
-              {cameraOrbit && <Slider labeled label="Orbit speed" min={0.1} max={4} step={0.05} value={orbitSpeed} onChange={setOrbitSpeed} variant="default" />}
-              <Slider labeled label="Field of view" min={20} max={70} step={1} value={fov} onChange={setFov} variant="default" />
-              <Button variant="primary" size="sm" onClick={() => engineRef.current?.resetCamera()}>Cam reset</Button>
-            </Section>
-          </>
-        )}
+        <Section label="Camera">
+          <ToggleSwitch variant="plain" label="Orbit" checked={cameraOrbit} onChange={setCameraOrbit} />
+          {cameraOrbit && <Slider labeled label="Orbit speed" min={0.1} max={4} step={0.05} value={orbitSpeed} onChange={setOrbitSpeed} variant="default" />}
+          <Slider labeled label="Field of view" min={20} max={70} step={1} value={fov} onChange={setFov} variant="default" />
+          <Button variant="primary" size="sm" onClick={() => engineRef.current?.resetCamera()}>Cam reset</Button>
+        </Section>
       </EditorRail>
       </LiveClock>
     </div>

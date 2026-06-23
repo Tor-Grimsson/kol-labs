@@ -130,6 +130,18 @@ export default function AbstractMSTPPage() {
     URL.revokeObjectURL(url)
   }
 
+  const getSettings = () => ({ presetId, colorId, colorMode, relief, tempo, aspect, scale })
+  const applySettings = (s) => {
+    if (!s || typeof s !== 'object') return
+    if (s.presetId) setPresetId(s.presetId)
+    if (s.colorId) setColorId(s.colorId)
+    if (s.colorMode) setColorMode(s.colorMode)
+    if (Number.isFinite(s.relief)) setRelief(s.relief)
+    if (Number.isFinite(s.tempo)) setTempo(s.tempo)
+    if (s.aspect) setAspect(s.aspect)
+    if (s.scale != null) setScale(s.scale)
+  }
+
   const presetOptions = useMemo(() => MSTP_PRESETS.map((p) => ({ value: p.id, label: p.label })), [])
   const colorOptions = useMemo(() => MSTP_COLORS.map((c) => ({ value: c.value, label: c.label })), [])
 
@@ -163,6 +175,9 @@ export default function AbstractMSTPPage() {
             }}
             exportProps={{ aspect, onAspect: setAspect, aspects: VIEW_ASPECTS, scale, onScale: setScale }}
             exportActions={<Button variant="primary" size="sm" className="w-full" iconLeft="download" onClick={exportPng}>Export PNG</Button>}
+            settingsPage="abstract-mstp"
+            getSettings={getSettings}
+            applySettings={applySettings}
           />
         }
       >

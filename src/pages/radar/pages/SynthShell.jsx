@@ -154,7 +154,6 @@ export default function SynthShell({ engineClass, title, name, defaults, childre
                 ) : (
                   <p className="kol-mono-10 text-fg-32">Load an image or video first.</p>
                 )}
-                <p className="kol-mono-10 text-fg-32">Works on image or video. Export PNG captures the current frame; Export webm records the live canvas for the clip length.</p>
               </>
             }
             file={

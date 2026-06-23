@@ -74,7 +74,7 @@ export class MeshGradientEngine {
   constructor() {
     this.renderer = null
     this.time = 0
-    this.playing = true
+    this.playing = false
     this.speed = 1
   }
 

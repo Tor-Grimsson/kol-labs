@@ -23,7 +23,7 @@ export default function PathControls({ params, set, setPath }) {
     <>
       <Section label="Arrangement">
         <LabeledControl inline label="Type">
-          <Dropdown variant="subtle" size="sm" className="w-full" options={PATH_OPTIONS} value={path.type} onChange={(v) => setPath('type', v)} />
+          <Dropdown variant="subtle" size="sm" openUp className="w-full" options={PATH_OPTIONS} value={path.type} onChange={(v) => setPath('type', v)} />
         </LabeledControl>
         {!array && <Slider labeled label="Copies" min={1} max={24} step={1} value={params.multiply ?? 1} onChange={(v) => set('multiply', roundIfNum(v))} variant="default" />}
         {!placed && <ToggleSwitch variant="plain" labeled label="Paragraph" checked={params.flow === 'contain'} onChange={(c) => set('flow', c ? 'contain' : 'flow')} />}
@@ -76,7 +76,6 @@ export default function PathControls({ params, set, setPath }) {
             <Button variant="primary" size="sm" onClick={() => setPath('points', [...(path.points || DEFAULT_POINTS), [0.5, 0.5]])}>Add point</Button>
             <Button variant="primary" size="sm" onClick={() => { const pts = path.points || DEFAULT_POINTS; if (pts.length > 2) setPath('points', pts.slice(0, -1)) }}>Remove</Button>
           </div>
-          <div className="kol-helper-10 text-meta">drag the dots on the stage</div>
         </Section>
       )}
     </>

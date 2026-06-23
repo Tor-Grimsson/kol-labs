@@ -53,7 +53,7 @@ export default function AudioExample() {
     <div className="min-h-dvh bg-surface-secondary flex flex-col">
       <div className="flex items-center justify-between px-6 py-4 border-b border-fg-08">
         <div className="flex flex-col gap-0.5">
-          <span className="kol-helper-12 uppercase tracking-widest text-body">{ex.label}</span>
+          <span className="kol-helper-12 text-body">{ex.label}</span>
           <span className="kol-mono-12 text-meta">{ex.formula}</span>
         </div>
         <Button variant={on ? 'accent' : 'primary'} onClick={toggle}>

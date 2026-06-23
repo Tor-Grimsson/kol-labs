@@ -27,7 +27,7 @@ export default function DesignControls({
     <>
       <Section label="Theme">
         <LabeledControl inline label="Theme">
-          <Dropdown variant="subtle" size="sm" className="w-full" value={themeId} onChange={onTheme} options={THEME_OPTIONS} />
+          <Dropdown variant="subtle" size="sm" openUp className="w-full" value={themeId} onChange={onTheme} options={THEME_OPTIONS} />
         </LabeledControl>
         <ToggleSwitch variant="plain" labeled label="Invert" checked={invert} onChange={onInvert} />
       </Section>

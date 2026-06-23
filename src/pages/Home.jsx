@@ -21,7 +21,7 @@ export default function Home() {
   return (
     <main className="flex min-h-screen">
       <div className="p-8 md:p-12 w-1/2 bg-surface-primary">
-      <p className="kol-helper-12 text-meta uppercase mb-2">kol-labs</p>
+      <p className="kol-helper-12 text-meta mb-2">kol-labs</p>
       <h1 className="kol-sans-display-01 text-emphasis mb-4">Experiments.</h1>
       <p className="kol-sans-body-01 text-body max-w-prose">
         A single self-contained lab — the KOL design system inlined as source,
@@ -30,9 +30,9 @@ export default function Home() {
       </p>
 
       <section className="mt-12 border-t border-fg-08 pt-6">
-        <p className="kol-helper-12 text-meta uppercase mb-4">Settings</p>
+        <p className="kol-helper-12 text-meta mb-4">Settings</p>
         <div className="flex flex-col gap-1.5 max-w-xs">
-          <label className="kol-helper-12 uppercase tracking-widest text-body">Default aspect</label>
+          <label className="kol-helper-12 text-body">Default aspect</label>
           <Dropdown
             size="sm"
             variant="subtle"
@@ -45,7 +45,7 @@ export default function Home() {
             The export frame every page opens with. Takes effect on pages you open next.
           </p>
 
-          <label className="kol-helper-12 uppercase tracking-widest text-body mt-4">Default theme</label>
+          <label className="kol-helper-12 text-body mt-4">Default theme</label>
           <Dropdown
             size="sm"
             variant="subtle"
@@ -59,7 +59,7 @@ export default function Home() {
           </p>
 
           <div className="flex items-center justify-between mt-4">
-            <label className="kol-helper-12 uppercase tracking-widest text-body">Autoplay on launch</label>
+            <label className="kol-helper-12 text-body">Autoplay on launch</label>
             <ToggleSwitch
               variant="plain"
               checked={!!autoplay}
@@ -71,7 +71,7 @@ export default function Home() {
           </p>
 
           <div className="flex items-center justify-between mt-4">
-            <label className="kol-helper-12 uppercase tracking-widest text-body">Clip to frame</label>
+            <label className="kol-helper-12 text-body">Clip to frame</label>
             <ToggleSwitch
               variant="plain"
               checked={clipToFrame !== false}
@@ -83,7 +83,7 @@ export default function Home() {
           </p>
 
           <div className="flex items-center justify-between mt-4">
-            <label className="kol-helper-12 uppercase tracking-widest text-body">Audio reactive</label>
+            <label className="kol-helper-12 text-body">Audio reactive</label>
             <ToggleSwitch
               variant="plain"
               checked={!!audioReactive}

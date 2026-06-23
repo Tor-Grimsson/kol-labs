@@ -251,7 +251,6 @@ export default function DriftEditor({ page }) {
           </Section>
         ))}
 
-        <div className="kol-helper-10 text-body">seamless loop · 4-D looped simplex</div>
       </EditorRail>
     </div>
   )

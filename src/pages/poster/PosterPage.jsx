@@ -43,16 +43,14 @@ export default function PosterPage() {
   const refresh = useCallback(() => { api.assets().then(setSources); api.plans().then(setPlans) }, [])
   useEffect(() => { refresh() }, [refresh])
 
-  // poll jobs while anything is active
+  const activeJobs = jobs.some((j) => j.status === 'queued' || j.status === 'running')
+
+  // poll only while jobs are active; interval stops automatically when all finish
   useEffect(() => {
-    const t = setInterval(() => {
-      api.jobs().then((j) => {
-        setJobs(j)
-        if (!j.some((x) => x.status === 'queued' || x.status === 'running')) return
-      })
-    }, 1500)
+    if (!activeJobs) return
+    const t = setInterval(() => api.jobs().then(setJobs), 1500)
     return () => clearInterval(t)
-  }, [])
+  }, [activeJobs])
 
   const onUpload = async (files) => {
     for (const f of files) await api.upload(f)
@@ -90,6 +88,7 @@ export default function PosterPage() {
       }
     }
     setPicked({})
+    api.jobs().then(setJobs)
   }
 
   const grabThumb = async () => {
@@ -175,7 +174,7 @@ export default function PosterPage() {
             <>
               {/* focal picker */}
               <section>
-                <div className="kol-mono-10 text-meta uppercase mb-2">Framing — click to set the focal point{previewCrop ? ` · showing ${previewCrop.label} crop` : ''}</div>
+                <div className="kol-mono-10 text-meta mb-2">Framing — click to set the focal point{previewCrop ? ` · showing ${previewCrop.label} crop` : ''}</div>
                 <div ref={previewRef} data-vcap="stage" className="relative inline-block max-w-full cursor-crosshair select-none" onClick={onPickFocal}>
                   {selected.isVideo
                     ? <video src={srcUrl(selected.id)} className="max-h-[340px] max-w-full block rounded" muted playsInline />
@@ -192,7 +191,7 @@ export default function PosterPage() {
 
               {/* preset matrix */}
               <section>
-                <div className="kol-helper-10 text-meta uppercase mb-2">Outputs</div>
+                <div className="kol-helper-10 text-meta mb-2">Outputs</div>
                 {!anyFit && (
                   <div className="kol-mono-10 text-meta mb-2">
                     source is {selected.width}×{selected.height} — too small for every output size · upload a larger master
@@ -235,7 +234,7 @@ export default function PosterPage() {
               {/* video thumbnails */}
               {selected.isVideo && (
                 <section>
-                  <div className="kol-helper-10 text-meta uppercase mb-2">Thumbnail — scrub + grab</div>
+                  <div className="kol-helper-10 text-meta mb-2">Thumbnail — scrub + grab</div>
                   <div className="flex items-center gap-3 max-w-[520px]">
                     <div className="flex-1">
                       <Slider labeled min={0} max={Math.max(0.1, selected.duration - 0.05)} step={0.1} value={scrub} onChange={setScrub} label="time" />
@@ -255,7 +254,7 @@ export default function PosterPage() {
 
               {/* job queue + outputs */}
               <section>
-                <div className="kol-mono-10 text-meta uppercase mb-2">Queue & outputs — click an output to add it to the plan</div>
+                <div className="kol-mono-10 text-meta mb-2">Queue & outputs — click an output to add it to the plan</div>
                 <ul className="flex flex-col gap-1 max-w-[640px]">
                   {jobs.map((j) => (
                     <li key={j.id} className="flex items-center gap-3 kol-helper-10">

@@ -274,7 +274,7 @@ export default function ClipEditor({
 
           <Section label="Camera">
             <ToggleSwitch variant="plain" label="Camera motion" checked={cameraMotion} onChange={setMotion} />
-            <Button variant="secondary" size="sm" iconLeft="grid" onClick={frontView} className="w-full">Front view · 0,0</Button>
+            <Button variant="primary" size="sm" iconLeft="grid" onClick={frontView} className="w-full">Front view · 0,0</Button>
             {cameraMotion ? (
               <CameraTimeline timeline={clip.timeline} onChange={editTimeline} selected={kfSel} onSelect={setKfSel} />
             ) : (
@@ -314,7 +314,7 @@ export default function ClipEditor({
           )}
 
           {edited && (
-            <Button variant="secondary" size="sm" iconLeft="refresh" onClick={resetEdits} className="w-full">Reset edits</Button>
+            <Button variant="primary" size="sm" iconLeft="refresh" onClick={resetEdits} className="w-full">Reset edits</Button>
           )}
 
           {railExtras && (

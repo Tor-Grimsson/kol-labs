@@ -63,18 +63,18 @@ export default function CameraTimeline({ timeline, onChange, selected = 0, onSel
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-2">
-        <span className="kol-helper-10 uppercase tracking-widest text-meta">Motion</span>
+        <span className="kol-helper-10 text-meta">Motion</span>
         <div className="flex flex-wrap gap-1">
           {MOTION_LIST.map(([key, label]) => (
-            <Button key={key} variant="secondary" size="sm" onClick={() => applyMotion(key)}>{label}</Button>
+            <Button key={key} variant="primary" size="sm" onClick={() => applyMotion(key)}>{label}</Button>
           ))}
         </div>
       </div>
 
       <div className="flex items-center justify-between">
-        <span className="kol-helper-10 uppercase tracking-widest text-meta">Keyframes</span>
+        <span className="kol-helper-10 text-meta">Keyframes</span>
         <div className="flex gap-1">
-          <Button variant="secondary" size="sm" iconLeft="plus" onClick={addKf}>Add</Button>
+          <Button variant="primary" size="sm" iconLeft="plus" onClick={addKf}>Add</Button>
           <Button variant="ghost" size="sm" iconOnly="cross" onClick={removeKf} disabled={timeline.length <= 2} aria-label="Remove keyframe" />
         </div>
       </div>

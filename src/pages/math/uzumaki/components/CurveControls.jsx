@@ -41,8 +41,8 @@ function TermsEditor({ curve, onChange }) {
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
-        <span className="kol-helper-10 uppercase tracking-widest text-meta">Vectors</span>
-        <Button variant="secondary" size="sm" iconLeft="plus" onClick={addTerm}>Add</Button>
+        <span className="kol-helper-10 text-meta">Vectors</span>
+        <Button variant="primary" size="sm" iconLeft="plus" onClick={addTerm}>Add</Button>
       </div>
       <div className="grid grid-cols-[1fr_1fr_1fr_auto] gap-1.5 items-center">
         <span className="kol-helper-10 text-fg-48 text-center">amp</span>

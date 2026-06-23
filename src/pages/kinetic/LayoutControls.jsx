@@ -52,7 +52,7 @@ export default function LayoutControls({
               )}
               <span className="text-meta select-none">⠿</span>
               <span className="truncate flex-1 min-w-0">{ins.text || '—'}</span>
-              {tag && <span className="shrink-0 kol-helper-10 text-meta uppercase">grp {tag}</span>}
+              {tag && <span className="shrink-0 kol-helper-10 text-meta">grp {tag}</span>}
               <Button variant="ghost" size="sm" quiet iconOnly="copy" iconSize={13} aria-label="Repeat" onClick={(e) => { e.stopPropagation(); onDuplicate(ins.id) }} />
               <Button variant="ghost" size="sm" quiet iconOnly="cross" iconSize={12} aria-label="Delete" onClick={(e) => { e.stopPropagation(); onRemove(ins.id) }} />
             </div>

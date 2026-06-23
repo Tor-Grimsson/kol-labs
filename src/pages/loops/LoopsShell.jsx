@@ -8,7 +8,6 @@ import ColorControls from './ColorControls.jsx'
 import PatternControls from './PatternControls.jsx'
 import Button from '../../components/atoms/Button.jsx'
 import Section from '../../components/molecules/Section.jsx'
-import SegmentedToggle from '../../components/molecules/SegmentedToggle.jsx'
 import Scrubber from '../../components/framework/Scrubber.jsx'
 import { LiveClock } from '../../lib/liveClock.jsx'
 import EditorRail, { RailHeader } from '../../components/framework/EditorRail.jsx'
@@ -44,7 +43,6 @@ export default function LoopsShell({ group, sub }) {
   const [themeId, setThemeId] = useState(() => defaultTheme())
   const [invert, setInvert] = useState(false)
   const [seed, setSeed] = useState(1)
-  const [panel, setPanel] = useState('presets')
   const [footTab, setFootTab] = useState('transport') // Transport | Output — pinned footer, matches interfaces/penrose
 
   const wrapRef = useRef(null)
@@ -208,14 +206,6 @@ export default function LoopsShell({ group, sub }) {
   }, [presets, sub])
 
   const isPattern = activeLoop.controls === 'pattern'
-  const tabs = [{ value: 'presets', label: 'Presets' }]
-  if (isPattern) {
-    tabs.push({ value: 'pattern', label: 'Pattern' }, { value: 'animation', label: 'Animation' })
-  } else {
-    tabs.push({ value: 'color', label: 'Color' }, { value: 'edit', label: 'Edit' })
-    if (activeLoop.camera) tabs.push({ value: 'camera', label: 'Camera' })
-  }
-  tabs.push({ value: 'scene', label: 'Scene' })
 
   return (
     <div className="min-h-dvh bg-surface-secondary flex">
@@ -231,12 +221,7 @@ export default function LoopsShell({ group, sub }) {
       <LiveClock getT={() => progressRef.current.t}>
       <EditorRail
         footerBare
-        header={
-          <>
-            <RailHeader>{railLabel}</RailHeader>
-            <SegmentedToggle value={panel} onChange={setPanel} options={tabs} />
-          </>
-        }
+        header={<RailHeader>{railLabel}</RailHeader>}
         footer={
           <EditorFooter
             tab={footTab}
@@ -266,7 +251,7 @@ export default function LoopsShell({ group, sub }) {
           />
         }
       >
-        {panel === 'presets' && subs.map((s) => (
+        {subs.map((s) => (
           <Section key={s.label} label={s.label}>
             {s.items.map((p) => (
               <Button
@@ -284,36 +269,34 @@ export default function LoopsShell({ group, sub }) {
           </Section>
         ))}
 
-        {panel === 'color' && (
+        {!isPattern && (
           <ColorControls schema={activeLoop.params} values={params} onChange={updateParam} />
         )}
 
-        {panel === 'edit' && (
+        {!isPattern && (
           <LoopControls schema={activeLoop.params} values={params} onChange={updateParam} onRandomize={rollTransform} />
         )}
 
-        {panel === 'camera' && activeLoop.camera && (
+        {!isPattern && activeLoop.camera && (
           <LoopControls schema={activeLoop.camera} values={params} onChange={updateParam} label="Camera" />
         )}
 
-        {panel === 'pattern' && <PatternControls values={params} onChange={updateParam} tab="pattern" />}
-        {panel === 'animation' && <PatternControls values={params} onChange={updateParam} tab="animation" />}
+        {isPattern && <PatternControls values={params} onChange={updateParam} tab="pattern" />}
+        {isPattern && <PatternControls values={params} onChange={updateParam} tab="animation" />}
 
-        {panel === 'scene' && (
-          <SettingsPanel
-            page="loops"
-            showIO={false}
-            theme={themeId}
-            onTheme={setThemeId}
-            invert={invert}
-            onInvert={setInvert}
-            onRandomize={onRandomize}
-            seed={seed}
-            onSeed={(n) => { setSeed(n); rollWith(n) }}
-            getSettings={getSettings}
-            applySettings={applySettings}
-          />
-        )}
+        <SettingsPanel
+          page="loops"
+          showIO={false}
+          theme={themeId}
+          onTheme={setThemeId}
+          invert={invert}
+          onInvert={setInvert}
+          onRandomize={onRandomize}
+          seed={seed}
+          onSeed={(n) => { setSeed(n); rollWith(n) }}
+          getSettings={getSettings}
+          applySettings={applySettings}
+        />
       </EditorRail>
       </LiveClock>
     </div>

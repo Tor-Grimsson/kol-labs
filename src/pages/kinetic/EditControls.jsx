@@ -56,7 +56,7 @@ function MorphPanel({ instance, font, setMorph, setMorphVf2 }) {
               />
               {cross ? (
                 <LabeledControl inline label="Cut B face">
-                  <Dropdown variant="subtle" size="sm" className="w-full" options={faceOptions} value={m.face2} onChange={(v) => setMorph('face2', v)} />
+                  <Dropdown variant="subtle" size="sm" openUp className="w-full" options={faceOptions} value={m.face2} onChange={(v) => setMorph('face2', v)} />
                 </LabeledControl>
               ) : font.axes.length ? (
                 font.axes.map((a) => (
@@ -77,7 +77,7 @@ function MorphPanel({ instance, font, setMorph, setMorphVf2 }) {
 
           {mode === 'morph' && (
             <LabeledControl inline label="Curve">
-              <Dropdown variant="subtle" size="sm" className="w-full" options={CURVE_OPTIONS} value={m.curve || 'flat'} onChange={(v) => setMorph('curve', v)} />
+              <Dropdown variant="subtle" size="sm" openUp className="w-full" options={CURVE_OPTIONS} value={m.curve || 'flat'} onChange={(v) => setMorph('curve', v)} />
             </LabeledControl>
           )}
 
@@ -108,14 +108,14 @@ export default function EditControls({ instance, set, setVf, setOt, setMorph, se
   return (
     <>
       <Section label="Type">
-        <Dropdown variant="subtle" size="sm" className="w-full" options={FONT_OPTIONS} value={instance.font} onChange={(v) => set('font', v)} />
+        <Dropdown variant="subtle" size="sm" openUp className="w-full" options={FONT_OPTIONS} value={instance.font} onChange={(v) => set('font', v)} />
         <Slider labeled label="Size" min={4} max={1200} step={1} value={instance.fontSize} onChange={(v) => set('fontSize', roundIfNum(v))} variant="default" />
         <Slider labeled label="Tracking" min={-40} max={400} step={1} value={instance.letterSpacing} onChange={(v) => set('letterSpacing', roundIfNum(v))} variant="default" />
         <LabeledControl inline label="Case">
           <SegmentedToggle value={instance.case || 'none'} onChange={(v) => set('case', v)} options={CASE_OPTIONS} />
         </LabeledControl>
         <LabeledControl inline label="Align">
-          <Dropdown variant="subtle" size="sm" className="w-full" options={ALIGN} value={instance.align} onChange={(v) => set('align', v)} />
+          <Dropdown variant="subtle" size="sm" openUp className="w-full" options={ALIGN} value={instance.align} onChange={(v) => set('align', v)} />
         </LabeledControl>
         <ToggleSwitch variant="plain" labeled label="Italic" checked={!!instance.italic} onChange={(v) => set('italic', v)} />
         <ColorField label="Fill" value={instance.fill} onChange={(c) => set('fill', c)} />

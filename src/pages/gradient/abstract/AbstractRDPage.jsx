@@ -130,6 +130,18 @@ export default function AbstractRDPage() {
     URL.revokeObjectURL(url)
   }
 
+  const getSettings = () => ({ variantId, params, seedStyle, palette, tempo, aspect, scale })
+  const applySettings = (s) => {
+    if (!s || typeof s !== 'object') return
+    if (s.variantId) setVariantId(s.variantId)
+    if (s.params) setParams((p) => ({ ...p, ...s.params }))
+    if (s.seedStyle) onSeed(s.seedStyle)
+    if (s.palette) setPalette(s.palette)
+    if (Number.isFinite(s.tempo)) setTempo(s.tempo)
+    if (s.aspect) setAspect(s.aspect)
+    if (s.scale != null) setScale(s.scale)
+  }
+
   const variationOptions = useMemo(() => RD_VARIATIONS.map((v) => ({ value: v.id, label: `${v.label} · ${RD_MODELS[v.model].label}` })), [])
 
   return (
@@ -162,6 +174,9 @@ export default function AbstractRDPage() {
             }}
             exportProps={{ aspect, onAspect: setAspect, aspects: VIEW_ASPECTS, scale, onScale: setScale }}
             exportActions={<Button variant="primary" size="sm" className="w-full" iconLeft="download" onClick={exportPng}>Export PNG</Button>}
+            settingsPage="abstract-rd"
+            getSettings={getSettings}
+            applySettings={applySettings}
           />
         }
       >

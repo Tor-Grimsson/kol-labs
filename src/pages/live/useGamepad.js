@@ -65,20 +65,4 @@ export function useGamepad() {
 }
 
 // Resolve a mapped param's live value from the current pad snapshot.
-//   axis  → bipolar -1..1 spread across [min,max]
-//   button→ unipolar 0..1 (analog triggers, else 0|1)
-export function mappedValue(src, spec, state, invert) {
-  if (!src || !spec) return undefined
-  if (src.kind === 'axis') {
-    let a = state.axes[src.index] ?? 0
-    if (invert) a = -a
-    let v = spec.min + ((a + 1) / 2) * (spec.max - spec.min)
-    if (spec.step) v = Math.round(v / spec.step) * spec.step
-    return Math.max(spec.min, Math.min(spec.max, v))
-  }
-  let b = state.buttons[src.index]?.value ?? 0
-  if (invert) b = 1 - b
-  let v = spec.min + b * (spec.max - spec.min)
-  if (spec.step) v = Math.round(v / spec.step) * spec.step
-  return Math.max(spec.min, Math.min(spec.max, v))
-}
+

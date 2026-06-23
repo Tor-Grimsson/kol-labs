@@ -7,7 +7,6 @@ import { resolveDeep } from '../../lib/exprParam.js'
 import { VIEW_ASPECTS, defaultAspectFor, DEFAULT_SCALE, ratioFor, dimsFor } from '../_shared/exportSpecs.js'
 import EditorRail, { RailHeader } from '../../components/framework/EditorRail.jsx'
 import EditorFooter from '../../components/framework/EditorFooter.jsx'
-import SegmentedToggle from '../../components/molecules/SegmentedToggle.jsx'
 import Section from '../../components/molecules/Section.jsx'
 import Dropdown from '../../components/molecules/Dropdown.jsx'
 import Slider from '../../components/atoms/Slider.jsx'
@@ -93,7 +92,6 @@ function SoftFormsEditor({ sceneId }) {
   const [look, setLook] = useState('')
   const [forms, setForms] = useState(() => scene.forms.map((f) => ({ ...f })))
   const [sel, setSel] = useState(-1)
-  const [tab, setTab] = useState('style')
   const [locks, setLocks] = useState({ color: false, transform: false, scale: false, animation: false })
   const [view, setView] = useState({ dw: 1, dh: 1 })
 
@@ -249,14 +247,14 @@ function SoftFormsEditor({ sceneId }) {
   )
 
   const selForm = sel >= 0 ? forms[sel] : null
-  const handles = tab === 'layers' && selForm ? handlesOf(selForm, view.dw, view.dh, ar) : null
+  const handles = selForm ? handlesOf(selForm, view.dw, view.dh, ar) : null
 
   return (
     <div className="min-h-dvh bg-surface-secondary flex">
       <div className="flex-1 flex items-center justify-center p-4 overflow-hidden">
         <div className="relative inline-block leading-none">
           <canvas data-vcap="stage" ref={canvasRef} className="block max-h-[88vh] w-auto rounded" />
-          {tab === 'layers' && (
+          {handles && (
             <svg
               className="absolute inset-0 w-full h-full"
               style={{ touchAction: 'none', cursor: dragRef.current ? 'grabbing' : 'grab' }}
@@ -284,16 +282,7 @@ function SoftFormsEditor({ sceneId }) {
 
       <EditorRail
         footerBare
-        header={
-          <div className="flex flex-col gap-2">
-            <RailHeader>{`Soft Forms · ${scene.label}`}</RailHeader>
-            <SegmentedToggle
-              value={tab}
-              onChange={setTab}
-              options={[{ value: 'style', label: 'Style' }, { value: 'layers', label: 'Layers' }, { value: 'random', label: 'Random' }]}
-            />
-          </div>
-        }
+        header={<RailHeader>{`Soft Forms · ${scene.label}`}</RailHeader>}
         footer={
           <EditorFooter
             tab={footTab}
@@ -316,81 +305,71 @@ function SoftFormsEditor({ sceneId }) {
           />
         }
       >
-        {tab === 'style' && (
-          <>
-            <Section label="Look">
-              <Dropdown size="sm" options={LOOK_PRESETS.map((x) => ({ value: x.id, label: x.label }))} value={look} onChange={applyLook} variant="subtle" className="w-full" />
-            </Section>
-            <Section label="Form">
-              {slider('sweep')}{slider('bulge')}{slider('relief')}{slider('motion')}
-            </Section>
-            <Section label="Iridescence">
-              <Dropdown size="sm" options={GRAD_PALETTES.map((x) => ({ value: x.value, label: x.label }))} value={P.palette} onChange={up('palette')} variant="subtle" className="w-full" />
-              <ToggleSwitch variant="plain" label="Spectral" checked={P.spectral} onChange={up('spectral')} />
-              {slider('irid')}{slider('hue')}
-            </Section>
-            <Section label="Lighting">
-              {slider('sheen')}{slider('gloss')}{slider('rim')}{slider('rimPow')}{slider('sss')}
-            </Section>
-            <Section label="Surface">
-              {slider('grain')}
-              <Dropdown size="sm" options={BACKDROPS.map((x) => ({ value: x.value, label: x.label }))} value={P.backdrop} onChange={up('backdrop')} variant="subtle" className="w-full" />
-            </Section>
-          </>
-        )}
+        <Section label="Look">
+          <Dropdown size="sm" options={LOOK_PRESETS.map((x) => ({ value: x.id, label: x.label }))} value={look} onChange={applyLook} variant="subtle" className="w-full" />
+        </Section>
+        <Section label="Form">
+          {slider('sweep')}{slider('bulge')}{slider('relief')}{slider('motion')}
+        </Section>
+        <Section label="Iridescence">
+          <Dropdown size="sm" options={GRAD_PALETTES.map((x) => ({ value: x.value, label: x.label }))} value={P.palette} onChange={up('palette')} variant="subtle" className="w-full" />
+          <ToggleSwitch variant="plain" label="Spectral" checked={P.spectral} onChange={up('spectral')} />
+          {slider('irid')}{slider('hue')}
+        </Section>
+        <Section label="Lighting">
+          {slider('sheen')}{slider('gloss')}{slider('rim')}{slider('rimPow')}{slider('rimShift')}{slider('sss')}
+        </Section>
+        <Section label="Surface">
+          {slider('grain')}
+          <Dropdown size="sm" options={BACKDROPS.map((x) => ({ value: x.value, label: x.label }))} value={P.backdrop} onChange={up('backdrop')} variant="subtle" className="w-full" />
+        </Section>
 
-        {tab === 'layers' && (
-          <>
-            <Section label="Layers">
-              <div className="flex flex-col gap-1">
-                {[...forms].reverse().map((f, di) => {
-                  const i = forms.length - 1 - di
-                  return (
-                  <div key={i} className={`flex items-center gap-1 rounded px-2 py-1 ${i === sel ? 'bg-fg-08' : 'bg-fg-02 hover:bg-fg-04'}`}>
-                    <button type="button" className="flex-1 text-left kol-mono-12 text-emphasis" onClick={() => setSel(i)}>
-                      {`${i + 1} · ${FORM_TYPE_OPTS.find((o) => o.value === f.t)?.label ?? f.t}`}
-                    </button>
-                    <button type="button" className="text-meta hover:text-emphasis" title="Up" onClick={() => swapForm(i, i + 1)}><Icon name="chevron-up" className="w-3.5 h-3.5" /></button>
-                    <button type="button" className="text-meta hover:text-emphasis" title="Down" onClick={() => swapForm(i, i - 1)}><Icon name="chevron-down" className="w-3.5 h-3.5" /></button>
-                    <button type="button" className="text-meta hover:text-emphasis" title="Duplicate" onClick={() => dupForm(i)}><Icon name="copy" className="w-3.5 h-3.5" /></button>
-                    <button type="button" className="text-meta hover:text-emphasis" title="Delete" onClick={() => delForm(i)}><Icon name="trash" className="w-3.5 h-3.5" /></button>
-                  </div>
-                  )
-                })}
+        <Section label="Layers">
+          <div className="flex flex-col gap-1">
+            {[...forms].reverse().map((f, di) => {
+              const i = forms.length - 1 - di
+              return (
+              <div key={i} className={`flex items-center gap-1 rounded px-2 py-1 ${i === sel ? 'bg-fg-08' : 'bg-fg-02 hover:bg-fg-04'}`}>
+                <button type="button" className="flex-1 text-left kol-mono-12 text-emphasis" onClick={() => setSel(i)}>
+                  {`${i + 1} · ${FORM_TYPE_OPTS.find((o) => o.value === f.t)?.label ?? f.t}`}
+                </button>
+                <button type="button" className="text-meta hover:text-emphasis" title="Up" onClick={() => swapForm(i, i + 1)}><Icon name="chevron-up" className="w-3.5 h-3.5" /></button>
+                <button type="button" className="text-meta hover:text-emphasis" title="Down" onClick={() => swapForm(i, i - 1)}><Icon name="chevron-down" className="w-3.5 h-3.5" /></button>
+                <button type="button" className="text-meta hover:text-emphasis" title="Duplicate" onClick={() => dupForm(i)}><Icon name="copy" className="w-3.5 h-3.5" /></button>
+                <button type="button" className="text-meta hover:text-emphasis" title="Delete" onClick={() => delForm(i)}><Icon name="trash" className="w-3.5 h-3.5" /></button>
               </div>
-              <Button variant="secondary" size="sm" className="w-full" iconLeft="plus" disabled={forms.length >= MAX_FORMS} onClick={addForm}>Add form</Button>
-            </Section>
+              )
+            })}
+          </div>
+          <Button variant="secondary" size="sm" className="w-full" iconLeft="plus" disabled={forms.length >= MAX_FORMS} onClick={addForm}>Add form</Button>
+        </Section>
 
-            {selForm && (
-              <Section label="Selected">
-                <Dropdown size="sm" options={FORM_TYPE_OPTS} value={selForm.t} onChange={(v) => updForm('t', v)} variant="subtle" className="w-full" />
-                <Slider labeled label="Position X" min={-1} max={1} step={0.01} value={selForm.x} onChange={(v) => updForm('x', v)} variant="default" />
-                <Slider labeled label="Position Y" min={-1} max={1} step={0.01} value={selForm.y} onChange={(v) => updForm('y', v)} variant="default" />
-                <Slider labeled label="Scale X" min={0.12} max={1.6} step={0.01} value={selForm.sx} onChange={(v) => updForm('sx', v)} variant="default" />
-                <Slider labeled label="Scale Y" min={0.12} max={1.6} step={0.01} value={selForm.sy ?? selForm.sx} onChange={(v) => updForm('sy', v)} variant="default" />
-                <Slider labeled label="Rotation" min={0} max={360} step={1} value={selForm.rot || 0} onChange={(v) => updForm('rot', v)} variant="default" />
-                <Slider labeled label="Hue" min={0} max={1} step={0.01} value={selForm.hue || 0} onChange={(v) => updForm('hue', v)} variant="default" />
-              </Section>
-            )}
-          </>
-        )}
-
-        {tab === 'random' && (
-          <Section label="Randomise">
-            <Button variant="primary" size="sm" className="w-full" iconLeft="cycle" onClick={rollAll}>Roll all (unlocked)</Button>
-            {[
-              { k: 'color', label: 'Color', roll: rollColor },
-              { k: 'transform', label: 'Transform', roll: rollTransform },
-              { k: 'scale', label: 'Scale', roll: rollScale },
-              { k: 'animation', label: 'Animation', roll: rollAnim },
-            ].map(({ k, label, roll }) => (
-              <div key={k} className="flex items-center gap-2">
-                <Button variant="secondary" size="sm" className="flex-1" iconLeft="cycle" disabled={locks[k]} onClick={roll}>{label}</Button>
-                <ToggleSwitch variant="plain" label="Lock" checked={locks[k]} onChange={() => toggleLock(k)} />
-              </div>
-            ))}
+        {selForm && (
+          <Section label="Selected">
+            <Dropdown size="sm" options={FORM_TYPE_OPTS} value={selForm.t} onChange={(v) => updForm('t', v)} variant="subtle" className="w-full" />
+            <Slider labeled label="Position X" min={-1} max={1} step={0.01} value={selForm.x} onChange={(v) => updForm('x', v)} variant="default" />
+            <Slider labeled label="Position Y" min={-1} max={1} step={0.01} value={selForm.y} onChange={(v) => updForm('y', v)} variant="default" />
+            <Slider labeled label="Scale X" min={0.12} max={1.6} step={0.01} value={selForm.sx} onChange={(v) => updForm('sx', v)} variant="default" />
+            <Slider labeled label="Scale Y" min={0.12} max={1.6} step={0.01} value={selForm.sy ?? selForm.sx} onChange={(v) => updForm('sy', v)} variant="default" />
+            <Slider labeled label="Rotation" min={0} max={360} step={1} value={selForm.rot || 0} onChange={(v) => updForm('rot', v)} variant="default" />
+            <Slider labeled label="Hue" min={0} max={1} step={0.01} value={selForm.hue || 0} onChange={(v) => updForm('hue', v)} variant="default" />
           </Section>
         )}
+
+        <Section label="Randomise">
+          <Button variant="primary" size="sm" className="w-full" iconLeft="cycle" onClick={rollAll}>Roll all (unlocked)</Button>
+          {[
+            { k: 'color', label: 'Color', roll: rollColor },
+            { k: 'transform', label: 'Transform', roll: rollTransform },
+            { k: 'scale', label: 'Scale', roll: rollScale },
+            { k: 'animation', label: 'Animation', roll: rollAnim },
+          ].map(({ k, label, roll }) => (
+            <div key={k} className="flex items-center gap-2">
+              <Button variant="secondary" size="sm" className="flex-1" iconLeft="cycle" disabled={locks[k]} onClick={roll}>{label}</Button>
+              <ToggleSwitch variant="plain" label="Lock" checked={locks[k]} onChange={() => toggleLock(k)} />
+            </div>
+          ))}
+        </Section>
       </EditorRail>
     </div>
   )
