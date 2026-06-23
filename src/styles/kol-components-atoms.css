@@ -486,13 +486,13 @@
 }
 
 .slider-black::-webkit-slider-runnable-track {
-  background: var(--kol-slider-track);
+  background: var(--kol-slider-fill, var(--kol-slider-track));
   height: 2px;
   border-radius: 0;
 }
 
 .slider-black::-moz-range-track {
-  background: var(--kol-slider-track);
+  background: var(--kol-slider-fill, var(--kol-slider-track));
   height: 2px;
   border-radius: 0;
 }

@@ -2,6 +2,9 @@ import { TAU, mixHex, hexToRgb } from '../lib/util.js'
 import { resolveShape, DEFAULT_SHAPE_ID } from './shapes.js'
 import { composeCell, compileRules } from './rules.js'
 import { glyphShape, ensureGlyphFontUrl } from '../../lib/glyphPath.js'
+import { drawStripes } from './fields/stripeField.js'
+import { drawTartan } from './fields/tartanField.js'
+import { drawOrganic } from './fields/organicField.js'
 
 // Pattern — the ported kol-client rule/tiling system, rendered to Canvas2D so it
 // animates + outputs a texture. The cols×rows rule-block TILES infinitely; the
@@ -16,18 +19,7 @@ import { glyphShape, ensureGlyphFontUrl } from '../../lib/glyphPath.js'
 // Controls are the custom `pattern` panel (PatternControls.jsx).
 
 let cache = null // { key, viewBox, paths:[Path2D] }
-let curveCache = null // { expr, fn }
 let rulesCache = null // { key, compiled }
-function compileCurve(expr) {
-  if (!expr) return null
-  if (curveCache && curveCache.expr === expr) return curveCache.fn
-  try {
-    // eslint-disable-next-line no-new-func
-    const fn = new Function('k', 't', 'sp', `with(Math){ return (${expr}) }`)
-    curveCache = { expr, fn }
-    return fn
-  } catch { return null }
-}
 const EMPTY = { key: '', viewBox: [0, 0, 1, 1], paths: [] }
 function buildPaths(viewBox, paths) {
   const built = []
@@ -59,6 +51,85 @@ function shapeFor(id, customSvg, p) {
 }
 
 const MAX_CELLS = 6000 // safety cap for extreme zoom-out
+
+// Pan direction → (x, y) block multipliers (×camFlow). Integer only ⇒ seamless.
+const PAN_VEC = {
+  right: [1, 0], left: [-1, 0], up: [0, -1], down: [0, 1],
+  diag: [1, 1], anti: [1, -1],
+}
+
+// Field families (render:'field') — continuous VECTOR renderers that bypass the
+// tile loop. All three are cheap geometry (rects / filled paths), NOT per-pixel:
+// stripes = bands · tartan = crossed sett bands · organic = bands with a wavy edge.
+// Each reads the pattern palette (color/color2/color3 + bg). Seamless on whole-
+// cycle phase (u·TAU·round(camFlow)).
+const FIELD_DRAW = { stripes: drawStripes, tartan: drawTartan, organic: drawOrganic }
+function drawField(ctx, u, w, h, p) {
+  (FIELD_DRAW[p.field] || drawStripes)(ctx, u, w, h, p)
+}
+
+// Weave (render:'weave') — true over/under interlacing. Per crossing the warp
+// (vertical) and weft (horizontal) ribbons overlap; a parity fn decides which is
+// drawn SECOND (on top), so strands genuinely pass over and under across the field.
+const parityWeave = (type, col, row) => {
+  switch (type) {
+    case 'twill':  return ((((col - row) % 4) + 4) % 4) < 2     // diagonal wales
+    case 'satin':  return (((col * 2 + row * 3) % 5) + 5) % 5 === 0 // sparse floats
+    case 'basket': return ((Math.floor(col / 2) + Math.floor(row / 2)) & 1) === 0
+    default:       return ((col + row) & 1) === 0                // plain
+  }
+}
+function drawWeave(ctx, u, w, h, p) {
+  const cols = Math.max(1, p.cols | 0)
+  const rows = Math.max(1, p.rows | 0)
+  const cell = Math.max(8, p.cell)
+  const period = cell + (p.gap || 0)
+  if (period <= 0) return
+  const z = p.camZoom || 1
+  const ang = (p.camAngle || 0) * Math.PI / 180
+  const flow = Math.round(p.camFlow || 0)
+  const half = Math.max(1, (p.strandWidth ?? 0.7) * cell) / 2
+  const weave = p.weaveType || 'plain'
+  const warpCol = p.color, weftCol = p.color2 || p.color
+  const warpLit = mixHex(warpCol, '#ffffff', 0.2), weftLit = mixHex(weftCol, '#ffffff', 0.2)
+  const len = period // ribbons span the full cell so strands read continuous
+
+  ctx.save()
+  ctx.translate(w / 2, h / 2)
+  ctx.rotate(ang)
+  ctx.scale(z, z)
+
+  const reach = (Math.hypot(w, h) / 2) / z + period * 2
+  const g0 = Math.floor(-reach / period), g1 = Math.ceil(reach / period)
+
+  // ribbon = base fill + a centre sheen (tube/cord read).
+  const ribbon = (cx, cy, vert, base, lit) => {
+    ctx.fillStyle = base
+    if (vert) ctx.fillRect(cx - half, cy - len / 2, half * 2, len)
+    else ctx.fillRect(cx - len / 2, cy - half, len, half * 2)
+    ctx.fillStyle = lit
+    const sh = half * 0.6
+    if (vert) ctx.fillRect(cx - sh, cy - len / 2, sh * 2, len)
+    else ctx.fillRect(cx - len / 2, cy - sh, len, sh * 2)
+  }
+
+  let count = 0
+  for (let gy = g0; gy <= g1; gy++) {
+    for (let gx = g0; gx <= g1; gx++) {
+      if (++count > MAX_CELLS) { ctx.restore(); return }
+      const col = ((gx % cols) + cols) % cols
+      const row = ((gy % rows) + rows) % rows
+      const cx = gx * period, cy = gy * period
+      let warpOver = parityWeave(weave, col, row)
+      // travel: the over/under boundary sweeps diagonally on play (whole cycles
+      // ⇒ seamless). flow=0 ⇒ static weave.
+      if (flow) warpOver = warpOver !== (Math.sin(u * TAU * flow - (gx + gy) * 0.6) > 0)
+      if (warpOver) { ribbon(cx, cy, false, weftCol, weftLit); ribbon(cx, cy, true, warpCol, warpLit) }
+      else { ribbon(cx, cy, true, warpCol, warpLit); ribbon(cx, cy, false, weftCol, weftLit) }
+    }
+  }
+  ctx.restore()
+}
 
 export default {
   id: 'pattern-rules',
@@ -106,15 +177,54 @@ export default {
     // "test grid" substrate. none | checker (2-col) | cols | rows | diag (3-col).
     colorRule: 'none',
     rules: [],
+    // ── Field render (render:'field') — continuous per-pixel pattern families
+    // that bypass the tile loop (Stripes now; Tartan/Organic later). `field`
+    // picks the family; each reads the palette (color/color2/color3 + bg).
+    render: 'tiles',     // 'tiles' (tile loop) | 'field' (continuous field)
+    field: 'stripes',    // active field family when render==='field'
+    stripeAngle: 0,      // band direction (deg): 0 vertical · 90 horizontal · 45 diagonal
+    stripePitch: 60,     // field units per band (band width / spacing)
+    offsetX: 0,          // static position: shift across the bands (0..1 of a period)
+    offsetY: 0,          // static position: shift along the bands (0..1 of a period)
+    bandCount: 2,        // palette colours walked (1 single · 2 A/B · 3 A/B/C)
+    duty: 1,             // 1 = solid bands; <1 = ink band width on the bg ground (pinstripe)
+    edgeSoftness: 0,     // 0 = hard edge; >0 = soft / ombré blend
+    // Tartan field (field:'tartan')
+    sett: 'black-watch', // threadcount table (src/loops/pattern/fields/setts.js)
+    settScale: 5,        // px per thread unit
+    twill: 0.18,         // 2/2-twill diagonal bias (0 = flat average)
+    // Organic field (field:'organic') — bands with a wavy edge profile
+    waveAmp: 0.4,        // undulation depth (× pitch)
+    waveFreq: 1.5,       // waves across the field
+    waveProfile: 'sine', // edge profile — see fields/organicField.js PROFILES ('custom' ⇒ waveCurve)
+    waveCurve: null,     // editable bezier profile (ProfileEditor) when waveProfile==='custom'
+    waveFlow: 0,         // organic: along-axis travel — the wave runs along the bands (whole cycles)
+    fillMode: 'off',     // Split gaps: 'off' (ground shows) | 'extend' (bands meet) | 'solid' (fillColor)
+    fillColor: '#101014',// ground colour when fillMode==='solid'
+    // Form animation — PER-BAND (stripes/organic): each band moves individually.
+    // Seamless on whole `fieldCycles`. 0 = off. (Field-wide scroll is the Frame axis.)
+    fieldSway: 0,        // per-band position shift amount
+    fieldStagger: 0,     // phase the sway across band index (×π ⇒ odd/even opposite at 1)
+    fieldShimmer: 0,     // per-band colour shimmer toward the next band
+    fieldPulse: 0,       // tartan sett-scale breathe (field-wide)
+    fieldCycles: 1,      // whole cycles per loop for the above
+    // Weave render (render:'weave') — interlaced over/under strands
+    weaveType: 'plain',  // plain | twill | satin | basket (which strand goes over)
+    strandWidth: 0.7,    // ribbon width (× cell)
     camZoom: 1,
     camFlow: 1,
     camAngle: 0,
+    panDir: 'diag', // pan direction: right|left|up|down|diag|anti (see PAN_VEC)
     spin: 0,
+    // Curated-motion selectors (PatternControls Animation tab) — two orthogonal
+    // axes: Frame (camera pan) + Form (per-cell sweep). 'custom' = hand-tuned;
+    // both UI-only, the engine ignores them.
+    framePreset: 'custom',
+    formPreset: 'custom',
     // Animation sweep (per-cell, phased by world position).
     animAxis: 'none', // none | diag | col | row | radial
-    animCycles: 1, // whole time cycles over the loop ⇒ seamless
-    animWaves: 2, // spatial frequency of the sweep (cosmetic)
-    animCurveExpr: '', // optional k→k shaper: 'k*k' ease-in · '1-(1-k)*(1-k)' ease-out · 'Math.round(k)' step
+    animCycles: 1, // Speed: whole time cycles over the loop ⇒ seamless
+    animWaves: 2, // Stagger: spatial phase offset of the sweep tile-to-tile
     pulse: 0, // 0..1 size breathe
     fade: 0, // 0..1 opacity sweep
     swing: 0, // 0..180 rotation sway (deg)
@@ -123,6 +233,11 @@ export default {
   draw(ctx, u, w, h, p) {
     ctx.fillStyle = p.bg
     ctx.fillRect(0, 0, w, h)
+
+    // Render dispatch: field families bypass the tile loop entirely. 'tiles'
+    // (default) falls through to the original engine below — Blocks' native case.
+    if ((p.render || 'tiles') === 'field') return drawField(ctx, u, w, h, p)
+    if (p.render === 'weave') return drawWeave(ctx, u, w, h, p)
 
     const shp = shapeFor(p.shape, p.customSvg, p)
     if (!shp.paths.length) return
@@ -140,8 +255,11 @@ export default {
     const z = p.camZoom || 1
     const ang = (p.camAngle || 0) * Math.PI / 180
     const flow = Math.round(p.camFlow || 0)
-    const panX = u * flow * cols * period // whole blocks per loop ⇒ seamless
-    const panY = u * flow * rows * period
+    // Pan direction → per-axis block multipliers. All integer ⇒ whole blocks per
+    // loop ⇒ seamless. 'diag' (1,1) reproduces the original down-right drift.
+    const [fx, fy] = PAN_VEC[p.panDir] || PAN_VEC.diag
+    const panX = u * flow * fx * cols * period
+    const panY = u * flow * fy * rows * period
     const cellSpin = u * 360 * Math.round(p.spin || 0) // whole turns ⇒ seamless
 
     // Animation sweep params (resolved once per frame).
@@ -150,7 +268,6 @@ export default {
     const cyc = Math.round(p.animCycles || 0)
     const wav = p.animWaves || 0
     const tphase = u * TAU * cyc
-    const curveFn = compileCurve(p.animCurveExpr)
 
     ctx.save()
     ctx.translate(w / 2, h / 2)
@@ -206,8 +323,7 @@ export default {
               : axis === 'radial' ? Math.hypot(gx, gy)
                 : gx + gy
           const sw = Math.sin(tphase - sp * 0.5 * wav) // -1..1
-          let k = 0.5 + 0.5 * sw // 0..1
-          if (curveFn) { try { k = Math.max(0, Math.min(1, curveFn(k, tphase, sp))) } catch {} }
+          const k = 0.5 + 0.5 * sw // 0..1 — plain sine ⇒ symmetric, always seamless
           if (p.pulse) aScale = 1 - p.pulse + p.pulse * k
           if (p.fade) aOpacity = c.opacity * (1 - p.fade + p.fade * k)
           if (p.swing) aRot = p.swing * (2 * k - 1)

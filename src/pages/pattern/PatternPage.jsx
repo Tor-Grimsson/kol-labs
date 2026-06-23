@@ -1,22 +1,15 @@
-import { Routes, Route } from 'react-router-dom'
+import { useLocation } from 'react-router-dom'
 import PatternEditor from './PatternEditor.jsx'
 import { ALL_SUBPAGES } from './registry.js'
 
-// /pattern router shell (mirrors DriftPage / TypePage): Page › 5 Categories ›
-// ~20 sub-pages each. Every sub-page seeds the SAME PatternEditor with a full
-// engine config, fully editable from there. The first registry entry owns the
-// /pattern index. key={s.id} re-seeds the editor on switch. Routes derive from
-// the registry so nav + router never drift.
+// /pattern shell. ONE persistent PatternEditor, NOT a per-route element: the
+// current sub-page is derived from the URL so navigating between presets updates
+// the `page` prop in place (no remount) — that's what keeps the rail tab + the
+// animation/motion layer intact when you switch the Pattern preset (Org/Polka).
+// PatternEditor re-seeds only the structural params on a page change. Routes stay
+// deep-linkable (the preset dropdown still navigates); the registry owns the map.
 export default function PatternPage() {
-  return (
-    <Routes>
-      {ALL_SUBPAGES.map((s) => (
-        <Route
-          key={s.id}
-          {...(s.path === '' ? { index: true } : { path: s.path })}
-          element={<PatternEditor key={s.id} page={s} />}
-        />
-      ))}
-    </Routes>
-  )
+  const { pathname } = useLocation()
+  const page = ALL_SUBPAGES.find((s) => s.route === pathname) || ALL_SUBPAGES[0]
+  return <PatternEditor page={page} />
 }

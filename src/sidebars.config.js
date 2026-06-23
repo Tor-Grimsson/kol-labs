@@ -24,7 +24,6 @@ import { SCENE_GROUPS, ELEMENT_GROUPS } from './pages/kinetic/scenes/groups.js'
 import { GROUPS as LOOP_GROUPS, SUBGROUPS as LOOP_SUBGROUPS } from './loops/registry.js'
 import { CATEGORIES as DRIFT_CATEGORIES, SUBPAGES as DRIFT_SUBPAGES } from './pages/drift/registry.js'
 import { CATEGORIES as TYPE_CATEGORIES, SUBPAGES as TYPE_SUBPAGES } from './pages/type/registry.js'
-import { CATEGORIES as PATTERN_CATEGORIES, SUBPAGES as PATTERN_SUBPAGES } from './pages/pattern/registry.js'
 import { FORMS } from './pages/gradient/forms/data/shapes.js'
 import { ENVIRONMENTS } from './pages/gradient/environments/data/scenes.js'
 import { SHAPES } from './pages/gradient/data/palettes.js'
@@ -90,14 +89,10 @@ export const NAV_TREE = [
   // Scanline GENERATOR — procedural field → scanline pattern (filter twin under Effects).
   { id: 'scanline-gen', label: 'Scanline', to: '/scanlines', icon: 'grid-horizontal' },
   // Pattern — the kolkrabbi rule/tiling engine as a standalone vector-pattern
-  // studio. Five categories (Stripes · Tartan · Blocks · Organic · Interlace),
-  // ~20 sub-pages each; derived from the registry so nav + routes can't drift.
-  { id: 'pattern', label: 'Pattern', to: '/pattern', icon: 'ptrn-checker', children:
-    PATTERN_CATEGORIES.map((c) => ({
-      label: c.label,
-      children: PATTERN_SUBPAGES[c.id].map((s) => ({ to: s.route, label: s.label })),
-    })),
-  },
+  // studio. Five categories × ~20 presets each switch IN-RAIL (Category + Preset
+  // dropdowns), not the nav — like Scanline/Refraction. Routes (/pattern/<cat>/<id>)
+  // stay deep-linkable; derived from the registry so they can't drift.
+  { id: 'pattern', label: 'Pattern', to: '/pattern', icon: 'ptrn-checker' },
   { id: 'loops', label: 'Loops', to: '/loops', icon: 'cycle', children:
     // Three categories (Simple · Pattern · Field), six routed sub-pages each —
     // derived from the loop registry so nav + router never drift (mirrors Math).

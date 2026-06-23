@@ -51,6 +51,10 @@ import { isAudioEnabled, subscribeAudio } from '../../lib/audioSource.js'
  *   the track (drag) is the soft range, but typing in the box accepts any number
  *   (push a param past the slider's max — e.g. a shape that overflows the frame).
  *   Set clamp when a value beyond the range genuinely breaks the engine.
+ * @param {number} props.center - Bipolar origin. When set (e.g. 0 on a -120..120
+ *   range), the track fills from this value out to the thumb so the origin reads as
+ *   the neutral midpoint — left of it = negative, right = positive. Omit for the
+ *   default uniform track.
  */
 const Slider = ({
   label,
@@ -70,6 +74,7 @@ const Slider = ({
   liveValue,
   liveGet,
   clamp = false,
+  center, // bipolar origin — fills the track from here to the thumb (see JSDoc)
   raised = false // value box on a raised surface → use surface-primary so it reads as an input
 }) => {
   const exprBound = !noExpr && isExpr(value)
@@ -149,6 +154,17 @@ const Slider = ({
     ? Math.max(min, Math.min(max, effLive))
     : (exprBound ? min : value)
 
+  // Bipolar fill: when `center` is set, paint the track from the origin out to the
+  // thumb so the neutral midpoint reads. Driven through `--kol-slider-fill` which the
+  // track pseudo-elements consume (falling back to the plain track when unset).
+  const centerFill = useMemo(() => {
+    if (center == null || !(max > min)) return null
+    const pct = (n) => ((Math.max(min, Math.min(max, n)) - min) / (max - min)) * 100
+    const a = Math.min(pct(center), pct(rangeValue))
+    const b = Math.max(pct(center), pct(rangeValue))
+    return { '--kol-slider-fill': `linear-gradient(to right, var(--kol-slider-track) 0 ${a}%, var(--kol-surface-on-primary) ${a}% ${b}%, var(--kol-slider-track) ${b}% 100%)` }
+  }, [center, min, max, rangeValue])
+
   /* Editable readout — local string state lets the user type intermediate
    * values (e.g. "-" while entering a negative, or a half-typed expression)
    * without committing mid-keystroke. Commits on blur / Enter; reverts on Escape. */
@@ -215,7 +231,7 @@ const Slider = ({
         value={rangeValue}
         onChange={handleChange}
         className="slider-black flex-1 w-full cursor-pointer"
-        style={(exprBound || hasLive) ? { opacity: 0.4 } : undefined}
+        style={{ ...centerFill, ...((exprBound || hasLive) ? { opacity: 0.4 } : null) }}
         title={exprBound ? `expression: ${value} — drag to override` : undefined}
       />
       <Input
