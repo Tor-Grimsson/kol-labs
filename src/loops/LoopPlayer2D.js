@@ -1,5 +1,16 @@
 import { clamp01 } from './lib/util.js'
 import { resolveParams } from '../lib/exprParam.js'
+import { applyViewport } from './viewport.js'
+
+// Draw a loop frame with the universal viewport camera wrapped around it (identity
+// camera ⇒ no save/restore, renders exactly as the bare loop).
+function drawWithViewport(ctx, loop, u, w, h, p) {
+  if (!loop) return
+  ctx.save()
+  applyViewport(ctx, u, w, h, p)
+  loop.draw(ctx, u, w, h, p)
+  ctx.restore()
+}
 
 /* LoopPlayer2D — the Canvas2D runtime for `kind:'2d'` loops.
  *
@@ -89,7 +100,7 @@ export default class LoopPlayer2D {
       // Expression params resolve against loop-local time, so periodic exprs
       // stay seamless across the loop boundary.
       const p = resolveParams(this.params, t)
-      this.loop.draw(this.ctx, this.dur > 0 ? t / this.dur : 0, this.w, this.h, p)
+      drawWithViewport(this.ctx, this.loop, this.dur > 0 ? t / this.dur : 0, this.w, this.h, p)
     }
   }
 
@@ -98,7 +109,7 @@ export default class LoopPlayer2D {
     const off = document.createElement('canvas')
     off.width = Math.max(1, Math.round(w))
     off.height = Math.max(1, Math.round(h))
-    this.loop?.draw(off.getContext('2d'), this._u(), off.width, off.height, resolveParams(this.params, this._t()))
+    drawWithViewport(off.getContext('2d'), this.loop, this._u(), off.width, off.height, resolveParams(this.params, this._t()))
     return new Promise((resolve) => off.toBlob(resolve, 'image/png'))
   }
 
@@ -135,7 +146,7 @@ export default class LoopPlayer2D {
         if (start == null) start = now
         const el = (now - start) / 1000
         const u = this.dur > 0 ? Math.min(el / this.dur, 1) : 0
-        this.loop?.draw(ctx, u, w, h, resolveParams(this.params, u * this.dur))
+        drawWithViewport(ctx, this.loop, u, w, h, resolveParams(this.params, u * this.dur))
         if (el >= this.dur) { rec.stop(); return }
         raf = requestAnimationFrame(step)
       }

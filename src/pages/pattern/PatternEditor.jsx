@@ -14,7 +14,7 @@ import { usePublishShortcuts } from '../../components/framework/pageShortcuts.js
 import { resolveParams } from '../../lib/exprParam.js'
 import { VIEW_ASPECTS, defaultAspectFor, DEFAULT_SCALE, ratioFor, dimsFor } from '../_shared/exportSpecs.js'
 import { defaultAutoplay } from '../../lib/appSettings.js'
-import { CATEGORIES, SUBPAGES, categoryById } from './registry.js'
+import { CATEGORIES, SUBPAGES } from './registry.js'
 
 // The Animation-tab "motion layer" — camera (Frame) + per-cell sweep (Form) +
 // their two preset selectors. Switching the Pattern preset (a registry sub-page)
@@ -133,8 +133,12 @@ export default function PatternEditor({ page }) {
   }
 
   // Generate — randomise a section (or all), merged over the current values. Feeds
-  // the undo history like any edit, so ⌘Z reverts a randomise.
-  const randomize = (section) => setValues((v) => ({ ...v, ...randomizeSection(v, section) }))
+  // the undo history like any edit, so ⌘Z reverts a randomise. 'all' also pops the
+  // tempo back to full (120) — a fresh roll starts at normal speed.
+  const randomize = (section) => {
+    if (section === 'all') setTempo(120)
+    setValues((v) => ({ ...v, ...randomizeSection(v, section) }))
+  }
 
   const sizeStage = useCallback(() => {
     const wrap = wrapRef.current, cv = canvasRef.current
@@ -222,17 +226,11 @@ export default function PatternEditor({ page }) {
     />
   )
 
-  const catLabel = page ? categoryById(page.cat).label : 'Pattern'
-
   return (
     <div className="flex min-h-dvh">
       <div className="flex-1 min-w-0 h-dvh bg-surface-secondary overflow-hidden">
         <div ref={wrapRef} className="relative h-full flex items-center justify-center">
           <canvas data-vcap="stage" ref={canvasRef} className="block" />
-          <div className="pointer-events-none absolute left-5 top-5">
-            <div className="kol-helper-12 text-emphasis">{page?.label || 'Pattern'}</div>
-            <div className="kol-helper-10 text-meta" style={{ marginTop: 2 }}>{catLabel}</div>
-          </div>
         </div>
       </div>
       <EditorRail
@@ -253,10 +251,19 @@ export default function PatternEditor({ page }) {
           <Section label="Generate">
             <Button variant="primary" size="sm" className="w-full" onClick={() => randomize('all')}>Randomize all</Button>
             <div className="grid grid-cols-2 gap-2">
-              <Button variant="primary" size="sm" onClick={() => randomize('pattern')}>Pattern</Button>
-              <Button variant="primary" size="sm" onClick={() => randomize('motion')}>Motion</Button>
-              <Button variant="primary" size="sm" onClick={() => randomize('frame')}>Frame</Button>
+              <Button variant="primary" size="sm" onClick={() => randomize('pattern1')}>Pattern 1</Button>
+              <Button variant="primary" size="sm" onClick={() => randomize('pattern2')}>Pattern 2</Button>
+              <Button variant="primary" size="sm" onClick={() => randomize('frame')}>Motion Frame</Button>
+              <Button variant="primary" size="sm" onClick={() => randomize('motion')}>Motion Form</Button>
               <Button variant="primary" size="sm" onClick={() => randomize('color')}>Colour</Button>
+              {values.render === 'field' && (values.field || 'stripes') === 'organic' && (
+                <Button variant="primary" size="sm" onClick={() => randomize('profile')}>Profile</Button>
+              )}
+              {/* Flow is integer-only (whole repeats ⇒ seamless), so there's no half-Flow —
+                  halving the tempo is how you get slower-than-1 motion. */}
+              {(cat === 'weave' || cat === 'interlace') && (
+                <Button variant="primary" size="sm" onClick={() => setTempo((t) => Math.max(1, Math.round(t / 2)))}>50% speed</Button>
+              )}
             </div>
           </Section>
         ) : (

@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
 import {
   renderScanlines, FIELD_OPTIONS, GEOMETRY_OPTIONS, MARK_OPTIONS, SOURCE_OPTIONS,
   PALETTES, CHARSET_OPTIONS,
 } from './engine.js'
-import { presetsFor } from './registry.js'
+import { SCANLINE_CATEGORIES, presetsForCat, categoryById, catRoute, FILTER_PRESETS } from './registry.js'
+import { randomizeScanline } from './randomize.js'
+import ColorField from '../../components/color/ColorField.jsx'
 import { coverDraw, makeLuma, startWebcam, startVideoFile, stopStream } from './camera.js'
 import SourcePlaceholder from '../radar/components/SourcePlaceholder.jsx'
 import { VIEW_ASPECTS, defaultAspectFor, DEFAULT_SCALE, ratioFor, dimsFor } from '../_shared/exportSpecs.js'
@@ -14,6 +17,7 @@ import EditorFooter from '../../components/framework/EditorFooter.jsx'
 import Section from '../../components/molecules/Section.jsx'
 import SegmentedToggle from '../../components/molecules/SegmentedToggle.jsx'
 import Dropdown from '../../components/molecules/Dropdown.jsx'
+import LabeledControl from '../../components/molecules/LabeledControl.jsx'
 import Slider from '../../components/atoms/Slider.jsx'
 import ToggleSwitch from '../../components/atoms/ToggleSwitch.jsx'
 import Button from '../../components/atoms/Button.jsx'
@@ -26,10 +30,30 @@ const FALLBACK = {
   displace: 0, swirl: 0, lens: 1.6, weave: false,
   markSize: 1, dashLen: 1.2, charset: 'ascii', fontScale: 1,
   palette: 'mono', invert: false,
+  flow: 1, drift: 0, spin: 0, pulse: 0, sweep: 0, // animation (default = current behaviour)
 }
 
 // A filter always has a source — drop 'none' from its source toggle.
 const FILTER_SOURCE_OPTIONS = SOURCE_OPTIONS.filter((o) => o.value !== 'none')
+
+// Motion quick-select presets (mirrors Pattern). Each patches only its own axis —
+// Frame (flow/drift/spin: the whole pattern moves) · Form (sweep/pulse: marks
+// animate in place) — so they compose. Editing any slider on an axis flips its
+// selector to Custom. 'Static' is the real motion-off.
+const FRAME_PRESETS = [
+  { id: 'static',  label: 'Static',  params: { flow: 0 } },
+  { id: 'drift',   label: 'Drift',   params: { flow: 1, drift: 0, spin: 0 } },
+  { id: 'reverse', label: 'Reverse', params: { flow: 1, drift: 180, spin: 0 } },
+  { id: 'down',    label: 'Down',    params: { flow: 1, drift: 90, spin: 0 } },
+  { id: 'spin',    label: 'Spin',    params: { flow: 1, drift: 0, spin: 0.6 } },
+  { id: 'rush',    label: 'Rush',    params: { flow: 2, drift: 0, spin: 0 } },
+]
+const FORM_PRESETS = [
+  { id: 'static',  label: 'Static',  params: { sweep: 0, pulse: 0 } },
+  { id: 'sweep',   label: 'Sweep',   params: { sweep: 0.6, pulse: 0 } },
+  { id: 'breathe', label: 'Breathe', params: { sweep: 0, pulse: 0.5 } },
+  { id: 'ripple',  label: 'Ripple',  params: { sweep: 0.5, pulse: 0.4 } },
+]
 
 // One editor for both Scanline modes:
 //   mode="generator" — source off; procedural field drives density (Field section).
@@ -39,8 +63,15 @@ const FILTER_SOURCE_OPTIONS = SOURCE_OPTIONS.filter((o) => o.value !== 'none')
 // in-place. Mounted with key={mode} so switching modes re-seeds cleanly.
 export default function ScanlineEditor({ mode = 'generator' }) {
   const isFilter = mode === 'filter'
-  const PRESETS = presetsFor(mode)
-  const D = { ...FALLBACK, ...PRESETS[0].defaults }
+  // Generator: the category comes from the route (/scanlines/<cat>); its presets pick
+  // in-rail. Filter: a flat preset list, no categories.
+  const { cat: routeCat } = useParams()
+  const navigate = useNavigate()
+  const category = isFilter ? null : categoryById(routeCat)
+  const PRESETS = isFilter ? FILTER_PRESETS : presetsForCat(category.id)
+  const initialPreset = PRESETS[0]
+  const D = { ...FALLBACK, ...initialPreset.defaults }
+  const palOf = (id) => PALETTES.find((x) => x.value === id) || PALETTES[0]
 
   const canvasRef = useRef(null)
   const timeRef = useRef(0)
@@ -52,7 +83,7 @@ export default function ScanlineEditor({ mode = 'generator' }) {
   const imgInputRef = useRef(null)
   const vidInputRef = useRef(null)
 
-  const [presetId, setPresetId] = useState(PRESETS[0].id)
+  const [presetId, setPresetId] = useState(initialPreset.id)
   const [geometry, setGeometry] = useState(D.geometry)
   const [mark, setMark] = useState(D.mark)
   const [field, setField] = useState(D.field)
@@ -78,7 +109,18 @@ export default function ScanlineEditor({ mode = 'generator' }) {
   const [fontScale, setFontScale] = useState(D.fontScale)
   const [palette, setPalette] = useState(D.palette)
   const [invert, setInvert] = useState(D.invert)
+  const [bg, setBg] = useState(palOf(D.palette).bg)
+  const [fg, setFg] = useState(palOf(D.palette).fg)
+  const [flow, setFlow] = useState(D.flow ?? 1)
+  const [drift, setDrift] = useState(D.drift ?? 0)
+  const [spin, setSpin] = useState(D.spin ?? 0)
+  const [pulse, setPulse] = useState(D.pulse ?? 0)
+  const [sweep, setSweep] = useState(D.sweep ?? 0)
   const [seed, setSeed] = useState(0)
+  const [tab, setTab] = useState('style') // generate | style | animation (generator only)
+  const [animTab, setAnimTab] = useState('frame') // frame (whole-pattern) | form (per-mark)
+  const [framePreset, setFramePreset] = useState('custom')
+  const [formPreset, setFormPreset] = useState('custom')
 
   const [playing, setPlaying] = useState(() => defaultAutoplay())
   const [tempo, setTempo] = useState(120)
@@ -92,7 +134,8 @@ export default function ScanlineEditor({ mode = 'generator' }) {
   const params = {
     geometry, mark, field, rows, rayCount, ringCount, turns, arms,
     minGap, maxGap, freq, contrast, displace, swirl, lens, weave,
-    markSize, dashLen, charset, fontScale, palette, invert, seed,
+    markSize, dashLen, charset, fontScale, palette, invert, bg, fg, seed,
+    flow, drift, spin, pulse, sweep,
     sample: camOn ? lumaSample : undefined,
   }
 
@@ -107,8 +150,21 @@ export default function ScanlineEditor({ mode = 'generator' }) {
     setMinGap(d.minGap); setMaxGap(d.maxGap); setFreq(d.freq); setContrast(d.contrast)
     setDisplace(d.displace); setSwirl(d.swirl); setLens(d.lens); setWeave(d.weave)
     setMarkSize(d.markSize); setDashLen(d.dashLen); setCharset(d.charset); setFontScale(d.fontScale)
-    setPalette(d.palette); setInvert(d.invert); setSeed(0); timeRef.current = 0
+    const pp = palOf(d.palette)
+    setPalette(d.palette); setInvert(d.invert); setBg(pp.bg); setFg(pp.fg)
+    setFlow(d.flow); setDrift(d.drift); setSpin(d.spin); setPulse(d.pulse); setSweep(d.sweep)
+    setFramePreset('custom'); setFormPreset('custom')
+    setSeed(0); timeRef.current = 0
   }
+  // Category switch (sidebar / rail Category dropdown) navigates; the effect loads
+  // that category's first preset. Presets within a category apply in-rail (no route).
+  const pickCat = (id) => navigate(catRoute(id))
+  const didMount = useRef(false)
+  useEffect(() => {
+    if (isFilter) return
+    if (!didMount.current) { didMount.current = true; return } // initial state already seeded
+    applyPreset(PRESETS[0].id) // new category → its first preset
+  }, [routeCat]) // eslint-disable-line react-hooks/exhaustive-deps
   usePublishReset(() => applyPreset(presetId))
   usePublishRetrigger(() => setSeed((s) => s + 1))
 
@@ -240,7 +296,7 @@ export default function ScanlineEditor({ mode = 'generator' }) {
     }
     raf = requestAnimationFrame(loop)
     return () => { alive = false; cancelAnimationFrame(raf) }
-  }, [geometry, mark, field, source, rows, rayCount, ringCount, turns, arms, minGap, maxGap, freq, contrast, displace, swirl, lens, weave, markSize, dashLen, charset, fontScale, palette, invert, seed, mediaReady, playing, tempo, aspect]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [geometry, mark, field, source, rows, rayCount, ringCount, turns, arms, minGap, maxGap, freq, contrast, displace, swirl, lens, weave, markSize, dashLen, charset, fontScale, palette, invert, bg, fg, flow, drift, spin, pulse, sweep, seed, mediaReady, playing, tempo, aspect]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => () => teardownMedia(), []) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -268,19 +324,34 @@ export default function ScanlineEditor({ mode = 'generator' }) {
   const getSettings = () => ({
     geometry, mark, field, source, rows, rayCount, ringCount, turns, arms, minGap, maxGap,
     freq, contrast, displace, swirl, lens, weave, markSize, dashLen, charset, fontScale,
-    palette, invert, aspect, scale,
+    palette, invert, bg, fg, flow, drift, spin, pulse, sweep, framePreset, formPreset, aspect, scale,
   })
-  const applySettings = (s) => {
-    for (const [k, v] of Object.entries(s)) {
-      ({
-        geometry: setGeometry, mark: setMark, field: setField, source: setSource, rows: setRows,
-        rayCount: setRayCount, ringCount: setRingCount, turns: setTurns, arms: setArms,
-        minGap: setMinGap, maxGap: setMaxGap, freq: setFreq, contrast: setContrast,
-        displace: setDisplace, swirl: setSwirl, lens: setLens, weave: setWeave, markSize: setMarkSize,
-        dashLen: setDashLen, charset: setCharset, fontScale: setFontScale, palette: setPalette,
-        invert: setInvert, aspect: setAspect, scale: setScale,
-      }[k]?.(v))
-    }
+  const SETTERS = {
+    geometry: setGeometry, mark: setMark, field: setField, source: setSource, rows: setRows,
+    rayCount: setRayCount, ringCount: setRingCount, turns: setTurns, arms: setArms,
+    minGap: setMinGap, maxGap: setMaxGap, freq: setFreq, contrast: setContrast,
+    displace: setDisplace, swirl: setSwirl, lens: setLens, weave: setWeave, markSize: setMarkSize,
+    dashLen: setDashLen, charset: setCharset, fontScale: setFontScale, palette: setPalette,
+    invert: setInvert, bg: setBg, fg: setFg, flow: setFlow, drift: setDrift, spin: setSpin,
+    pulse: setPulse, sweep: setSweep, framePreset: setFramePreset, formPreset: setFormPreset,
+    aspect: setAspect, scale: setScale,
+  }
+  const applyPatch = (patch) => { for (const [k, val] of Object.entries(patch)) SETTERS[k]?.(val) }
+  const applySettings = applyPatch
+  // Generate — randomise a section (or all), applied over the current params. Passing
+  // `params` lets the randomizers preserve the category (current geometry + mark).
+  const randomize = (section) => applyPatch(randomizeScanline(params, section))
+
+  // Motion preset dropdowns (Frame/Form): apply only that axis's params; editing any
+  // slider on the axis flips its selector back to Custom (display-only).
+  const applyFramePreset = (id) => { setFramePreset(id); const p = FRAME_PRESETS.find((x) => x.id === id); if (p?.params) applyPatch(p.params) }
+  const applyFormPreset = (id) => { setFormPreset(id); const p = FORM_PRESETS.find((x) => x.id === id); if (p?.params) applyPatch(p.params) }
+  const onFrameEdit = (setter) => (v) => { setter(v); setFramePreset('custom') }
+  const onFormEdit = (setter) => (v) => { setter(v); setFormPreset('custom') }
+  // 'Custom' shows in the list only while active, so it never reads as a second 'off'.
+  const motionOpts = (presets, val) => {
+    const opts = presets.map((p) => ({ value: p.id, label: p.label }))
+    return (val == null || val === 'custom') ? [{ value: 'custom', label: 'Custom' }, ...opts] : opts
   }
 
   const isRows = geometry === 'rows' || geometry === 'columns'
@@ -342,7 +413,14 @@ export default function ScanlineEditor({ mode = 'generator' }) {
 
       <EditorRail
         footerBare
-        header={<RailHeader>Scanline</RailHeader>}
+        header={
+          <>
+            <RailHeader>Scanline</RailHeader>
+            {!isFilter && (
+              <SegmentedToggle value={tab} onChange={setTab} options={[{ value: 'generate', label: 'Generate' }, { value: 'style', label: 'Style' }, { value: 'animation', label: 'Animation' }]} />
+            )}
+          </>
+        }
         footer={
           <EditorFooter
             tab={footTab}
@@ -367,9 +445,27 @@ export default function ScanlineEditor({ mode = 'generator' }) {
         }
       >
         <Section label="Preset">
+          {!isFilter && (
+            <Dropdown size="sm" options={SCANLINE_CATEGORIES.map((c) => ({ value: c.id, label: c.label }))} value={category.id} onChange={pickCat} variant="subtle" className="w-full" />
+          )}
           <Dropdown size="sm" options={PRESETS.map((p) => ({ value: p.id, label: p.label }))} value={presetId} onChange={applyPreset} variant="subtle" className="w-full" />
         </Section>
 
+        {!isFilter && tab === 'generate' && (
+          <Section label="Generate">
+            <Button variant="primary" size="sm" className="w-full" onClick={() => randomize('all')}>Randomize all</Button>
+            <div className="grid grid-cols-2 gap-2">
+              <Button variant="primary" size="sm" onClick={() => randomize('geometry')}>Geometry</Button>
+              <Button variant="primary" size="sm" onClick={() => randomize('field')}>Field</Button>
+              <Button variant="primary" size="sm" onClick={() => randomize('mark')}>Mark</Button>
+              <Button variant="primary" size="sm" onClick={() => randomize('color')}>Colour</Button>
+              <Button variant="primary" size="sm" onClick={() => randomize('frame')}>Motion Frame</Button>
+              <Button variant="primary" size="sm" onClick={() => randomize('form')}>Motion Form</Button>
+            </div>
+          </Section>
+        )}
+
+        {(isFilter || tab === 'style') && (<>
         <Section label="Geometry">
           <Dropdown size="sm" options={GEOMETRY_OPTIONS} value={geometry} onChange={setGeometry} variant="subtle" className="w-full" />
           {isRows && <Slider labeled label="Lines" min={8} max={260} step={1} value={rows} onChange={setRows} variant="default" noExpr />}
@@ -411,8 +507,46 @@ export default function ScanlineEditor({ mode = 'generator' }) {
         </Section>
 
         <Section label="Color">
-          <Dropdown size="sm" options={PALETTES.map((p) => ({ value: p.value, label: p.label }))} value={palette} onChange={setPalette} variant="subtle" className="w-full" />
+          {/* Named palette = a quick-pick that seeds bg/fg; the swatches show the real
+              hex and let you go custom. */}
+          <Dropdown size="sm" options={PALETTES.map((p) => ({ value: p.value, label: p.label }))} value={palette}
+            onChange={(id) => { const pp = palOf(id); setPalette(id); setBg(pp.bg); setFg(pp.fg) }} variant="subtle" className="w-full" />
+          <ColorField label="Background" value={bg} onChange={setBg} />
+          <ColorField label="Foreground" value={fg} onChange={setFg} />
         </Section>
+        </>)}
+
+        {!isFilter && tab === 'animation' && (<>
+          {/* Quick-select the Frame + Form motion presets (mirrors Pattern); the toggle
+              + sliders below are the deep settings. */}
+          <Section label="Motion">
+            <LabeledControl inline label="Frame">
+              <Dropdown variant="subtle" size="sm" className="w-full" options={motionOpts(FRAME_PRESETS, framePreset)} value={framePreset} onChange={applyFramePreset} />
+            </LabeledControl>
+            <LabeledControl inline label="Form">
+              <Dropdown variant="subtle" size="sm" className="w-full" options={motionOpts(FORM_PRESETS, formPreset)} value={formPreset} onChange={applyFormPreset} />
+            </LabeledControl>
+          </Section>
+          {/* Frame = the whole pattern moves · Form = the marks animate in place. */}
+          <SegmentedToggle value={animTab} onChange={setAnimTab} className="w-full" options={[{ value: 'frame', label: 'Frame' }, { value: 'form', label: 'Form' }]} />
+          {animTab === 'frame' && (
+            <Section label="Frame">
+              {/* Flow scales all motion (0 = frozen even while playing); Direction is the
+                  noise drift angle; Spin turns radial/rings/spiral. */}
+              <Slider labeled label="Flow" min={0} max={3} step={0.05} value={flow} onChange={onFrameEdit(setFlow)} variant="default" noExpr />
+              <Slider labeled label="Direction" min={0} max={360} step={1} value={drift} onChange={onFrameEdit(setDrift)} variant="default" noExpr />
+              <Slider labeled label="Spin" min={-2} max={2} step={0.05} value={spin} onChange={onFrameEdit(setSpin)} variant="default" noExpr />
+            </Section>
+          )}
+          {animTab === 'form' && (
+            <Section label="Form">
+              {/* Sweep breathes each mark's size in a travelling wave; Pulse breathes
+                  the field brightness. */}
+              <Slider labeled label="Sweep" min={0} max={1} step={0.05} value={sweep} onChange={onFormEdit(setSweep)} variant="default" noExpr />
+              <Slider labeled label="Pulse" min={0} max={1} step={0.05} value={pulse} onChange={onFormEdit(setPulse)} variant="default" noExpr />
+            </Section>
+          )}
+        </>)}
       </EditorRail>
 
       {/* Hidden source inputs — kept mounted (the empty-state placeholder + the

@@ -88,22 +88,42 @@ function drawWeave(ctx, u, w, h, p) {
   const z = p.camZoom || 1
   const ang = (p.camAngle || 0) * Math.PI / 180
   const flow = Math.round(p.camFlow || 0)
-  const half = Math.max(1, (p.strandWidth ?? 0.7) * cell) / 2
+  const baseHalf = Math.max(1, (p.strandWidth ?? 0.7) * cell) / 2
   const weave = p.weaveType || 'plain'
   const warpCol = p.color, weftCol = p.color2 || p.color
   const warpLit = mixHex(warpCol, '#ffffff', 0.2), weftLit = mixHex(weftCol, '#ffffff', 0.2)
-  const len = period // ribbons span the full cell so strands read continuous
+  // Collinear ribbon segments from adjacent cells must OVERLAP, not abut — exact
+  // abutment leaves a sub-pixel AA seam (the faint grid the strands read through).
+  // Extend each segment ~1 device px past the cell midpoint so neighbours overlap.
+  const len = period + 2 / z
+
+  // FORM — per-crossing pulse/fade swept diagonally (the same sweep the tile engine
+  // uses), so the weave gets a Motion Form too. Seamless: u only via tphase.
+  const axis = p.animAxis || 'none'
+  const formOn = axis !== 'none' && (p.pulse || p.fade)
+  const cyc = Math.round(p.animCycles || 0)
+  const wav = p.animWaves || 0
+  const tphase = u * TAU * cyc
+
+  // Frame — the whole woven sheet PANS (translates) in the picked direction. Seamless:
+  // the parity wraps on cols/rows, so panning whole cols/rows repeats per loop lands
+  // identically. (flow=0 ⇒ static.)
+  const [fx, fy] = PAN_VEC[p.panDir] || PAN_VEC.right
+  const panX = u * flow * fx * cols * period
+  const panY = u * flow * fy * rows * period
 
   ctx.save()
   ctx.translate(w / 2, h / 2)
   ctx.rotate(ang)
   ctx.scale(z, z)
+  ctx.translate(-panX, -panY)
 
   const reach = (Math.hypot(w, h) / 2) / z + period * 2
-  const g0 = Math.floor(-reach / period), g1 = Math.ceil(reach / period)
+  const gx0 = Math.floor((panX - reach) / period), gx1 = Math.ceil((panX + reach) / period)
+  const gy0 = Math.floor((panY - reach) / period), gy1 = Math.ceil((panY + reach) / period)
 
   // ribbon = base fill + a centre sheen (tube/cord read).
-  const ribbon = (cx, cy, vert, base, lit) => {
+  const ribbon = (cx, cy, vert, base, lit, half) => {
     ctx.fillStyle = base
     if (vert) ctx.fillRect(cx - half, cy - len / 2, half * 2, len)
     else ctx.fillRect(cx - len / 2, cy - half, len, half * 2)
@@ -114,20 +134,29 @@ function drawWeave(ctx, u, w, h, p) {
   }
 
   let count = 0
-  for (let gy = g0; gy <= g1; gy++) {
-    for (let gx = g0; gx <= g1; gx++) {
+  for (let gy = gy0; gy <= gy1; gy++) {
+    for (let gx = gx0; gx <= gx1; gx++) {
       if (++count > MAX_CELLS) { ctx.restore(); return }
       const col = ((gx % cols) + cols) % cols
       const row = ((gy % rows) + rows) % rows
       const cx = gx * period, cy = gy * period
-      let warpOver = parityWeave(weave, col, row)
-      // travel: the over/under boundary sweeps diagonally on play (whole cycles
-      // ⇒ seamless). flow=0 ⇒ static weave.
-      if (flow) warpOver = warpOver !== (Math.sin(u * TAU * flow - (gx + gy) * 0.6) > 0)
-      if (warpOver) { ribbon(cx, cy, false, weftCol, weftLit); ribbon(cx, cy, true, warpCol, warpLit) }
-      else { ribbon(cx, cy, true, warpCol, warpLit); ribbon(cx, cy, false, weftCol, weftLit) }
+
+      // Per-crossing Form sweep (k 0..1, plain sine ⇒ seamless): Pulse breathes the
+      // strand width, Fade its opacity, phased by axis across the field.
+      let half = baseHalf
+      if (formOn) {
+        const sp = axis === 'col' ? gx : axis === 'row' ? gy : axis === 'radial' ? Math.hypot(gx, gy) : gx + gy
+        const k = 0.5 + 0.5 * Math.sin(tphase - sp * 0.5 * wav)
+        if (p.pulse) half = baseHalf * (1 - p.pulse + p.pulse * k)
+        ctx.globalAlpha = p.fade ? (1 - p.fade + p.fade * k) : 1
+      }
+
+      const warpOver = parityWeave(weave, col, row)
+      if (warpOver) { ribbon(cx, cy, false, weftCol, weftLit, half); ribbon(cx, cy, true, warpCol, warpLit, half) }
+      else { ribbon(cx, cy, true, warpCol, warpLit, half); ribbon(cx, cy, false, weftCol, weftLit, half) }
     }
   }
+  ctx.globalAlpha = 1
   ctx.restore()
 }
 

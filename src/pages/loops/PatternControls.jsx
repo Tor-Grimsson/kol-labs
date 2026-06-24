@@ -15,6 +15,7 @@ import { SETT_OPTIONS } from '../../loops/pattern/fields/setts.js'
 import { profileToNodes } from '../../loops/pattern/fields/organicField.js'
 import ProfileEditor from './ProfileEditor.jsx'
 import { newRule, randomRule } from '../../loops/pattern/rules.js'
+import { randFill, randShape, randWeaveType } from '../../loops/pattern/randomize.js'
 import { FONT_OPTIONS, fontByKey } from '../kinetic/lib/vfAxes.js'
 
 const PAN_DIRS = [
@@ -87,13 +88,19 @@ const BAND_FORM_PRESETS = [
   { id: 'alternate', label: 'Alternate', params: { fieldSway: 0.6,  fieldStagger: 1,   fieldCycles: 1 } },
   { id: 'ripple',    label: 'Ripple',    params: { fieldSway: 0.45, fieldStagger: 0.5, fieldCycles: 1 } },
 ]
-const TARTAN_FORM_PRESETS = [
-  { id: 'static',  label: 'Static',  params: { fieldPulse: 0,   fieldShimmer: 0,   fieldCycles: 1 } },
-  { id: 'breathe', label: 'Breathe', params: { fieldPulse: 0.5, fieldShimmer: 0,   fieldCycles: 1 } },
-  { id: 'shimmer', label: 'Shimmer', params: { fieldPulse: 0,   fieldShimmer: 0.6, fieldCycles: 1 } },
-  { id: 'live',    label: 'Live',    params: { fieldPulse: 0.4, fieldShimmer: 0.4, fieldCycles: 1 } },
+// Tartan animates PER-BAND like stripes/organic — each sett band pulses its width,
+// staggered across band index — so it shares BAND_FORM_PRESETS (real form, not the
+// old field-wide breathe).
+const FIELD_FORM_PRESETS = { stripes: BAND_FORM_PRESETS, organic: BAND_FORM_PRESETS, tartan: BAND_FORM_PRESETS }
+
+// Weave Form presets — per-crossing pulse/fade swept diagonally (the weave analogue
+// of the tile FORM_PRESETS; spin/swing/colourMix don't apply to ribbons).
+const WEAVE_FORM_PRESETS = [
+  { id: 'static', label: 'Static', params: { animAxis: 'none',   animCycles: 1, animWaves: 2, pulse: 0,   fade: 0 } },
+  { id: 'pulse',  label: 'Pulse',  params: { animAxis: 'diag',   animCycles: 1, animWaves: 3, pulse: 0.6, fade: 0 } },
+  { id: 'fade',   label: 'Fade',   params: { animAxis: 'col',    animCycles: 1, animWaves: 2, pulse: 0,   fade: 0.7 } },
+  { id: 'ripple', label: 'Ripple', params: { animAxis: 'radial', animCycles: 1, animWaves: 4, pulse: 0.4, fade: 0.4 } },
 ]
-const FIELD_FORM_PRESETS = { stripes: BAND_FORM_PRESETS, organic: BAND_FORM_PRESETS, tartan: TARTAN_FORM_PRESETS }
 
 // Field Frame presets — a band field only drifts perpendicular to its bands, so the
 // tile Pan-L/R/U/D directions collapse to one look. These vary what actually reads:
@@ -166,6 +173,8 @@ export default function PatternControls({ values, onChange, tab = 'pattern', gly
   const colorCtl = (label, key) => (
     <ColorField label={label} value={v[key]} onChange={(c) => onChange(key, c)} />
   )
+  // Inline reroll: apply a randomizer patch (key→value object) one onChange at a time.
+  const reroll = (fn) => () => { for (const [k, val] of Object.entries(fn())) onChange(k, val) }
 
   if (tab === 'animation') {
     // Two orthogonal motion axes (Frame = camera pan · Form = per-cell sweep),
@@ -189,15 +198,16 @@ export default function PatternControls({ values, onChange, tab = 'pattern', gly
       const opts = presets.map((p) => ({ value: p.id, label: p.label }))
       return (val == null || val === 'custom') ? [{ value: 'custom', label: 'Custom' }, ...opts] : opts
     }
-    // Form (the per-cell sweep) is a TILE concept — field/weave renders move on the
-    // Frame axis only (stripe drift · tartan scroll · organic orbit · weave travel,
-    // all driven by Frame → Flow). So hide the whole Form axis when not on tiles.
+    // Every render kind now has BOTH motion axes: Frame (the field/grid drift) and
+    // Form (per-element animation) — tiles = per-cell sweep · fields = per-band ·
+    // weave = per-crossing pulse/fade.
     const tilesRender = (v.render ?? 'tiles') === 'tiles'
     const field = v.field || 'stripes'
     // Frame/Form preset lists: tiles use the tile pan + per-cell sweep presets;
-    // fields use their own (a band field can't pan in arbitrary 2D). Weave: no Form.
+    // fields use their own (a band field can't pan in arbitrary 2D); weave gets a
+    // per-crossing pulse/fade Form.
     const framePresets = tilesRender ? FRAME_PRESETS : (field === 'organic' ? ORGANIC_FRAME_PRESETS : FIELD_FRAME_PRESETS)
-    const formPresets = tilesRender ? FORM_PRESETS : (FIELD_FORM_PRESETS[field] || [])
+    const formPresets = tilesRender ? FORM_PRESETS : (v.render === 'weave' ? WEAVE_FORM_PRESETS : (FIELD_FORM_PRESETS[field] || []))
     return (
       <>
         {/* Quick-select layer: pick the Frame + Pattern motion presets without
@@ -207,18 +217,14 @@ export default function PatternControls({ values, onChange, tab = 'pattern', gly
           <LabeledControl inline label="Frame">
             <Dropdown variant="subtle" size="sm" className="w-full" options={presetOpts(framePresets, v.framePreset)} value={v.framePreset ?? 'custom'} onChange={applyPreset('framePreset', framePresets)} />
           </LabeledControl>
-          {v.render !== 'weave' && (
-            <LabeledControl inline label="Form">
-              <Dropdown variant="subtle" size="sm" className="w-full" options={presetOpts(formPresets, v.formPreset)} value={v.formPreset ?? 'custom'} onChange={applyPreset('formPreset', formPresets)} />
-            </LabeledControl>
-          )}
+          <LabeledControl inline label="Form">
+            <Dropdown variant="subtle" size="sm" className="w-full" options={presetOpts(formPresets, v.formPreset)} value={v.formPreset ?? 'custom'} onChange={applyPreset('formPreset', formPresets)} />
+          </LabeledControl>
         </Section>
-        {/* Frame | Form — fields get a Form axis too (their own params animate),
-            matching tiles. Weave has no per-cell form, so it stays Frame-only. */}
-        {v.render !== 'weave' && (
-          <SegmentedToggle value={animTab} onChange={setAnimTab} className="w-full" options={[{ value: 'frame', label: 'Frame' }, { value: 'form', label: 'Form' }]} />
-        )}
-        {(v.render === 'weave' || animTab === 'frame') && (
+        {/* Frame | Form — every render kind has both axes: tiles (per-cell sweep),
+            fields (per-band), weave (per-crossing pulse/fade). */}
+        <SegmentedToggle value={animTab} onChange={setAnimTab} className="w-full" options={[{ value: 'frame', label: 'Frame' }, { value: 'form', label: 'Form' }]} />
+        {animTab === 'frame' && (
         <Section label="Frame">
           <Slider labeled label="Flow" min={0} max={4} step={1} value={v.camFlow} onChange={(x) => onFrame('camFlow', roundIfNum(x))} variant="default" />
           {/* Along-axis motion (the other screen axis from Flow's across-drift) ⇒ the
@@ -230,12 +236,16 @@ export default function PatternControls({ values, onChange, tab = 'pattern', gly
           {/* Tiles pan the grid in 2D; a band field only drifts perpendicular to its
               bands, so it gets Forward/Reverse (the motion ANGLE is the band Angle). */}
           <LabeledControl inline label="Direction">
-            <Dropdown variant="subtle" size="sm" className="w-full" options={tilesRender ? PAN_DIRS : FIELD_DIRS} value={v.panDir ?? (tilesRender ? 'diag' : 'right')} onChange={(val) => onFrame('panDir', val)} />
+            <Dropdown variant="subtle" size="sm" className="w-full" options={(tilesRender || v.render === 'weave') ? PAN_DIRS : FIELD_DIRS} value={v.panDir ?? (tilesRender || v.render === 'weave' ? 'diag' : 'right')} onChange={(val) => onFrame('panDir', val)} />
           </LabeledControl>
-          {/* Split separates the bands; Fill decides what's in the gaps. */}
+          {/* Split separates the bands; Fill decides what's in the gaps. Its own
+              reroll lands a random type (+ colour when solid). */}
           {!tilesRender && v.panDir === 'split' && (
             <LabeledControl inline label="Fill">
-              <Dropdown variant="subtle" size="sm" className="w-full" options={FILL_MODES} value={v.fillMode ?? 'off'} onChange={(val) => onChange('fillMode', val)} />
+              <div className="flex items-center gap-1">
+                <Dropdown variant="subtle" size="sm" className="w-full" options={FILL_MODES} value={v.fillMode ?? 'off'} onChange={(val) => onChange('fillMode', val)} />
+                <Button variant="ghost" size="sm" iconOnly="refresh" title="Randomize fill" className="shrink-0" onClick={reroll(randFill)} />
+              </div>
             </LabeledControl>
           )}
           {!tilesRender && v.panDir === 'split' && (v.fillMode ?? 'off') === 'solid' && colorCtl('Fill', 'fillColor')}
@@ -245,19 +255,28 @@ export default function PatternControls({ values, onChange, tab = 'pattern', gly
         )}
 
         {/* Field Form — animates the bands INDIVIDUALLY (Frame moves the whole field).
-            Sway shifts each band; Stagger phases that across band index — at 1, odd
-            and even bands move opposite. Seamless on whole Speed cycles. */}
+            Sway shifts/pulses each band; Stagger phases that across band index — at 1,
+            neighbours move opposite. Seamless on whole Speed cycles. Same model for
+            stripes/organic (position shift) and tartan (band-width pulse). */}
         {v.render === 'field' && animTab === 'form' && (
         <Section label="Form">
-          {(field === 'stripes' || field === 'organic') && <>
-            <Slider labeled label="Sway" min={0} max={1} step={0.05} value={v.fieldSway ?? 0} onChange={(x) => onForm('fieldSway', x)} variant="default" />
-            <Slider labeled label="Stagger" min={0} max={1} step={0.05} value={v.fieldStagger ?? 0} onChange={(x) => onForm('fieldStagger', x)} variant="default" />
-          </>}
-          {field === 'tartan' && <>
-            <Slider labeled label="Spacing" min={0} max={1} step={0.05} value={v.fieldPulse ?? 0} onChange={(x) => onForm('fieldPulse', x)} variant="default" />
-            <Slider labeled label="Colour" min={0} max={1} step={0.05} value={v.fieldShimmer ?? 0} onChange={(x) => onForm('fieldShimmer', x)} variant="default" />
-          </>}
+          <Slider labeled label="Sway" min={0} max={1} step={0.05} value={v.fieldSway ?? 0} onChange={(x) => onForm('fieldSway', x)} variant="default" />
+          <Slider labeled label="Stagger" min={0} max={1} step={0.05} value={v.fieldStagger ?? 0} onChange={(x) => onForm('fieldStagger', x)} variant="default" />
           <Slider labeled label="Speed" min={1} max={4} step={1} value={v.fieldCycles ?? 1} onChange={(x) => onForm('fieldCycles', roundIfNum(x))} variant="default" />
+        </Section>
+        )}
+
+        {/* Weave Form — per-crossing pulse/fade swept diagonally (axis), the weave
+            analogue of the tile sweep. Pulse breathes strand width, Fade its opacity. */}
+        {v.render === 'weave' && animTab === 'form' && (
+        <Section label="Form">
+          <LabeledControl inline label="Axis">
+            <Dropdown variant="subtle" size="sm" className="w-full" options={SWEEP_AXES} value={v.animAxis ?? 'none'} onChange={(val) => onForm('animAxis', val)} />
+          </LabeledControl>
+          <Slider labeled label="Speed" min={1} max={4} step={1} value={v.animCycles ?? 1} onChange={(x) => onForm('animCycles', roundIfNum(x))} variant="default" />
+          <Slider labeled label="Stagger" min={0} max={8} step={0.5} value={v.animWaves ?? 2} onChange={(x) => onForm('animWaves', x)} variant="default" />
+          <Slider labeled label="Pulse" min={0} max={1} step={0.05} value={v.pulse ?? 0} onChange={(x) => onForm('pulse', x)} variant="default" />
+          <Slider labeled label="Fade" min={0} max={1} step={0.05} value={v.fade ?? 0} onChange={(x) => onForm('fade', x)} variant="default" />
         </Section>
         )}
 
@@ -365,7 +384,10 @@ export default function PatternControls({ values, onChange, tab = 'pattern', gly
       <>
         <Section label="Weave">
           <LabeledControl inline label="Type">
-            <Dropdown variant="subtle" size="sm" className="w-full" options={WEAVE_OPTIONS} value={v.weaveType ?? 'plain'} onChange={(val) => onChange('weaveType', val)} />
+            <div className="flex items-center gap-1">
+              <Dropdown variant="subtle" size="sm" className="w-full" options={WEAVE_OPTIONS} value={v.weaveType ?? 'plain'} onChange={(val) => onChange('weaveType', val)} />
+              <Button variant="ghost" size="sm" iconOnly="refresh" title="Randomize weave" className="shrink-0" onClick={reroll(randWeaveType)} />
+            </div>
           </LabeledControl>
           <Slider labeled label="Columns" min={2} max={28} step={1} value={v.cols} onChange={(x) => onChange('cols', roundIfNum(x))} variant="default" />
           <Slider labeled label="Rows" min={2} max={28} step={1} value={v.rows} onChange={(x) => onChange('rows', roundIfNum(x))} variant="default" />
@@ -392,18 +414,21 @@ export default function PatternControls({ values, onChange, tab = 'pattern', gly
   return (
     <>
       <Section label="Shape">
-        <Dropdown
-          variant="subtle" size="sm" className="w-full" options={SHAPE_OPTIONS} value={v.shape}
-          onChange={(val) => {
-            onChange('shape', val)
-            // Glyph mode tiles a TYPE outline — seed the font url on first pick.
-            if (val === 'glyph' && !v.glyphFontUrl) {
-              const key = v.glyphFontKey || 'rot'
-              onChange('glyphFontKey', key)
-              onChange('glyphFontUrl', fontByKey(key).url)
-            }
-          }}
-        />
+        <div className="flex items-center gap-1">
+          <Dropdown
+            variant="subtle" size="sm" className="w-full" options={SHAPE_OPTIONS} value={v.shape}
+            onChange={(val) => {
+              onChange('shape', val)
+              // Glyph mode tiles a TYPE outline — seed the font url on first pick.
+              if (val === 'glyph' && !v.glyphFontUrl) {
+                const key = v.glyphFontKey || 'rot'
+                onChange('glyphFontKey', key)
+                onChange('glyphFontUrl', fontByKey(key).url)
+              }
+            }}
+          />
+          <Button variant="ghost" size="sm" iconOnly="refresh" title="Randomize shape" className="shrink-0" onClick={reroll(randShape)} />
+        </div>
         {v.shape === 'glyph' && (glyphBound ? (
           <div className="kol-mono-10 text-meta">Tiling the text instance — change the word, font and axes in Content / Edit.</div>
         ) : (

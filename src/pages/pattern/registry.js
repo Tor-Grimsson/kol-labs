@@ -13,6 +13,7 @@ import TARTAN from './categories/tartan.js'
 import BLOCKS from './categories/blocks.js'
 import ORGANIC from './categories/organic.js'
 import INTERLACE from './categories/interlace.js'
+import WEAVE from './categories/weave.js'
 
 export const CATEGORIES = [
   { id: 'stripes', label: 'Stripes' },
@@ -20,10 +21,11 @@ export const CATEGORIES = [
   { id: 'blocks', label: 'Blocks' },
   { id: 'organic', label: 'Organic' },
   { id: 'interlace', label: 'Interlace' },
+  { id: 'weave', label: 'Weave' },
 ]
 export const categoryById = (id) => CATEGORIES.find((c) => c.id === id) || CATEGORIES[0]
 
-const RAW = { stripes: STRIPES, tartan: TARTAN, blocks: BLOCKS, organic: ORGANIC, interlace: INTERLACE }
+const RAW = { stripes: STRIPES, tartan: TARTAN, blocks: BLOCKS, organic: ORGANIC, interlace: INTERLACE, weave: WEAVE }
 
 // Derive path/route. The first sub-page of the first category is the /pattern
 // index (path ''); all others route to /pattern/<cat>/<id>.

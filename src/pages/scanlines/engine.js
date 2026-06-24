@@ -12,6 +12,10 @@
 const TAU = Math.PI * 2
 const clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v)
 const lerp = (a, b, t) => a + (b - a) * t
+// The cumulative sum starts at the path origin (x=0 for rows), so the first mark
+// lands a gap in — a systematic empty margin on the leading edge. Overscan the whole
+// render a touch around centre so that margin pushes off-canvas (bg still fills it).
+const OVERSCAN = 1.2
 
 export const PALETTES = [
   { value: 'mono', label: 'Mono', bg: '#06070b', fg: '#f4f1ea' },
@@ -77,8 +81,9 @@ function fbm(x, y, seed) {
   return v
 }
 
-// scalar field 0..1 at normalized (nx,ny), time t.
-function internalField(field, nx, ny, t, freq, lens, seed) {
+// scalar field 0..1 at normalized (nx,ny), time t. (dx,dy) is the unit drift
+// direction for the noise scroll (Animation › Direction); default (1,0).
+function internalField(field, nx, ny, t, freq, lens, seed, dx, dy) {
   const cx = nx - 0.5, cy = ny - 0.5
   switch (field) {
     case 'waves': {
@@ -88,12 +93,12 @@ function internalField(field, nx, ny, t, freq, lens, seed) {
     }
     case 'radial': {
       const r = Math.sqrt(cx * cx + cy * cy) * 2
-      const bulge = clamp01(1 - Math.pow(clamp01(r), Math.max(0.2, lens || 1)))
-      return clamp01(bulge * (0.78 + 0.22 * Math.sin(t)))
+      // Static lens bulge; the time breathe is the exposed Pulse (see fieldAt).
+      return clamp01(1 - Math.pow(clamp01(r), Math.max(0.2, lens || 1)))
     }
     case 'noise':
     default:
-      return clamp01(fbm(nx * freq + t * 0.3, ny * freq, seed))
+      return clamp01(fbm(nx * freq + t * 0.3 * dx, ny * freq + t * 0.3 * dy, seed))
   }
 }
 
@@ -101,9 +106,12 @@ function internalField(field, nx, ny, t, freq, lens, seed) {
 // Each path is { pts: [{x,y,nx,ny,sl}], amp } where (nx,ny) is the unit normal
 // (displacement direction) and sl is the segment length used to advance the
 // accumulator; amp is the displacement amplitude for that path.
-function buildPaths(geo, W, H, p) {
+function buildPaths(geo, W, H, p, t) {
   const step = 2
   const out = []
+  // Spin (Animation) rotates the radial/rings/spiral layout over time; rows/columns
+  // have no centre to turn about, so it doesn't touch them. 0 ⇒ static.
+  const spin = (p.spin ?? 0) * (t || 0) * 0.5
   if (geo === 'rows' || geo === 'columns') {
     const horiz = geo === 'rows'
     const count = Math.max(2, Math.round(p.rows ?? 90))
@@ -127,7 +135,7 @@ function buildPaths(geo, W, H, p) {
     const rays = Math.max(8, Math.round(p.rayCount ?? 200))
     const swirl = p.swirl ?? 0
     for (let i = 0; i < rays; i++) {
-      const base = (i / rays) * TAU
+      const base = (i / rays) * TAU + spin
       const pts = []
       for (let r = 4; r <= maxR; r += step) {
         const ang = base + swirl * (r / maxR) * TAU * 0.5
@@ -145,7 +153,7 @@ function buildPaths(geo, W, H, p) {
       const circ = TAU * rad
       const n = Math.max(8, Math.floor(circ / step))
       const sl = circ / n
-      const off = swirl * (rad / maxR) * TAU
+      const off = swirl * (rad / maxR) * TAU + spin
       const pts = []
       for (let j = 0; j <= n; j++) {
         const ang = (j / n) * TAU + off
@@ -159,7 +167,7 @@ function buildPaths(geo, W, H, p) {
   const arms = Math.max(1, Math.round(p.arms ?? 1))
   const turns = Math.max(0.5, p.turns ?? 6)
   for (let a = 0; a < arms; a++) {
-    const armOff = (a / arms) * TAU
+    const armOff = (a / arms) * TAU + spin
     const pts = []
     let r = 4
     while (r <= maxR) {
@@ -209,10 +217,13 @@ export function renderScanlines(canvas, p, t) {
   const ctx = canvas.getContext('2d')
   const W = canvas.width, H = canvas.height
   const pal = PALETTES.find((x) => x.value === p.palette) || PALETTES[0]
-  ctx.fillStyle = pal.bg
+  // bg/fg override the named palette (the editor's ColorField swatches); fall back
+  // to the palette when not set.
+  const bg = p.bg || pal.bg, fg = p.fg || pal.fg
+  ctx.fillStyle = bg
   ctx.fillRect(0, 0, W, H)
-  ctx.fillStyle = pal.fg
-  ctx.strokeStyle = pal.fg
+  ctx.fillStyle = fg
+  ctx.strokeStyle = fg
 
   const seed = p.seed || 0
   const freq = (p.freq ?? 1) * 3
@@ -226,8 +237,23 @@ export function renderScanlines(canvas, p, t) {
   const displace = p.displace ?? 0
   const mark = p.mark || 'dots'
 
+  // Animation: Flow scales the field/geometry time (0 ⇒ frozen even while playing);
+  // Direction is the noise drift angle; Pulse breathes the field brightness.
+  const tf = t * (p.flow ?? 1)
+  const da = (p.drift ?? 0) * Math.PI / 180
+  const dx = Math.cos(da), dy = Math.sin(da)
+  const pulse = p.pulse ?? 0
+  // Form › Sweep — each mark's SIZE breathes individually, phased across the canvas
+  // (diagonal), so marks pulse in a travelling wave (the per-element animation, vs
+  // Frame's whole-field drift). Multiplier 1±sweep; 0 ⇒ off.
+  const sweepAmt = p.sweep ?? 0
+  const sweepK = sweepAmt
+    ? (mx, my) => 1 - sweepAmt * 0.5 + sweepAmt * 0.5 * Math.sin(tf * 2 - (mx + my) * 0.012)
+    : null
+
   const fieldAt = (x, y) => {
-    let f = sample ? sample(x / W, y / H) : internalField(p.field, x / W, y / H, t, freq, p.lens, seed)
+    let f = sample ? sample(x / W, y / H) : internalField(p.field, x / W, y / H, tf, freq, p.lens, seed, dx, dy)
+    if (pulse) f *= 1 - pulse * 0.5 * (1 - Math.sin(tf))
     if (invert) f = 1 - f
     if (contrast !== 1) f = clamp01(Math.pow(clamp01(f), contrast))
     return clamp01(f)
@@ -250,8 +276,15 @@ export function renderScanlines(canvas, p, t) {
   const dashLen = (p.dashLen ?? 1) * 7
   const canCross = mark === 'lattice'
 
+  // Overscan around centre so the leading-edge margin clears the frame (bg drawn
+  // above already fills edge-to-edge).
+  ctx.save()
+  ctx.translate(W / 2, H / 2)
+  ctx.scale(OVERSCAN, OVERSCAN)
+  ctx.translate(-W / 2, -H / 2)
+
   for (const geo of geos) {
-    const paths = buildPaths(geo, W, H, p)
+    const paths = buildPaths(geo, W, H, p, tf)
     const crossAxis = geo === 'rows' ? 'x' : geo === 'columns' ? 'y' : null
     let prev = null
     for (let li = 0; li < paths.length; li++) {
@@ -275,27 +308,29 @@ export function renderScanlines(canvas, p, t) {
         prev = canCross && crossAxis ? marks : null
       } else if (mark === 'glyph') {
         for (const m of marks) {
-          const ch = set[Math.min(set.length - 1, Math.max(0, Math.floor(m.f * set.length)))]
+          const lvl = clamp01((m.f - 0.5) * (sweepK ? sweepK(m.x, m.y) : 1) + 0.5)
+          const ch = set[Math.min(set.length - 1, Math.max(0, Math.floor(lvl * set.length)))]
           if (ch !== ' ') ctx.fillText(ch, m.x, m.y)
         }
       } else if (mark === 'dash') {
         ctx.lineWidth = Math.max(0.8, markSize * 1.4)
         ctx.beginPath()
         for (const m of marks) {
-          const half = dashLen * (0.35 + 0.65 * m.f) * unit
+          const half = dashLen * (0.35 + 0.65 * m.f) * unit * (sweepK ? sweepK(m.x, m.y) : 1)
           ctx.moveTo(m.x - half, m.y); ctx.lineTo(m.x + half, m.y)
         }
         ctx.stroke()
       } else {
         const base = markSize * 1.6
         for (const m of marks) {
-          const rad = base * (0.45 + m.f)
+          const rad = base * (0.45 + m.f) * (sweepK ? sweepK(m.x, m.y) : 1)
           if (rad < 0.3) continue
           ctx.beginPath(); ctx.arc(m.x, m.y, rad, 0, TAU); ctx.fill()
         }
       }
     }
   }
+  ctx.restore()
 }
 
 export { hexRgb }

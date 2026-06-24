@@ -11,12 +11,18 @@ export function drawTartan(ctx, u, w, h, p) {
   const pal = [p.color, p.color2 || p.color, p.color3 || p.color2 || p.color, p.bg]
   const sett = SETTS[p.sett] || SETTS['black-watch']
   const total = sett.reduce((s, b) => s + b[1], 0)
-  // Field animation (seamless on whole fieldCycles): the sett breathes its scale,
-  // the warp/weft balance shimmers.
-  const tphase = u * TAU * Math.round(p.fieldCycles || 1)
-  const scale = Math.max(0.5, p.settScale || 5) * (1 + (p.fieldPulse || 0) * 0.3 * Math.sin(tphase))
-  const warpAlpha = 0.5 + (p.fieldShimmer || 0) * 0.3 * Math.sin(tphase)
+  const scale = Math.max(0.5, p.settScale || 5)
   const span = total * scale
+  // FORM — each sett band pulses its WIDTH individually, phased across band index
+  // (Stagger ×π ⇒ neighbours counter-pulse at 1). The widths renormalize to the
+  // repeat span so the weave still tiles seamlessly — only the bands' relative
+  // proportions breathe. Seamless on whole fieldCycles; Sway capped so a band never
+  // collapses to zero. (Field-wide drift is the Frame axis — Flow/Travel below.)
+  const tphase = u * TAU * Math.round(p.fieldCycles || 1)
+  const stag = (p.fieldStagger || 0) * Math.PI
+  const sway = Math.min(0.85, p.fieldSway || 0)
+  const mod = sett.map((b, i) => b[1] * (1 + sway * Math.sin(tphase - i * stag)))
+  const norm = total / (mod.reduce((s, m) => s + m, 0) || total) // Σ width stays = total ⇒ span fixed
   const z = p.camZoom || 1
   const dir = (p.panDir === 'left' || p.panDir === 'up' || p.panDir === 'anti') ? -1 : 1
   // Two independent axes (whole repeats/loop ⇒ seamless): Flow scrolls the warp
@@ -40,7 +46,7 @@ export function drawTartan(ctx, u, w, h, p) {
     for (let r = r0; r <= r1; r++) {
       let pos = r * span
       for (let b = 0; b < sett.length; b++) {
-        const wdt = sett[b][1] * scale
+        const wdt = mod[b] * norm * scale
         ctx.fillStyle = pal[sett[b][0]]
         if (horizontal) ctx.fillRect(long0, pos, longLen, wdt)
         else ctx.fillRect(pos, long0, wdt, longLen)
@@ -50,6 +56,26 @@ export function drawTartan(ctx, u, w, h, p) {
     ctx.globalAlpha = 1
   }
   drawAxis(true, 1, driftY, driftX)          // weft (horizontal) — solid, scrolls vertically (Travel)
-  drawAxis(false, warpAlpha, driftX, driftY) // warp (vertical) ~50%, scrolls horizontally (Flow)
+  drawAxis(false, 0.5, driftX, driftY)       // warp (vertical) ~50%, scrolls horizontally (Flow)
+
+  // Twill — the cloth's diagonal 2/2 grain: a faint diagonal hatch over the weave
+  // (0 = flat average / no grain). Drawn in the zoom/rotate frame with the drift
+  // undone, so the grain stays put while the threads drift beneath it → always
+  // loops seamlessly. Wale spacing + weight track the thread scale. First-calibration.
+  if ((p.twill || 0) > 0) {
+    ctx.save()
+    ctx.translate(driftX, driftY)
+    ctx.globalAlpha = Math.min(0.6, p.twill * 1.5)
+    ctx.strokeStyle = '#000'
+    ctx.lineWidth = Math.max(1, scale * 0.5)
+    const gap = Math.max(4, scale * 2.5)
+    ctx.beginPath()
+    for (let d = -reach * 2; d <= reach * 2; d += gap) {
+      ctx.moveTo(d - reach, -reach)
+      ctx.lineTo(d + reach, reach) // 45° wales
+    }
+    ctx.stroke()
+    ctx.restore()
+  }
   ctx.restore()
 }

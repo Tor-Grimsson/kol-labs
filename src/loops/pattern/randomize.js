@@ -1,5 +1,6 @@
 import { PROFILE_KEYS } from './fields/organicField.js'
 import { SETTS } from './fields/setts.js'
+import { randomRule } from './rules.js'
 
 // Randomizers for the Generate tab. Each section returns a PARTIAL patch merged over
 // the current values, so randomizing one section leaves the others intact. The render
@@ -28,40 +29,64 @@ function randColor() {
   }
 }
 
+// Split-gap fill — randomized from its own control (Frame → Fill), only meaningful
+// when Direction = Split. Returns a type + a fresh colour when solid.
+export function randFill() {
+  const mode = pick(['off', 'extend', 'solid'])
+  const p = { fillMode: mode }
+  if (mode === 'solid') p.fillColor = hsl(rnd(0, 360), rnd(0.5, 0.85), rnd(0.45, 0.66))
+  return p
+}
+
 const SHAPES = ['prim:square', 'prim:circle', 'prim:diamond', 'prim:triangle', 'prim:hexagon', 'prim:plus']
 const SETT_KEYS = Object.keys(SETTS)
 
-// PATTERN — the structural look (render kind preserved).
-function randPattern(v) {
+// PATTERN is split across two buttons (there are more knobs than one roll wants
+// to touch): PATTERN 1 = the form/layout (shape + grid · band geometry · weave
+// grid); PATTERN 2 = the detail (band edge · wave/profile · twill · tile
+// colour-rule + the rule stack). Both preserve the render kind.
+function randPattern1(v) {
   const render = v.render || 'tiles'
   if (render === 'field') {
     const field = v.field || 'stripes'
-    if (field === 'stripes') return {
-      stripeAngle: pick([0, 0, 45, 90, rint(0, 180)]), stripePitch: rint(18, 150),
-      bandCount: rint(1, 3), duty: chance(0.5) ? 1 : +rnd(0.1, 0.7).toFixed(2),
-      edgeSoftness: chance(0.6) ? 0 : +rnd(0.1, 1).toFixed(2),
-      waveAmp: chance(0.5) ? 0 : +rnd(0.2, 0.6).toFixed(2), waveFreq: +rnd(0.6, 2.6).toFixed(2),
-    }
-    if (field === 'organic') return {
-      stripeAngle: pick([45, 55, 70, 90, 90, 100, rint(0, 180)]), stripePitch: rint(56, 150),
-      bandCount: rint(2, 3), waveAmp: +rnd(0.3, 0.8).toFixed(2), waveFreq: +rnd(0.6, 2.6).toFixed(2),
-      waveProfile: pick(PROFILE_KEYS.filter((k) => k !== 'custom')),
-    }
-    if (field === 'tartan') return { sett: pick(SETT_KEYS), settScale: rint(3, 12), twill: +rnd(0, 0.3).toFixed(2) }
+    if (field === 'stripes') return { stripeAngle: pick([0, 0, 45, 90, rint(0, 180)]), stripePitch: rint(18, 150), bandCount: rint(1, 3) }
+    if (field === 'organic') return { stripeAngle: pick([45, 55, 70, 90, 90, 100, rint(0, 180)]), stripePitch: rint(56, 150), bandCount: rint(2, 3) }
+    if (field === 'tartan') return { sett: pick(SETT_KEYS), settScale: rint(3, 12) }
     return {}
   }
-  if (render === 'weave') return {
-    weaveType: pick(['plain', 'twill', 'satin', 'basket']), cols: rint(6, 16), rows: rint(6, 16),
-    cell: rint(60, 120), strandWidth: +rnd(0.5, 0.85).toFixed(2),
-  }
+  if (render === 'weave') return { weaveType: pick(['plain', 'twill', 'satin', 'basket']), cols: rint(6, 16), rows: rint(6, 16) }
   // tiles
   const big = chance(0.4)
   return {
     shape: pick(SHAPES), cols: big ? rint(2, 5) : rint(8, 24), rows: big ? rint(2, 5) : rint(8, 24),
     cell: rint(60, 200), gap: rint(-20, 36), stretch: true,
-    colorRule: pick(['none', 'checker', 'checker', 'cols', 'rows', 'diag']),
   }
 }
+
+function randPattern2(v) {
+  const render = v.render || 'tiles'
+  if (render === 'field') {
+    const field = v.field || 'stripes'
+    if (field === 'stripes') return {
+      duty: chance(0.5) ? 1 : +rnd(0.1, 0.7).toFixed(2), edgeSoftness: chance(0.6) ? 0 : +rnd(0.1, 1).toFixed(2),
+      waveAmp: chance(0.5) ? 0 : +rnd(0.2, 0.6).toFixed(2), waveFreq: +rnd(0.6, 2.6).toFixed(2),
+    }
+    if (field === 'organic') return {
+      waveAmp: +rnd(0.3, 0.8).toFixed(2), waveFreq: +rnd(0.6, 2.6).toFixed(2),
+      waveProfile: pick(PROFILE_KEYS.filter((k) => k !== 'custom')), waveCurve: null,
+    }
+    if (field === 'tartan') return { twill: +rnd(0, 0.3).toFixed(2) }
+    return {}
+  }
+  if (render === 'weave') return { cell: rint(60, 120), strandWidth: +rnd(0.5, 0.85).toFixed(2) }
+  // tiles
+  return {
+    colorRule: pick(['none', 'checker', 'checker', 'cols', 'rows', 'diag']),
+    rules: Array.from({ length: 1 + Math.floor(Math.random() * 3) }, () => randomRule()),
+  }
+}
+
+const randPattern = (v) => ({ ...randPattern1(v), ...randPattern2(v) })
 
 // FRAME — the camera / field drift (across + along).
 function randFrame(v) {
@@ -75,15 +100,19 @@ function randFrame(v) {
   return p
 }
 
-// MOTION — the per-cell (tiles) / per-band (field) animation.
+// MOTION — the per-cell (tiles) / per-band (field) / per-crossing (weave) animation.
 function randMotion(v) {
   const render = v.render || 'tiles'
   if (render === 'field') {
-    const field = v.field || 'stripes'
-    if (field === 'tartan') return { formPreset: 'custom', fieldPulse: +rnd(0, 0.6).toFixed(2), fieldShimmer: +rnd(0, 0.5).toFixed(2), fieldCycles: rint(1, 3) }
+    // All field families animate PER-BAND (Sway shifts/pulses each band, Stagger
+    // phases it across band index). Same model for stripes/organic/tartan.
     return { formPreset: 'custom', fieldSway: +rnd(0, 0.6).toFixed(2), fieldStagger: +rnd(0, 1).toFixed(2), fieldCycles: rint(1, 3) }
   }
-  if (render === 'weave') return {}
+  if (render === 'weave') return {
+    formPreset: 'custom', animAxis: pick(['none', 'diag', 'col', 'row', 'radial']),
+    animCycles: rint(1, 3), animWaves: +rnd(0, 6).toFixed(1),
+    pulse: chance(0.5) ? 0 : +rnd(0.2, 0.7).toFixed(2), fade: chance(0.5) ? 0 : +rnd(0.2, 0.6).toFixed(2),
+  }
   return {
     formPreset: 'custom', spin: pick([0, 0, 1]), animAxis: pick(['none', 'diag', 'col', 'row', 'radial']),
     animCycles: rint(1, 3), animWaves: +rnd(0, 6).toFixed(1),
@@ -92,10 +121,22 @@ function randMotion(v) {
   }
 }
 
+// PROFILE — the organic band-edge silhouette only (a named profile, curve cleared).
+function randProfile() {
+  return { waveProfile: pick(PROFILE_KEYS.filter((k) => k !== 'custom')), waveCurve: null }
+}
+
+// Per-control rerollers (used by the inline reroll buttons in PatternControls).
+export const randShape = () => ({ shape: pick(SHAPES) })            // Blocks/tiles — a primitive
+export const randWeaveType = () => ({ weaveType: pick(['plain', 'twill', 'satin', 'basket']) }) // Interlace weave
+
 export function randomizeSection(v, section) {
   if (section === 'pattern') return randPattern(v)
+  if (section === 'pattern1') return randPattern1(v)
+  if (section === 'pattern2') return randPattern2(v)
   if (section === 'frame') return randFrame(v)
   if (section === 'motion') return randMotion(v)
+  if (section === 'profile') return randProfile()
   if (section === 'color') return randColor(v)
   return { ...randPattern(v), ...randMotion(v), ...randFrame(v), ...randColor(v) } // 'all'
 }

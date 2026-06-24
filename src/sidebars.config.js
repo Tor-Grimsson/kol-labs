@@ -18,6 +18,8 @@
 
 import { categoryLabel, FOUNDATION_KEYS, TERRITORY_KEYS } from './pages/penrose/prototypes/categories.js'
 import { GROUPS as INTERFACE_GROUPS } from './pages/interfaces/widgets/groups.js'
+import { CATEGORIES as PATTERN_CATEGORIES, SUBPAGES as PATTERN_SUBPAGES } from './pages/pattern/registry.js'
+import { SCANLINE_CATEGORIES, catRoute as scanlineCatRoute } from './pages/scanlines/registry.js'
 import { SCREEN_GROUPS } from './pages/interfaces/screens.groups.js'
 import { EFFECT_GROUPS } from './pages/effects/effects.config.js'
 import { SCENE_GROUPS, ELEMENT_GROUPS } from './pages/kinetic/scenes/groups.js'
@@ -87,12 +89,22 @@ export const NAV_TREE = [
 
   { section: 'Generative' },
   // Scanline GENERATOR — procedural field → scanline pattern (filter twin under Effects).
-  { id: 'scanline-gen', label: 'Scanline', to: '/scanlines', icon: 'grid-horizontal' },
+  { id: 'scanline-gen', label: 'Scanline', to: '/scanlines', icon: 'grid-horizontal', children:
+    // Six categories as direct hops (first preset of each); presets switch in-rail.
+    // Derived from the registry so nav + routes can't drift.
+    SCANLINE_CATEGORIES.map((c) => ({ to: scanlineCatRoute(c.id), label: c.label })),
+  },
   // Pattern — the kolkrabbi rule/tiling engine as a standalone vector-pattern
-  // studio. Five categories × ~20 presets each switch IN-RAIL (Category + Preset
-  // dropdowns), not the nav — like Scanline/Refraction. Routes (/pattern/<cat>/<id>)
-  // stay deep-linkable; derived from the registry so they can't drift.
-  { id: 'pattern', label: 'Pattern', to: '/pattern', icon: 'ptrn-checker' },
+  // studio. Six categories hop from the nav (first preset of each); presets still
+  // switch in-rail via the Preset dropdown. Children derived from the registry so
+  // nav + routes can't drift; matchPaths keeps a category active across its presets.
+  { id: 'pattern', label: 'Pattern', to: '/pattern', icon: 'ptrn-checker', children:
+    PATTERN_CATEGORIES.map((c) => ({
+      to: PATTERN_SUBPAGES[c.id][0].route,
+      label: c.label,
+      matchPaths: [`/pattern/${c.id}`],
+    })),
+  },
   { id: 'loops', label: 'Loops', to: '/loops', icon: 'cycle', children:
     // Three categories (Simple · Pattern · Field), six routed sub-pages each —
     // derived from the loop registry so nav + router never drift (mirrors Math).
