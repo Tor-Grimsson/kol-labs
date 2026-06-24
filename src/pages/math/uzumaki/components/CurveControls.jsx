@@ -1,6 +1,5 @@
 import Button from '../../../../components/atoms/Button.jsx'
 import Dropdown from '../../../../components/molecules/Dropdown.jsx'
-import LabeledControl from '../../../../components/molecules/LabeledControl.jsx'
 import { Field } from './Field'
 
 // Editable controls for a clip's `curve` (the generative function). Pure-prop:
@@ -24,8 +23,8 @@ function RangeFields({ curve, onChange }) {
   const [a, b] = curve.range || [0, 1]
   return (
     <div className="grid grid-cols-2 gap-2">
-      <Field label="Start" numeric value={a} onCommit={(v) => onChange({ range: [v, b] })} labelWidth={36} />
-      <Field label="End" numeric value={b} onCommit={(v) => onChange({ range: [a, v] })} labelWidth={28} />
+      <Field label="Start" numeric fill value={a} onCommit={(v) => onChange({ range: [v, b] })} labelWidth={36} />
+      <Field label="End" numeric fill value={b} onCommit={(v) => onChange({ range: [a, v] })} labelWidth={28} />
     </div>
   )
 }
@@ -44,7 +43,7 @@ function TermsEditor({ curve, onChange }) {
         <span className="kol-helper-10 text-meta">Vectors</span>
         <Button variant="primary" size="sm" iconLeft="plus" onClick={addTerm}>Add</Button>
       </div>
-      <div className="grid grid-cols-[1fr_1fr_1fr_auto] gap-1.5 items-center">
+      <div className="grid grid-cols-[1fr_1fr_1fr_auto] gap-1.5 items-center min-w-0 [&>*]:min-w-0">
         <span className="kol-helper-10 text-fg-48 text-center">amp</span>
         <span className="kol-helper-10 text-fg-48 text-center">freq</span>
         <span className="kol-helper-10 text-fg-48 text-center">phase</span>
@@ -58,8 +57,10 @@ function TermsEditor({ curve, onChange }) {
 }
 
 function TermRow({ term, onSet, onRemove, canRemove }) {
+  // labelWidth 0 — these cells have no label, so they must not reserve the default
+  // 64px (that's what overflowed the rail into a horizontal scroll).
   const cell = (key, fallback) => (
-    <Field label="" value={term[key] ?? fallback} numeric onCommit={(v) => onSet(key, v)} />
+    <Field label="" labelWidth={0} fill value={term[key] ?? fallback} numeric onCommit={(v) => onSet(key, v)} />
   )
   return (
     <>
@@ -75,9 +76,8 @@ export default function CurveControls({ curve, onChange, onKind }) {
   const kind = curve?.kind || 'polar'
   return (
     <div className="flex flex-col gap-3">
-      <LabeledControl label="Type">
-        <Dropdown options={KINDS} value={kind} onChange={onKind} variant="subtle" className="w-full" />
-      </LabeledControl>
+      {/* Single label — the "Curve" Section header is the label; no inner "Type". */}
+      <Dropdown size="sm" options={KINDS} value={kind} onChange={onKind} variant="subtle" className="w-full" />
 
       {kind === 'epicycle' && (
         <>

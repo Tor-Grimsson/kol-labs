@@ -61,5 +61,6 @@ export const SUBPAGES = {
   ],
 }
 
-export const ALL_SUBPAGES = [...SUBPAGES.air, ...SUBPAGES.water, ...SUBPAGES.cloth]
-export const subpageById = (id) => ALL_SUBPAGES.find((s) => s.id === id) || ALL_SUBPAGES[0]
+// Page › Category › Preset: the 3 families are CATEGORIES (sidebar), their SUBPAGES
+// are the PRESETS picked in the rail's Preset dropdown.
+export const presetsForCat = (id) => SUBPAGES[id] || SUBPAGES.air

@@ -24,6 +24,7 @@ export default function StylePanel({
   showWeight = true,
   showTheme = true,
   showAxis = true,
+  showGridColor = true,
   strokeLabel = 'Stroke',
   weightLabel = 'Weight',
   weightMax = 4,
@@ -42,11 +43,11 @@ export default function StylePanel({
         </Section>
       )}
 
-      {(showBg || showStroke || showWeight || onInvert || style.axis !== 'none') && (
+      {(showBg || showStroke || showWeight || onInvert || (showGridColor && style.axis !== 'none')) && (
         <Section label="Style">
           {showBg && <ColorRow label="Background" value={style.bg} onChange={(v) => onPatch({ bg: v })} />}
           {showStroke && <ColorRow label={strokeLabel} value={style.stroke} onChange={(v) => onPatch({ stroke: v })} />}
-          {style.axis !== 'none' && <ColorRow label="Grid color" value={style.gridColor} onChange={(v) => onPatch({ gridColor: v })} />}
+          {showGridColor && style.axis !== 'none' && <ColorRow label="Grid color" value={style.gridColor} onChange={(v) => onPatch({ gridColor: v })} />}
           {showWeight && (
             <Slider labeled label={weightLabel} labelWidth={96} min={0.4} max={weightMax} step={0.1} value={style.weight} onChange={(v) => onPatch({ weight: v })} variant="default" />
           )}

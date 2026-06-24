@@ -12,6 +12,11 @@ export const GRADIENT_CATEGORIES = [
 const CAT_IDX = { field: 0, pole: 1, volume: 2 }
 export const catIndex = (cat) => CAT_IDX[cat] ?? 0
 
+// Page › Category › Preset: CATEGORIES (Field/Pole/Volume) list in the sidebar; the
+// TYPES inside are the PRESETS picked in the rail. First category owns /gradients.
+export const catRoute = (id) => (id === GRADIENT_CATEGORIES[0].id ? '/gradients' : `/gradients/${id}`)
+export const categoryById = (id) => GRADIENT_CATEGORIES.find((c) => c.id === id) || GRADIENT_CATEGORIES[0]
+
 // `type` = the sub-index inside the category's shader branch.
 // `controls` = which form sliders the editor exposes for this type.
 export const GRADIENT_TYPES = [
@@ -48,6 +53,9 @@ export const GRADIENT_TYPES = [
 
 export const TYPE_BY_ID = Object.fromEntries(GRADIENT_TYPES.map((t) => [t.id, t]))
 export const DEFAULT_TYPE = 'blobs'
+
+// The types (presets) inside a category, in registry order.
+export const presetsForCat = (cat) => GRADIENT_TYPES.filter((t) => t.cat === cat)
 
 // Look presets — palette / iridescence variations applied on top of any type,
 // so every sub-page has multiple looks in the dropdown.

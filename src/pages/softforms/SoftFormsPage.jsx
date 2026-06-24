@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { defaultAutoplay } from '../../lib/appSettings.js'
-import { Routes, Route, useParams } from 'react-router-dom'
+import { Routes, Route, useNavigate } from 'react-router-dom'
 import { SoftFormsEngine, GRAD_PALETTES, BACKDROPS } from './engine.js'
-import { SCENE_BY_ID, DEFAULT_SCENE, LOOK_PRESETS, CTRL_SPEC, BASE_PARAMS, NUMERIC_KEYS } from './registry.js'
+import { SCENE_BY_ID, SOFTFORM_CATEGORIES, catRoute, presetsForCat, LOOK_PRESETS, CTRL_SPEC, BASE_PARAMS, NUMERIC_KEYS } from './registry.js'
+import SegmentedToggle from '../../components/molecules/SegmentedToggle.jsx'
 import { resolveDeep } from '../../lib/exprParam.js'
 import { VIEW_ASPECTS, defaultAspectFor, DEFAULT_SCALE, ratioFor, dimsFor } from '../_shared/exportSpecs.js'
 import EditorRail, { RailHeader } from '../../components/framework/EditorRail.jsx'
@@ -81,8 +82,12 @@ const rollTransformForms = (fs) => fs.map((f) => ({ ...f, x: rand(-0.55, 0.55), 
 const rollScaleForms = (fs) => fs.map((f) => ({ ...f, sx: rand(0.35, 0.95), sy: rand(0.35, 0.95) }))
 const rollAnimP = (s) => ({ ...s, motion: rand(0, 1.1), sweep: rand(0, 360) })
 
-function SoftFormsEditor({ sceneId }) {
-  const scene = SCENE_BY_ID[sceneId] || SCENE_BY_ID[DEFAULT_SCENE]
+function SoftFormsEditor({ category }) {
+  const navigate = useNavigate()
+  const presets = presetsForCat(category)
+  const [presetId, setPresetId] = useState(presets[0].id)
+  const scene = SCENE_BY_ID[presetId] || presets[0]
+  const [genTab, setGenTab] = useState('style')
   const canvasRef = useRef(null)
   const engineRef = useRef(null)
   const dragRef = useRef(null)
@@ -92,7 +97,6 @@ function SoftFormsEditor({ sceneId }) {
   const [look, setLook] = useState('')
   const [forms, setForms] = useState(() => scene.forms.map((f) => ({ ...f })))
   const [sel, setSel] = useState(-1)
-  const [locks, setLocks] = useState({ color: false, transform: false, scale: false, animation: false })
   const [view, setView] = useState({ dw: 1, dh: 1 })
 
   const [res, setRes] = useState(1600)
@@ -124,6 +128,7 @@ function SoftFormsEditor({ sceneId }) {
       if (c.playing) timeRef.current += dt * c.speed
       const num = { speed: c.speed }
       for (const k of NUMERIC_KEYS) num[k] = c[k]
+      num.grain = 0 // grain is a post-FX, not part of the form shading
       engine.setParams(resolveDeep(num, timeRef.current))
       engine.frame(dt)
       raf = requestAnimationFrame(loop)
@@ -161,6 +166,17 @@ function SoftFormsEditor({ sceneId }) {
     setLook(id)
     setP((s) => ({ ...s, ...f.p }))
   }
+
+  // ── Preset / category ────────────────────────────────────────────────────
+  const loadPreset = (id) => {
+    const s = SCENE_BY_ID[id]
+    if (!s) return
+    setPresetId(id)
+    setP({ ...BASE_PARAMS, ...s.defaults })
+    setForms(s.forms.map((f) => ({ ...f })))
+    setSel(-1); setLook('')
+  }
+  const pickCat = (id) => navigate(catRoute(id))
 
   // ── Layer ops ──────────────────────────────────────────────────────────
   const updForm = (key, val) => setForms((fs) => fs.map((f, i) => (i === sel ? { ...f, [key]: val } : f)))
@@ -216,9 +232,7 @@ function SoftFormsEditor({ sceneId }) {
   const rollTransform = () => setForms(rollTransformForms)
   const rollScale = () => setForms(rollScaleForms)
   const rollAnim = () => setP(rollAnimP)
-  const ROLLERS = { color: rollColor, transform: rollTransform, scale: rollScale, animation: rollAnim }
-  const rollAll = () => { for (const k in ROLLERS) if (!locks[k]) ROLLERS[k]() }
-  const toggleLock = (k) => setLocks((s) => ({ ...s, [k]: !s[k] }))
+  const rollAll = () => { rollColor(); rollTransform(); rollScale(); rollAnim() }
 
   const exportPng = async () => {
     const dd = dimsFor(aspect, Number(scale)) || { w: res, h: res }
@@ -232,8 +246,9 @@ function SoftFormsEditor({ sceneId }) {
     URL.revokeObjectURL(url)
   }
 
-  const getSettings = () => ({ ...P, look, forms, res, aspect, scale })
+  const getSettings = () => ({ presetId, ...P, look, forms, res, aspect, scale })
   const applySettings = (s) => {
+    if (s.presetId && SCENE_BY_ID[s.presetId]) setPresetId(s.presetId)
     setP((cur) => { const next = { ...cur }; for (const k of Object.keys(BASE_PARAMS)) if (s[k] != null) next[k] = s[k]; return next })
     if (s.look != null) setLook(s.look)
     if (s.forms != null) setForms(s.forms)
@@ -282,7 +297,12 @@ function SoftFormsEditor({ sceneId }) {
 
       <EditorRail
         footerBare
-        header={<RailHeader>{`Soft Forms · ${scene.label}`}</RailHeader>}
+        header={
+          <>
+            <RailHeader>Soft Forms</RailHeader>
+            <SegmentedToggle value={genTab} onChange={setGenTab} options={[{ value: 'generate', label: 'Generate' }, { value: 'style', label: 'Style' }, { value: 'layers', label: 'Layers' }]} />
+          </>
+        }
         footer={
           <EditorFooter
             tab={footTab}
@@ -299,12 +319,18 @@ function SoftFormsEditor({ sceneId }) {
             }}
             exportProps={{ aspect, onAspect: setAspect, aspects: VIEW_ASPECTS, scale, onScale: setScale }}
             exportActions={<Button variant="primary" size="sm" className="w-full" iconLeft="download" onClick={exportPng}>Export PNG</Button>}
-            settingsPage={`softforms-${scene.id}`}
+            settingsPage={`softforms-${category}`}
             getSettings={getSettings}
             applySettings={applySettings}
           />
         }
       >
+        <Section label="Preset">
+          <Dropdown size="sm" variant="subtle" className="w-full" options={SOFTFORM_CATEGORIES.map((c) => ({ value: c.id, label: c.label }))} value={category} onChange={pickCat} />
+          <Dropdown size="sm" variant="subtle" className="w-full" options={presets.map((p) => ({ value: p.id, label: p.label }))} value={presetId} onChange={loadPreset} />
+        </Section>
+
+        {genTab === 'style' && (<>
         <Section label="Look">
           <Dropdown size="sm" options={LOOK_PRESETS.map((x) => ({ value: x.id, label: x.label }))} value={look} onChange={applyLook} variant="subtle" className="w-full" />
         </Section>
@@ -320,10 +346,11 @@ function SoftFormsEditor({ sceneId }) {
           {slider('sheen')}{slider('gloss')}{slider('rim')}{slider('rimPow')}{slider('rimShift')}{slider('sss')}
         </Section>
         <Section label="Surface">
-          {slider('grain')}
           <Dropdown size="sm" options={BACKDROPS.map((x) => ({ value: x.value, label: x.label }))} value={P.backdrop} onChange={up('backdrop')} variant="subtle" className="w-full" />
         </Section>
+        </>)}
 
+        {genTab === 'layers' && (<>
         <Section label="Layers">
           <div className="flex flex-col gap-1">
             {[...forms].reverse().map((f, di) => {
@@ -341,7 +368,7 @@ function SoftFormsEditor({ sceneId }) {
               )
             })}
           </div>
-          <Button variant="secondary" size="sm" className="w-full" iconLeft="plus" disabled={forms.length >= MAX_FORMS} onClick={addForm}>Add form</Button>
+          <Button variant="primary" size="sm" className="w-full" iconLeft="plus" disabled={forms.length >= MAX_FORMS} onClick={addForm}>Add form</Button>
         </Section>
 
         {selForm && (
@@ -355,37 +382,32 @@ function SoftFormsEditor({ sceneId }) {
             <Slider labeled label="Hue" min={0} max={1} step={0.01} value={selForm.hue || 0} onChange={(v) => updForm('hue', v)} variant="default" />
           </Section>
         )}
+        </>)}
 
-        <Section label="Randomise">
-          <Button variant="primary" size="sm" className="w-full" iconLeft="cycle" onClick={rollAll}>Roll all (unlocked)</Button>
-          {[
-            { k: 'color', label: 'Color', roll: rollColor },
-            { k: 'transform', label: 'Transform', roll: rollTransform },
-            { k: 'scale', label: 'Scale', roll: rollScale },
-            { k: 'animation', label: 'Animation', roll: rollAnim },
-          ].map(({ k, label, roll }) => (
-            <div key={k} className="flex items-center gap-2">
-              <Button variant="secondary" size="sm" className="flex-1" iconLeft="cycle" disabled={locks[k]} onClick={roll}>{label}</Button>
-              <ToggleSwitch variant="plain" label="Lock" checked={locks[k]} onChange={() => toggleLock(k)} />
-            </div>
-          ))}
+        {genTab === 'generate' && (
+        <Section label="Generate">
+          <Button variant="primary" size="sm" className="w-full" onClick={rollAll}>Randomize all</Button>
+          <div className="grid grid-cols-2 gap-2">
+            <Button variant="primary" size="sm" onClick={rollColor}>Color</Button>
+            <Button variant="primary" size="sm" onClick={rollTransform}>Transform</Button>
+            <Button variant="primary" size="sm" onClick={rollScale}>Scale</Button>
+            <Button variant="primary" size="sm" onClick={rollAnim}>Animation</Button>
+          </div>
         </Section>
+        )}
       </EditorRail>
     </div>
   )
 }
 
-function EditorByParam() {
-  const { scene } = useParams()
-  return <SoftFormsEditor key={scene} sceneId={scene} />
-}
-
-// Soft Forms · matcap-shaded SDF compositions, route picks the scene.
+// Soft Forms — Page › Category › Preset (Stack · Solo · Cluster); first category
+// owns /softforms, the rest are /softforms/<cat>; scenes switch in the rail.
 export default function SoftFormsPage() {
   return (
     <Routes>
-      <Route index element={<SoftFormsEditor key="default" sceneId={DEFAULT_SCENE} />} />
-      <Route path=":scene" element={<EditorByParam />} />
+      {SOFTFORM_CATEGORIES.map((c) => (
+        <Route key={c.id} path={c.id === SOFTFORM_CATEGORIES[0].id ? '/' : c.id} element={<SoftFormsEditor key={c.id} category={c.id} />} />
+      ))}
     </Routes>
   )
 }

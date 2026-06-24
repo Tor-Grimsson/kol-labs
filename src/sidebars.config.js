@@ -16,15 +16,16 @@
  * Add a top-level entry here + a matching <Route> in App.jsx.
  */
 
-import { categoryLabel, FOUNDATION_KEYS, TERRITORY_KEYS } from './pages/penrose/prototypes/categories.js'
+import { CATEGORIES as PENROSE_CATEGORIES, catRoute as penroseCatRoute } from './pages/penrose/registry.js'
 import { GROUPS as INTERFACE_GROUPS } from './pages/interfaces/widgets/groups.js'
 import { CATEGORIES as PATTERN_CATEGORIES, SUBPAGES as PATTERN_SUBPAGES } from './pages/pattern/registry.js'
 import { SCANLINE_CATEGORIES, catRoute as scanlineCatRoute } from './pages/scanlines/registry.js'
 import { SCREEN_GROUPS } from './pages/interfaces/screens.groups.js'
 import { EFFECT_GROUPS } from './pages/effects/effects.config.js'
 import { SCENE_GROUPS, ELEMENT_GROUPS } from './pages/kinetic/scenes/groups.js'
-import { GROUPS as LOOP_GROUPS, SUBGROUPS as LOOP_SUBGROUPS } from './loops/registry.js'
-import { CATEGORIES as DRIFT_CATEGORIES, SUBPAGES as DRIFT_SUBPAGES } from './pages/drift/registry.js'
+import { GROUPS as LOOP_GROUPS } from './loops/registry.js'
+import { CATEGORIES as MATH_CATEGORIES, catRoute as mathCatRoute } from './pages/math/registry.js'
+import { CATEGORIES as DRIFT_CATEGORIES } from './pages/drift/registry.js'
 import { CATEGORIES as TYPE_CATEGORIES, SUBPAGES as TYPE_SUBPAGES } from './pages/type/registry.js'
 import { FORMS } from './pages/gradient/forms/data/shapes.js'
 import { ENVIRONMENTS } from './pages/gradient/environments/data/scenes.js'
@@ -34,9 +35,9 @@ import { RIBBON_PRESETS } from './pages/gradient/ribbon/data/presets.js'
 import { RD_VARIATIONS } from './pages/gradient/abstract/data/models.js'
 import { MSTP_PRESETS } from './pages/gradient/abstract/data/mstp.js'
 import { AUDIO_CATEGORIES, EXAMPLES as AUDIO_EXAMPLES } from './pages/live/audio/examples.js'
-import { GRADIENT_CATEGORIES, GRADIENT_TYPES } from './pages/gradients/registry.js'
-import { SOFTFORM_CATEGORIES, SCENES as SOFTFORM_SCENES } from './pages/softforms/registry.js'
-import { CATEGORIES_3D, SCENES_3D } from './pages/softforms/registry3d.js'
+import { GRADIENT_CATEGORIES, catRoute as gradientCatRoute } from './pages/gradients/registry.js'
+import { SOFTFORM_CATEGORIES, catRoute as softformCatRoute } from './pages/softforms/registry.js'
+import { CATEGORIES_3D, catRoute as softform3dCatRoute } from './pages/softforms/registry3d.js'
 import { RAIL_GROUPS } from './pages/_shared/railGroups.js'
 
 // SHAPES are bare value-strings (sphere/plane); author Capitalized nav labels here.
@@ -105,92 +106,42 @@ export const NAV_TREE = [
       matchPaths: [`/pattern/${c.id}`],
     })),
   },
+  // Loops — three CATEGORIES (Simple · Pattern · Field) in the sidebar; the
+  // visualisers inside each are PRESETS picked in the rail's Preset dropdown (NOT
+  // the nav). Derived from the registry so nav + routes can't drift; first
+  // category owns /loops, the rest are /loops/<cat>.
   { id: 'loops', label: 'Loops', to: '/loops', icon: 'cycle', children:
-    // Three categories (Simple · Pattern · Field), six routed sub-pages each —
-    // derived from the loop registry so nav + router never drift (mirrors Math).
-    LOOP_GROUPS.map((g) => ({
-      label: g.label,
-      children: LOOP_SUBGROUPS[g.id].map((s) => ({
-        to: s.route,
-        label: s.sub,
-      })),
-    })),
+    LOOP_GROUPS.map((g) => ({ to: g.route, label: g.label })),
   },
+  // Math — a standalone Expression leaf (the unique text DSL, no presets) above the
+  // generator CATEGORIES (Waveforms · Parametric · Surfaces · Fields). Sidebar lists
+  // categories ONLY; the visualisers inside each are PRESETS picked in the rail's
+  // Preset dropdown. Categories derived from the registry so nav + routes can't drift.
   { id: 'math', label: 'Math', to: '/math', icon: 'sum', children: [
-    { label: 'Waveforms', children: [
-      { to: '/math', label: 'Expression' },
-      { to: '/math/fourier', label: 'Fourier' },
-      { to: '/math/animate', label: 'Animate' },
-    ]},
-    { label: 'Parametric', children: [
-      { to: '/math/uzumaki', label: 'Curves' },
-      { to: '/math/orbits', label: 'Orbits' },
-      { to: '/math/spinner', label: 'Spinner' },
-      { to: '/math/threads', label: 'Threads' },
-    ]},
-    { label: 'Surfaces', children: [
-      { to: '/math/surface', label: 'Surface' },
-      { to: '/math/attractor', label: 'Attractor' },
-    ]},
-    { label: 'Fields', children: [
-      { to: '/math/field', label: 'Field' },
-      { to: '/math/complex', label: 'Complex' },
-    ]},
+    { to: '/math', label: 'Expression' },
+    ...MATH_CATEGORIES.map((c) => ({ to: mathCatRoute(c.id), label: c.label })),
   ] },
-  { id: 'penrose', label: 'Penrose', to: '/penrose', icon: 'a-framed', children: [
-    { label: 'View', children: [
-      { to: '/penrose/generate', label: 'Generate' },
-      { to: '/penrose/player', label: 'Player' },
-    ] },
-    // Two big content categories (mirrors interfaces' Screens + Elements):
-    // Foundations = the 15 base prototypes, grouped by technique; Territories =
-    // the 100 round-2 prototypes grouped into their 20 research territories.
-    // Exactly two content categories, four even subgroups each.
-    { label: 'Foundations', children: FOUNDATION_KEYS.map((key) => ({
-      to: `/penrose/browse/${key}`,
-      label: categoryLabel(key),
-      matchPaths: [`/penrose/browse/${key}`],
-    })) },
-    { label: 'Territories', children: TERRITORY_KEYS.map((key) => ({
-      to: `/penrose/browse/${key}`,
-      label: categoryLabel(key),
-      matchPaths: [`/penrose/browse/${key}`],
-    })) },
-  ] },
-  { id: 'para-type', label: 'Para Type', to: '/para-type', icon: 'aa' },
+  // Categories only (flat), like every other generative page. Presets (the
+  // prototypes) switch in-rail via the Preset dropdown. First category owns
+  // /penrose, the rest are /penrose/<cat>.
+  { id: 'penrose', label: 'Penrose', to: '/penrose', icon: 'a-framed', children:
+    PENROSE_CATEGORIES.map((c) => ({ to: penroseCatRoute(c.id), label: c.label })),
+  },
   // Drift — seamless motion-loop eyecandy (Air · Water · Cloth). Phase 1 = Air;
   // categories + sub-pages derive from the registry so nav + routes can't drift.
-  { id: 'drift', label: 'Drift', to: '/drift', icon: 'wave', children:
-    DRIFT_CATEGORIES.map((c) => ({
-      label: c.label,
-      children: DRIFT_SUBPAGES[c.id].map((s) => ({ to: s.route, label: s.label })),
-    })),
+  { id: 'drift', label: 'Drift', to: '/drift', icon: 'dith-flow', children:
+    DRIFT_CATEGORIES.map((c) => ({ to: c.route, label: c.label })),
   },
   { id: 'gradients', label: 'Gradients', to: '/gradients', icon: 'circle', children:
-    GRADIENT_CATEGORIES.map((c) => ({
-      label: c.label,
-      children: GRADIENT_TYPES.filter((t) => t.cat === c.id).map((t) => ({
-        to: `/gradients/${t.id}`,
-        label: t.label,
-      })),
-    })),
+    GRADIENT_CATEGORIES.map((c) => ({ to: gradientCatRoute(c.id), label: c.label })),
   },
   // Soft Forms — matcap-shaded SDF compositions on black (the "Apple wallpaper"
   // look). Scenes derive from the registry so nav + routes can't drift.
   { id: 'softforms', label: 'Soft Forms', to: '/softforms', icon: 'paint-drop', children:
-    SOFTFORM_CATEGORIES.map((c) => ({
-      label: c.label,
-      children: SOFTFORM_SCENES.filter((s) => s.cat === c.id).map((s) => ({
-        to: `/softforms/${s.id}`,
-        label: s.label,
-      })),
-    })),
+    SOFTFORM_CATEGORIES.map((c) => ({ to: softformCatRoute(c.id), label: c.label })),
   },
   { id: 'softforms-3d', label: 'Soft Forms 3D', to: '/softforms-3d', icon: 'ball', children:
-    CATEGORIES_3D.map((c) => ({
-      label: c.label,
-      children: SCENES_3D.filter((s) => s.cat === c.id).map((s) => ({ to: `/softforms-3d/${s.id}`, label: s.label })),
-    })),
+    CATEGORIES_3D.map((c) => ({ to: softform3dCatRoute(c.id), label: c.label })),
   },
   { id: '3d-scene', label: '3D Scene', to: '/3d-scene', icon: 'ball', children: [
     { label: 'Abstract', children: [
@@ -257,6 +208,14 @@ export const NAV_TREE = [
   { section: 'Export' },
   { id: 'poster', label: 'Poster', to: '/poster', icon: 'image' },
   { id: 'video', label: 'Video', to: '/video', icon: 'scissors' },
+
+  // Temporary parking — Glass displacement filter (WIP, will be reassigned).
+  { section: 'Temp' },
+  { id: 'glass', label: 'Glass', to: '/glass', icon: 'circle' },
+
+  // Para Type — parametric type lab; different nature from the generative pages, parked last.
+  { section: 'Type Lab' },
+  { id: 'para-type', label: 'Para Type', to: '/para-type', icon: 'aa' },
 ]
 
 /* Collect every route string anywhere under a nav node. */

@@ -16,14 +16,14 @@ import { useViewportZoom } from '../../../components/framework/useViewportZoom.j
 const DEFAULT_CAM = { yaw: 24, pitch: 22, dist: 3, zoom: 1 }
 
 const Viewport3D = forwardRef(function Viewport3D(
-  { render, ext = 1, paused = false, speed = 1, spin = 0, dur = null, aspect = null, bg = '#050506', axis = null, onProgress = null },
+  { render, ext = 1, paused = false, speed = 1, spin = 0, sway = 0, tilt = 0, dolly = 0, dur = null, aspect = null, bg = '#050506', axis = null, onProgress = null },
   ref,
 ) {
   const wrapRef = useRef(null)
   const canvasRef = useRef(null)
   const camRef = useRef({ ...DEFAULT_CAM })
   const stateRef = useRef({})
-  stateRef.current = { render, ext, paused, speed, spin, dur, bg, axis, onProgress }
+  stateRef.current = { render, ext, paused, speed, spin, sway, tilt, dolly, dur, bg, axis, onProgress }
   const aspectRef = useRef(aspect)
   aspectRef.current = aspect
   const accumRef = useRef(0)
@@ -80,7 +80,7 @@ const Viewport3D = forwardRef(function Viewport3D(
     let raf = 0
     let last = 0
     const frame = (now) => {
-      const { render, ext, paused, speed, spin, dur, bg, axis, onProgress } = stateRef.current
+      const { render, ext, paused, speed, spin, sway, tilt, dolly, dur, bg, axis, onProgress } = stateRef.current
       if (!last) last = now
       const dt = (now - last) / 1000
       last = now
@@ -100,7 +100,21 @@ const Viewport3D = forwardRef(function Viewport3D(
       ctx.fillStyle = bg
       ctx.fillRect(0, 0, W, H)
 
-      const cam = resolveCam(camRef.current, ext)
+      // Camera Frame sway/tilt/dolly: transient oscillation around the live orbit
+      // base (drag/spin still own camRef) — only while playing, so paused = base.
+      // All default 0, so legacy callers (SurfacePage/AttractorPage) are untouched.
+      const b = camRef.current
+      let camIn = b
+      if (!paused && (sway || tilt || dolly)) {
+        const tt = accumRef.current
+        camIn = {
+          yaw: b.yaw + sway * Math.sin(tt * 0.9),
+          pitch: Math.max(-89, Math.min(89, b.pitch + tilt * Math.sin(tt * 0.7))),
+          dist: b.dist * (1 + dolly * Math.sin(tt * 0.6)),
+          zoom: b.zoom,
+        }
+      }
+      const cam = resolveCam(camIn, ext)
       const proj = projector(cam, W, H, ext)
       if (axis) drawAxes3D(ctx, proj, ext, d, axis) // reference axes under the figure
       const t = dur ? accumRef.current % dur : accumRef.current

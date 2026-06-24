@@ -87,11 +87,18 @@ export const SCENES_3D = [
 export const SCENE_3D_BY_ID = Object.fromEntries(SCENES_3D.map((s) => [s.id, s]))
 export const DEFAULT_SCENE_3D = 'binary'
 
+// Page › Category › Preset: CATEGORIES_3D (Forms/Metaballs) list in the sidebar;
+// the SCENES inside are the PRESETS picked in the rail. First category owns /softforms-3d.
+export const catRoute = (id) => (id === CATEGORIES_3D[0].id ? '/softforms-3d' : `/softforms-3d/${id}`)
+export const categoryById = (id) => CATEGORIES_3D.find((c) => c.id === id) || CATEGORIES_3D[0]
+export const presetsForCat = (cat) => SCENES_3D.filter((s) => s.cat === cat)
+
 export const BASE_PARAMS_3D = {
   hue: 0, irid: 1.0, sweep: 22, sheen: 0.4, gloss: 34,
   rim: 0.8, rimPow: 2.6, rimShift: 0.12, sss: 0.3,
   motion: 0.0, grain: 0.018, spectral: true,
   palette: 'spectrum', backdrop: 'black', metaball: false,
+  frameMode: 'static', frameSpeed: 0.3, // Frame motion (auto-orbit), editor-side
 }
 
 export const NUMERIC_KEYS_3D = ['hue', 'irid', 'sweep', 'sheen', 'gloss', 'rim', 'rimPow', 'sss', 'motion', 'grain']

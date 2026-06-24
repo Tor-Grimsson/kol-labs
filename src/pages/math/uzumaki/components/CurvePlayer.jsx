@@ -5,13 +5,23 @@ import { sampleTimeline, totalDuration } from '../engine/timeline'
 import { drawAxes3D } from '../../components/axes3d'
 import { resolveRate } from '../../../../lib/exprParam.js'
 
+// Black or white, whichever contrasts the fill colour — the Outline edge sits on
+// top of the fill so it must read against it, not against the background.
+function contrastColor(hex) {
+  const s = (hex || '#000000').replace('#', '')
+  const r = parseInt(s.slice(0, 2), 16) || 0
+  const g = parseInt(s.slice(2, 4), 16) || 0
+  const b = parseInt(s.slice(4, 6), 16) || 0
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.55 ? '#000000' : '#ffffff'
+}
+
 // Plays one clip: samples the curve once, then each frame walks the keyframe
 // timeline (eased), draws the trace progressively, and overlays the epicycle
 // arms + joint dots / head dot. 3D clips are projected through the live camera.
-const CurvePlayer = forwardRef(function CurvePlayer({ clip, paused = false, speed = 1, cameraMotion = true, manualCam = null, bg = '#050506', axis = null, onProgress = null, sampleKey = null }, ref) {
+const CurvePlayer = forwardRef(function CurvePlayer({ clip, paused = false, speed = 1, cameraMotion = true, manualCam = null, bg = '#050506', axis = null, onProgress = null, sampleKey = null, form = null, transform = null }, ref) {
   const canvasRef = useRef(null)
-  const stateRef = useRef({ clip, paused, speed, cameraMotion, manualCam, bg, axis, onProgress, sampleKey })
-  stateRef.current = { clip, paused, speed, cameraMotion, manualCam, bg, axis, onProgress, sampleKey }
+  const stateRef = useRef({ clip, paused, speed, cameraMotion, manualCam, bg, axis, onProgress, sampleKey, form, transform })
+  stateRef.current = { clip, paused, speed, cameraMotion, manualCam, bg, axis, onProgress, sampleKey, form, transform }
   const sampledRef = useRef({ key: null, data: null })
   const accumRef = useRef(0) // playhead time (seconds) — shared with seek() so the scrubber can scrub
   const durRef = useRef(1) // current clip's animated duration; seek() maps a fraction onto it
@@ -57,7 +67,7 @@ const CurvePlayer = forwardRef(function CurvePlayer({ clip, paused = false, spee
     let lastId = null
 
     const frame = (now) => {
-      const { clip, paused, speed, cameraMotion, manualCam, bg, axis, onProgress, sampleKey } = stateRef.current
+      const { clip, paused, speed, cameraMotion, manualCam, bg, axis, onProgress, sampleKey, form, transform } = stateRef.current
       if (!lastNow) lastNow = now
       const dt = (now - lastNow) / 1000
       lastNow = now
@@ -107,6 +117,27 @@ const CurvePlayer = forwardRef(function CurvePlayer({ clip, paused = false, spee
 
       if (axis) drawAxes3D(ctx, proj, ext, d, { ...axis, space })
 
+      // Container transform — the drawn figure is treated as ONE item and moved as a
+      // unit about the frame centre: static Transform (Position X/Y + Scale) composed
+      // with the animated Form (spin / scale-breathe / drift, time-driven). Pure
+      // screen-space, so the curve math + axes are untouched. Identity at defaults.
+      ctx.save()
+      {
+        const tf = t * (form?.speed ?? 1)
+        const baseTx = (transform?.x || 0) * W * 0.5
+        const baseTy = -(transform?.y || 0) * H * 0.5
+        const baseSc = transform?.scale ?? 1
+        // Four DISTINCT container motions (each visibly different):
+        const swayX = (form?.sway || 0) * Math.sin(tf) * W * 0.18    // left ↔ right zigzag
+        const grow = 1 + (form?.scale || 0) * 0.4 * Math.sin(tf * 2) // uniform grow / shrink
+        const sq = (form?.squash || 0) * 0.4 * Math.sin(tf * 2)      // vertical squash ↕ stretch
+        const rot = (form?.spin || 0) * tf * 0.6                     // rotate on Z
+        ctx.translate(W / 2 + baseTx + swayX, H / 2 + baseTy)
+        ctx.rotate(rot)
+        ctx.scale(baseSc * grow * (1 - sq), baseSc * grow * (1 + sq))
+        ctx.translate(-W / 2, -H / 2)
+      }
+
       const pts = data.pts
       const N = pts.length
       const count = Math.max(1, Math.floor(draw * (N - 1)))
@@ -118,7 +149,8 @@ const CurvePlayer = forwardRef(function CurvePlayer({ clip, paused = false, spee
       const repeat = Math.max(1, Math.min(64, Math.round(resolveRate(clip.modifiers?.repeat ?? 1, t, 1))))
 
       // `repeat` rotates copies about the focus in WORLD space (z-axis), so the
-      // mandala is correct under any camera angle.
+      // mandala is correct under any camera angle. (Form spin/scale/move is a
+      // screen-space container transform applied above — it never touches the math.)
       for (let m = 0; m < repeat; m++) {
         const ang = (m / repeat) * Math.PI * 2
         const ca = Math.cos(ang)
@@ -143,7 +175,18 @@ const CurvePlayer = forwardRef(function CurvePlayer({ clip, paused = false, spee
             if (i === 0) ctx.moveTo(x, y)
             else ctx.lineTo(x, y)
           }
-          ctx.stroke()
+          // Fill (at Fill opacity) under an optional contrast Outline on top.
+          if (clip.show?.fill) {
+            ctx.closePath()
+            ctx.save()
+            ctx.globalAlpha = clip.show.fillOpacity ?? 1
+            ctx.fillStyle = color
+            ctx.fill()
+            ctx.restore()
+            if (clip.show?.outline) { ctx.strokeStyle = contrastColor(color); ctx.stroke() }
+          } else {
+            ctx.stroke()
+          }
         }
       }
 
@@ -178,6 +221,8 @@ const CurvePlayer = forwardRef(function CurvePlayer({ clip, paused = false, spee
         ctx.arc(x, y, Math.max(2, d * 1.6), 0, Math.PI * 2)
         ctx.fill()
       }
+
+      ctx.restore() // end figure transform
 
       // Finish an export: snapshot (toBlob reads current pixels), then restore
       // the on-screen backing store for subsequent frames.

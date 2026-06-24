@@ -77,7 +77,11 @@ export function inwardDir(sdf     , x        , y        )                   {
   return [-gx / m, -gy / m]
 }
 
-export function clear(ctx                          , W        , H        , bg = PALETTE.bg) {
+export function clear(ctx                          , W        , H        , bg) {
+  // No bg → transparent: the engine paints no background, so the stage/canvas
+  // (.canvas-wrap var(--bg)) is the only background. An explicit colour is kept
+  // for the attractor trail-fade effects that wash a translucent overlay.
+  if (bg === undefined) { ctx.clearRect(0, 0, W, H); return }
   ctx.fillStyle = bg
   ctx.fillRect(0, 0, W, H)
 }

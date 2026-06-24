@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { usePublishReset, usePublishRetrigger, usePublishShortcuts } from '../../components/framework/pageShortcuts.jsx'
 import LoopPlayer2D from '../../loops/LoopPlayer2D.js'
-import { presetsInGroup, presetsInSub, presetById, loopById, presetParams, groupById, SUBGROUPS } from '../../loops/registry.js'
+import { presetsInGroup, presetById, loopById, presetParams, groupById, GROUPS } from '../../loops/registry.js'
 import { VP_DEFAULTS, VP_KEYS } from '../../loops/viewport.js'
 import { randomizeSection } from '../../loops/pattern/randomize.js'
 import { VIEW_ASPECTS, DEFAULT_ASPECT, defaultAspectFor, DEFAULT_SCALE, ratioFor, dimsFor } from '../_shared/exportSpecs.js'
@@ -53,10 +53,9 @@ const FORM_PRESETS = [
   { id: 'breathe', label: 'Breathe', params: { vpPulse: 0.22, vpWobble: 5 } },
 ]
 
-export default function LoopsShell({ group, sub }) {
-  const presets = useMemo(() => (sub ? presetsInSub(group, sub) : presetsInGroup(group)), [group, sub])
-  const groupLabel = groupById(group).label
-  const railLabel = sub || groupLabel
+export default function LoopsShell({ group }) {
+  const presets = useMemo(() => presetsInGroup(group), [group])
+  const railLabel = groupById(group).label
 
   const [presetId, setPresetId] = useState(presets[0].id)
   const activePreset = presetById(presetId)
@@ -189,10 +188,9 @@ export default function LoopsShell({ group, sub }) {
 
   const isPattern = activeLoop.controls === 'pattern'
 
-  // Category dropdown = the current group's sub-families; switching navigates (the
-  // shell remounts for that sub). Presets pick in-rail (setPresetId).
-  const groupSubs = SUBGROUPS[group] || []
-  const onCat = (subLabel) => { const s = groupSubs.find((x) => x.sub === subLabel); if (s) navigate(s.route) }
+  // Category dropdown = the 3 loop categories; switching navigates (the shell
+  // remounts for that category). Presets pick in-rail (setPresetId).
+  const onCat = (id) => navigate(groupById(id).route)
 
   // ── Generate: section randomizers (stay in the current loop ⇒ in-category) ──
   const rollColors = () => {
@@ -314,7 +312,7 @@ export default function LoopsShell({ group, sub }) {
         }
       >
         <Section label="Preset">
-          <Dropdown size="sm" options={groupSubs.map((s) => ({ value: s.sub, label: s.sub }))} value={sub} onChange={onCat} variant="subtle" className="w-full" />
+          <Dropdown size="sm" options={GROUPS.map((g) => ({ value: g.id, label: g.label }))} value={group} onChange={onCat} variant="subtle" className="w-full" />
           <Dropdown size="sm" options={presets.map((p) => ({ value: p.id, label: p.label }))} value={presetId} onChange={pickPreset} variant="subtle" className="w-full" />
         </Section>
 

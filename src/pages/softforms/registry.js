@@ -15,6 +15,11 @@ export const SOFTFORM_CATEGORIES = [
 const CAT_IDX = { stack: 0, solo: 1, cluster: 2 }
 export const catIndex = (id) => CAT_IDX[id] ?? 0
 
+// Page › Category › Preset: CATEGORIES (Stack/Solo/Cluster) list in the sidebar;
+// the SCENES inside are the PRESETS picked in the rail. First category owns /softforms.
+export const catRoute = (id) => (id === SOFTFORM_CATEGORIES[0].id ? '/softforms' : `/softforms/${id}`)
+export const categoryById = (id) => SOFTFORM_CATEGORIES.find((c) => c.id === id) || SOFTFORM_CATEGORIES[0]
+
 export const SCENES = [
   // ── Stack ──────────────────────────────────────────────────────────────
   { id: 'trinity', cat: 'stack', label: 'Trinity', // Image #3
@@ -93,6 +98,9 @@ export const SCENES = [
 export const SCENE_BY_ID = Object.fromEntries(SCENES.map((s) => [s.id, s]))
 export const DEFAULT_SCENE = 'trinity'
 
+// The scenes (presets) inside a category, in registry order.
+export const presetsForCat = (cat) => SCENES.filter((s) => s.cat === cat)
+
 // Palette / iridescence looks applied on top of any scene.
 export const LOOK_PRESETS = [
   { id: 'spectrum', label: 'Spectrum', p: { palette: 'spectrum', spectral: true, hue: 0, irid: 1.1 } },
@@ -123,6 +131,7 @@ export const CTRL_SPEC = {
   gloss: { label: 'Gloss', min: 4, max: 90, step: 1 },
   rim: { label: 'Rim', min: 0, max: 2, step: 0.05 },
   rimPow: { label: 'Rim focus', min: 1, max: 6, step: 0.1 },
+  rimShift: { label: 'Rim shift', min: 0, max: 0.5, step: 0.01 },
   sss: { label: 'Subsurface', min: 0, max: 1, step: 0.02 },
   bulge: { label: 'Bulge', min: 0.2, max: 1.2, step: 0.02 },
   relief: { label: 'Relief', min: 0.2, max: 2.5, step: 0.05 },

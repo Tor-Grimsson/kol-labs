@@ -1,15 +1,15 @@
 import { Route, Routes } from 'react-router-dom'
 import DriftEditor from './DriftEditor.jsx'
-import { ALL_SUBPAGES } from './registry.js'
+import { CATEGORIES } from './registry.js'
 
-// Drift — seamless motion-loop eyecandy. Router shell over /drift/* (like
-// OpticPage/ScanlinesPage); one routed sub-page per registry entry. key={s.id}
-// re-seeds the editor on switch.
+// Drift — Page › Category › Preset (like scanlines/loops). One routed CATEGORY per
+// family; the 6 presets inside switch in the rail's Preset dropdown. First category
+// (air) owns /drift; the rest are /drift/<cat>. key re-seeds the editor per family.
 export default function DriftPage() {
   return (
     <Routes>
-      {ALL_SUBPAGES.map((s) => (
-        <Route key={s.id} path={s.path} element={<DriftEditor key={s.id} page={s} />} />
+      {CATEGORIES.map((c) => (
+        <Route key={c.id} path={c.id === CATEGORIES[0].id ? '/' : c.id} element={<DriftEditor key={c.id} category={c.id} />} />
       ))}
     </Routes>
   )

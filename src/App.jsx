@@ -27,6 +27,7 @@ const GradientsPage = lazy(() => import('./pages/gradients/GradientsPage.jsx'))
 const SoftFormsPage = lazy(() => import('./pages/softforms/SoftFormsPage.jsx'))
 const SoftForms3DPage = lazy(() => import('./pages/softforms/SoftForms3DPage.jsx'))
 const TypePage = lazy(() => import('./pages/type/TypePage.jsx'))
+const GlassPage = lazy(() => import('./pages/glass/GlassPage.jsx'))
 
 export default function App() {
   return (
@@ -54,6 +55,7 @@ export default function App() {
         <Route path="/gradients/*" element={<Suspense fallback={null}><GradientsPage /></Suspense>} />
         <Route path="/softforms/*" element={<Suspense fallback={null}><SoftFormsPage /></Suspense>} />
         <Route path="/softforms-3d/*" element={<Suspense fallback={null}><SoftForms3DPage /></Suspense>} />
+        <Route path="/glass" element={<Suspense fallback={null}><GlassPage /></Suspense>} />
       </Route>
     </Routes>
   )

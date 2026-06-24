@@ -14,6 +14,13 @@ const FourierPage = lazy(() => import('./fourier/FourierPage'))
 const OrbitsPage = lazy(() => import('./orbits/OrbitsPage'))
 const SpinnerPage = lazy(() => import('./spinner/SpinnerPage'))
 const ThreadsPage = lazy(() => import('./threads/ThreadsPage'))
+// Generator category shell (Page › Category › Preset). Surfaces is ported; the
+// other three categories route to their first visualiser's existing page until
+// they get the same treatment, so the 4-category nav never 404s.
+const SurfacesEditor = lazy(() => import('./surfaces/SurfacesEditor'))
+const FieldsEditor = lazy(() => import('./fields/FieldsEditor'))
+const ParametricEditor = lazy(() => import('./parametric/ParametricEditor'))
+const WaveformsEditor = lazy(() => import('./waveforms/WaveformsEditor'))
 
 const fallback = <div className="min-h-dvh bg-surface-secondary" />
 const lazyRoute = (el) => <Suspense fallback={fallback}>{el}</Suspense>
@@ -22,7 +29,15 @@ const lazyRoute = (el) => <Suspense fallback={fallback}>{el}</Suspense>
 export default function MathPage() {
   return (
     <Routes>
+      {/* Expression is the standalone /math index (text DSL, no presets). The
+          categories sit below it: surfaces + fields are the ported generators;
+          waveforms/parametric point at their first visualiser until ported. */}
       <Route path="/" element={<ExpressionPage />} />
+      <Route path="waveforms" element={lazyRoute(<WaveformsEditor />)} />
+      <Route path="parametric" element={lazyRoute(<ParametricEditor />)} />
+      <Route path="surfaces" element={lazyRoute(<SurfacesEditor />)} />
+      <Route path="fields" element={lazyRoute(<FieldsEditor />)} />
+      {/* Direct visualiser routes (deep links + the soon-to-be presets). */}
       <Route path="uzumaki" element={lazyRoute(<UzumakiPage />)} />
       <Route path="animate" element={lazyRoute(<AnimatePage />)} />
       <Route path="attractor" element={lazyRoute(<AttractorPage />)} />
