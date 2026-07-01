@@ -95,13 +95,37 @@ const PRELUDE = `
   function rand(){return Math.random();}
 `
 
+// Every identifier the PRELUDE defines (constants + math fns + helpers) plus the
+// bound variables/aliases (t n f s θ k). Any other identifier — `fetch`,
+// `constructor`, `window`, a property name after `.` — is not math and is rejected.
+const ALLOWED_IDENTS = new Set([
+  't', 'n', 'f', 's', 'θ', 'k',
+  'PI', 'TAU', 'PHI', 'E', 'SQRT2', 'SQRT3', 'SQRT5', 'LN2', 'LN10', 'DEG', 'FEIGENBAUM',
+  'sin', 'cos', 'tan', 'asin', 'acos', 'atan', 'atan2', 'sinh', 'cosh', 'tanh',
+  'abs', 'sign', 'floor', 'ceil', 'round', 'trunc', 'sqrt', 'cbrt', 'exp', 'log', 'log2', 'log10',
+  'pow', 'hypot', 'min', 'max', 'frac', 'mod', 'clamp', 'lerp', 'smooth',
+  'wave', 'saw', 'tri', 'pulse', 'ease', 'bell', 'step', 'rand',
+])
+
+// Guard the `new Function` sink. Expressions arrive from shareable URL params
+// (`/math/animate?expr=…&x=…&y=…`), so a raw string would be reflected code
+// execution; confine it to math syntax + known identifiers. `(?<!\w)` skips the
+// `e` in `1e5` exponents but still checks property names after `.`, so
+// `sin.constructor(...)` is rejected.
+function isSafeExpr(expr) {
+  if (/[^\w\s.+\-*/%^(),θ]/.test(expr)) return false
+  const ids = expr.match(/(?<!\w)[A-Za-zθ_][\w]*/g) || []
+  return ids.every((id) => ALLOWED_IDENTS.has(id))
+}
+
 /**
  * Compile an expression string to `(t, n, f) => number`.
- * Returns null if the expression is empty, throws, or doesn't yield a number —
- * so callers can fail at edit time instead of mid-animation.
+ * Returns null if the expression is empty, unsafe, throws, or doesn't yield a
+ * number — so callers can fail at edit time instead of mid-animation.
  */
 export function compile(expr) {
   if (expr == null || String(expr).trim() === '') return null
+  if (!isSafeExpr(String(expr))) return null
   try {
     // eslint-disable-next-line no-new-func
     const fn = new Function('t', 'n', 'f', `${PRELUDE}return (${expr});`)

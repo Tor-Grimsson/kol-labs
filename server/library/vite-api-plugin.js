@@ -7,6 +7,18 @@
 // at api/library/upload.js. Same contract, same env var.
 const ADMIN_BASE = 'https://admin.kolkrabbi.io'
 
+// The bucket is shared with the live site, so the caller-supplied key must be
+// confined to a subfolder path: safe charset, no traversal, no empty segments,
+// no bucket-root writes (must contain a `/`, so it can't overwrite index.html).
+function safeKey(key) {
+  return typeof key === 'string'
+    && /^[A-Za-z0-9][A-Za-z0-9._/-]*$/.test(key)
+    && !key.includes('..')
+    && !key.includes('//')
+    && key.includes('/')
+    && !key.endsWith('/')
+}
+
 function readBody(req) {
   return new Promise((resolve, reject) => {
     const chunks = []
@@ -21,11 +33,13 @@ export default function libraryApiPlugin(adminPassword) {
     if (!req.url || !req.url.startsWith('/api/library/upload')) return next()
     if (req.method !== 'POST') { res.statusCode = 405; return res.end('Method Not Allowed') }
     if (!adminPassword) { res.statusCode = 500; return res.end('ADMIN_PASSWORD missing — set it in .env.local') }
+    if (req.headers['x-admin-password'] !== adminPassword) { res.statusCode = 401; return res.end('unauthorized') }
     try {
       const url = new URL(req.url, 'http://localhost')
       const key = url.searchParams.get('key')
       const type = url.searchParams.get('type') || 'application/octet-stream'
       if (!key) { res.statusCode = 400; return res.end('missing ?key') }
+      if (!safeKey(key)) { res.statusCode = 400; return res.end('bad ?key') }
       const buf = await readBody(req)
       const fd = new FormData()
       fd.append('file', new Blob([buf], { type }), key.split('/').pop())

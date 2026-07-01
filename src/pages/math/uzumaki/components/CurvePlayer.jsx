@@ -49,6 +49,20 @@ const CurvePlayer = forwardRef(function CurvePlayer({ clip, paused = false, spee
     [],
   )
 
+  // Render-tool hook (inert unless the URL carries ?__render): expose seek+exportBlobAt
+  // globally so scripts/render-math.mjs can drive deterministic frame export. No effect
+  // on normal use. See docs/vid-pipline-exp/.
+  useEffect(() => {
+    if (typeof window === 'undefined' || !new URLSearchParams(window.location.search).has('__render')) return
+    window.__kolPlayer = {
+      seek: (frac) => { accumRef.current = Math.max(0, Math.min(1, frac)) * durRef.current },
+      setTime: (t) => { accumRef.current = t },
+      dur: () => durRef.current,
+      exportBlobAt: (w, h) => new Promise((resolve) => { exportReqRef.current = { w, h, resolve } }),
+    }
+    return () => { delete window.__kolPlayer }
+  }, [])
+
   useEffect(() => {
     const canvas = canvasRef.current
     const ctx = canvas.getContext('2d')

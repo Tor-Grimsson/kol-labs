@@ -1,0 +1,5 @@
+[
+  { "page": "scanlines", "seconds": 10, "fps": 30, "width": 1080, "height": 1080 },
+  { "page": "scanlines", "cat": "vortex", "seconds": 8, "fps": 30, "width": 1080, "height": 1920 },
+  { "page": "scanlines", "cat": "spaced", "preset": "waves", "seconds": 6, "fps": 60, "width": 1920, "height": 1080 }
+]

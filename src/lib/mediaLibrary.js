@@ -28,12 +28,31 @@ export async function listMedia(prefix = '', { signal } = {}) {
   return data.objects || []
 }
 
+// Admin gate for the upload proxy. The server verifies this header against its
+// ADMIN_PASSWORD and 401s on mismatch (the endpoint used to be open). Prompt once
+// per tab, cache in sessionStorage; a 401 clears it so a wrong/rotated password
+// re-prompts. The password still never reaches the bucket — only this header.
+const ADMIN_PW_KEY = 'kol_admin_pw'
+function adminPassword() {
+  let pw = sessionStorage.getItem(ADMIN_PW_KEY)
+  if (!pw) {
+    pw = window.prompt('Admin password (to upload to the library):') || ''
+    if (pw) sessionStorage.setItem(ADMIN_PW_KEY, pw)
+  }
+  return pw
+}
+
 // Save the export blob to the CDN library (kol-media bucket) via the server-side
 // proxy (dev Vite plugin / prod Vercel function — the ADMIN_PASSWORD never reaches
 // the client). `key` is the bucket path, e.g. "radar/dither-1718.png".
 export async function uploadToLibrary(blob, key) {
   const type = blob.type || 'application/octet-stream'
-  const r = await fetch(`/api/library/upload?key=${encodeURIComponent(key)}&type=${encodeURIComponent(type)}`, { method: 'POST', body: blob })
+  const r = await fetch(`/api/library/upload?key=${encodeURIComponent(key)}&type=${encodeURIComponent(type)}`, {
+    method: 'POST',
+    headers: { 'x-admin-password': adminPassword() },
+    body: blob,
+  })
+  if (r.status === 401) { sessionStorage.removeItem(ADMIN_PW_KEY); throw new Error('401 — wrong admin password, try again') }
   if (!r.ok) throw new Error(`${r.status} ${await r.text()}`)
   return r.json()
 }

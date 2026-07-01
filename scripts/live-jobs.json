@@ -1,0 +1,122 @@
+[
+  {
+    "route": "/drift",
+    "name": "drift",
+    "seconds": 8
+  },
+  {
+    "route": "/gradients",
+    "name": "gradients",
+    "seconds": 8
+  },
+  {
+    "route": "/softforms",
+    "name": "softforms",
+    "seconds": 8
+  },
+  {
+    "route": "/softforms-3d",
+    "name": "softforms-3d",
+    "seconds": 8
+  },
+  {
+    "route": "/3d-scene",
+    "name": "3d-scene",
+    "seconds": 8
+  },
+  {
+    "route": "/3d-scene/abstract/dither",
+    "name": "3d-scene-abstract-dither",
+    "seconds": 8
+  },
+  {
+    "route": "/math",
+    "name": "math",
+    "seconds": 8
+  },
+  {
+    "route": "/penrose",
+    "name": "penrose",
+    "seconds": 8
+  },
+  {
+    "route": "/pattern",
+    "name": "pattern",
+    "seconds": 8
+  },
+  {
+    "route": "/glass",
+    "name": "glass",
+    "seconds": 8
+  },
+  {
+    "route": "/optic/moire",
+    "name": "optic-moire",
+    "seconds": 8
+  },
+  {
+    "route": "/optic/gradient-field",
+    "name": "optic-gradient-field",
+    "seconds": 8
+  },
+  {
+    "route": "/optic/reaction",
+    "name": "optic-reaction",
+    "seconds": 8
+  },
+  {
+    "route": "/optic/halftone",
+    "name": "optic-halftone",
+    "seconds": 8
+  },
+  {
+    "route": "/optic/lens",
+    "name": "optic-lens",
+    "seconds": 8
+  },
+  {
+    "route": "/optic/scene",
+    "name": "optic-scene",
+    "seconds": 8
+  },
+  {
+    "route": "/radar",
+    "name": "radar",
+    "seconds": 8
+  },
+  {
+    "route": "/radar/trails",
+    "name": "radar-trails",
+    "seconds": 8
+  },
+  {
+    "route": "/radar/slitscan",
+    "name": "radar-slitscan",
+    "seconds": 8
+  },
+  {
+    "route": "/radar/scan",
+    "name": "radar-scan",
+    "seconds": 8
+  },
+  {
+    "route": "/radar/disco",
+    "name": "radar-disco",
+    "seconds": 8
+  },
+  {
+    "route": "/radar/distort",
+    "name": "radar-distort",
+    "seconds": 8
+  },
+  {
+    "route": "/radar/effects",
+    "name": "radar-effects",
+    "seconds": 8
+  },
+  {
+    "route": "/scanlines/filter",
+    "name": "scanlines-filter",
+    "seconds": 8
+  }
+]

@@ -50,6 +50,20 @@ const Viewport3D = forwardRef(function Viewport3D(
     setCamera(v) { Object.assign(camRef.current, v) },
   }), [])
 
+  // Render-tool hook (inert unless the URL carries ?__render): expose seek/setTime +
+  // exportBlobAt globally so scripts/render-math.mjs can drive deterministic frame
+  // export. No effect on normal use. See docs/vid-pipline-exp/.
+  useEffect(() => {
+    if (typeof window === 'undefined' || !new URLSearchParams(window.location.search).has('__render')) return
+    window.__kolPlayer = {
+      seek: (frac) => { accumRef.current = Math.max(0, Math.min(1, frac)) * (stateRef.current.dur || 1) },
+      setTime: (t) => { accumRef.current = t },
+      dur: () => stateRef.current.dur || 0,
+      exportBlobAt: (w, h) => new Promise((res) => { exportReqRef.current = { w, h, resolve: res } }),
+    }
+    return () => { delete window.__kolPlayer }
+  }, [])
+
   const dpr = () => Math.min(window.devicePixelRatio || 1, 2)
 
   useEffect(() => {

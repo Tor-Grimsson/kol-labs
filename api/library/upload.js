@@ -6,13 +6,27 @@ export const config = { api: { bodyParser: false } }
 
 const ADMIN_BASE = 'https://admin.kolkrabbi.io'
 
+// The bucket is shared with the live site, so the caller-supplied key must be
+// confined to a subfolder path: safe charset, no traversal, no empty segments,
+// no bucket-root writes (must contain a `/`, so it can't overwrite index.html).
+function safeKey(key) {
+  return typeof key === 'string'
+    && /^[A-Za-z0-9][A-Za-z0-9._/-]*$/.test(key)
+    && !key.includes('..')
+    && !key.includes('//')
+    && key.includes('/')
+    && !key.endsWith('/')
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end('Method Not Allowed')
   const pw = process.env.ADMIN_PASSWORD
   if (!pw) return res.status(500).end('ADMIN_PASSWORD not set')
+  if (req.headers['x-admin-password'] !== pw) return res.status(401).end('unauthorized')
   const key = req.query.key
   const type = req.query.type || 'application/octet-stream'
   if (!key) return res.status(400).end('missing ?key')
+  if (!safeKey(key)) return res.status(400).end('bad ?key')
 
   const chunks = []
   for await (const c of req) chunks.push(c)
